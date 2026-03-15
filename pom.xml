@@ -1,0 +1,16 @@
+<project>
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.gvn2012</groupId>
+    <artifactId>syncio_server</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>api_gateway</module>
+        <module>auth_service</module>
+        <module>discovery_service</module>
+        <module>user_service</module>
+        <module>notification_service</module>
+    </modules>
+</project>
