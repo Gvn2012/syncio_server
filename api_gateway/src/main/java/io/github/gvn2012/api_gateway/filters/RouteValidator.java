@@ -10,8 +10,12 @@ import java.util.function.Predicate;
 @Component
 public class RouteValidator {
     private static final List<String> OPEN_ROUTES = List.of(
-            "/eureka"
+            "/eureka",
+            "/eureka/",
+            "/eureka/web",
+            "/"
     );
+
 
     public Predicate<ServerWebExchange> isSecured =
             exchange -> OPEN_ROUTES.stream()
