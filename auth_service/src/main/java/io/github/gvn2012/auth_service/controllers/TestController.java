@@ -33,4 +33,9 @@ public class TestController {
 
         return ResponseEntity.ok("Token is valid");
     }
+
+    @GetMapping("test")
+    public ResponseEntity<String> test() {
+        return ResponseEntity.ok("Test");
+    }
 }

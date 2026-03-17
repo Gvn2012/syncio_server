@@ -40,6 +40,7 @@ services:
   notification-mongo:
     image: mongo:7.0
     container_name: notification-mongo
+    command: [ "mongod", "--quiet" ]
     ports:
       - "27017:27017"
     volumes:
@@ -47,10 +48,10 @@ services:
     networks:
       - syncio-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: [ "CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'" ]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
 
   zipkin:
     image: openzipkin/zipkin:3
@@ -196,6 +197,47 @@ services:
     networks:
       - syncio-network
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - syncio-network
+    depends_on:
+      discovery-service:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      api-gateway:
+        condition: service_started
+
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - syncio-network
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    depends_on:
+      prometheus:
+        condition: service_started
+
+
+
 networks:
   syncio-network:
     driver: bridge
@@ -204,3 +246,5 @@ volumes:
   auth_mysql_data:
   user_mysql_data:
   notification_mongo_data:
+  prometheus_data:
+  grafana_data:
