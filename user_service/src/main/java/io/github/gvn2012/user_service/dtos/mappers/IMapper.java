@@ -1,10 +1,13 @@
 package io.github.gvn2012.user_service.dtos.mappers;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public interface IMapper<E, D> {
 
     D toDto(E entity);
+
     E toEntity(D dto);
 
     default List<D> toDtoList(List<E> entities) {
@@ -19,5 +22,19 @@ public interface IMapper<E, D> {
         return dtos.stream()
                 .map(this::toEntity)
                 .toList();
+    }
+
+    default Set<D> toDtoSet(Set<E> entities) {
+        if (entities == null) return Set.of();
+        return entities.stream()
+                .map(this::toDto)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    default Set<E> toEntitySet(Set<D> dtos) {
+        if (dtos == null) return Set.of();
+        return dtos.stream()
+                .map(this::toEntity)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
     }
 }

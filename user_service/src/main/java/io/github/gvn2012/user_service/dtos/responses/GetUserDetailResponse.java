@@ -6,13 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Set;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class GetUserDetailResponse {
     private UserResponse userResponse;
-    private List<UserEmailResponse> userEmailResponse;
-    private List<UserPhoneResponse> userPhoneResponse;
+    private Set<UserEmailResponse> userEmailResponse;
+    private Set<UserPhoneResponse> userPhoneResponse;
     private UserProfileResponse userProfileResponse;
 }

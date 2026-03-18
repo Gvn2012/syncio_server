@@ -25,8 +25,8 @@ public class UserDetailMapper {
     public GetUserDetailResponse toDto(User user) {
         return new GetUserDetailResponse(
                 userMapper.toDto(user),
-                emailMapper.toDtoList(user.getEmails()),
-                phoneMapper.toDtoList(user.getPhones()),
+                emailMapper.toDtoSet(user.getEmails()),
+                phoneMapper.toDtoSet(user.getPhones()),
                 user.getProfile() != null
                         ? profileMapper.toDto(user.getProfile())
                         : null
