@@ -66,14 +66,14 @@ public class User extends AuditableEntity {
     private UserProfile profile;
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private Set<UserEmail> emails = new HashSet<>();
+    private Set<UserEmail> emails = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private Set<UserPhone> phones = new HashSet<>();
+    private Set<UserPhone> phones = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserPasswordReset> passwordResets = new ArrayList<>();
+    private Set<UserPasswordReset> passwordResets = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<OAuthAccount> oauthAccounts = new ArrayList<>();
+    private Set<OAuthAccount> oauthAccounts = new LinkedHashSet<>();
 }

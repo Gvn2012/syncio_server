@@ -9,9 +9,7 @@ import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Getter
 @Setter
@@ -71,5 +69,5 @@ public class UserProfile extends AuditableEntity {
     private Short profileCompletedScore = 0;
 
     @OneToMany(mappedBy = "userProfile", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserProfilePicture> pictures = new ArrayList<>();
+    private Set<UserProfilePicture> pictures = new LinkedHashSet<>();
 }

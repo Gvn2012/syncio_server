@@ -6,8 +6,10 @@ import io.github.gvn2012.user_service.entities.UserProfile;
 import io.github.gvn2012.user_service.utils.JsonHelper;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 public class UserProfileMapper implements IMapper<UserProfile, UserProfileResponse> {
@@ -34,20 +36,17 @@ public class UserProfileMapper implements IMapper<UserProfile, UserProfileRespon
                         new TypeReference<List<String>>() {},
                         List.of()
                 ),
-
                 jsonHelper.fromJson(
                         entity.getContactInfo(),
                         new TypeReference<Map<String, String>>() {},
                         Map.of()
                 ),
-
                 entity.getProfileCompletedScore(),
-
-                pictureMapper.toDtoList(
+                pictureMapper.toDtoSet(
                         entity.getPictures()
                                 .stream()
                                 .filter(p -> !Boolean.TRUE.equals(p.getDeleted()))
-                                .toList()
+                                .collect(Collectors.toCollection(LinkedHashSet::new))
                 )
         );
     }
@@ -55,11 +54,11 @@ public class UserProfileMapper implements IMapper<UserProfile, UserProfileRespon
     @Override
     public UserProfile toEntity(UserProfileResponse dto) {
         UserProfile entity = new UserProfile();
-
-        entity.setDateOfBirth(dto.getDateOfBirth());
         entity.setJobTitle(dto.getJobTitle());
         entity.setBio(dto.getBio());
         entity.setLocation(dto.getLocation());
+
+        entity.setDateOfBirth(dto.getDateOfBirth());
 
         entity.setSkills(
                 jsonHelper.toJson(dto.getSkills(), "[]")
@@ -72,7 +71,7 @@ public class UserProfileMapper implements IMapper<UserProfile, UserProfileRespon
         entity.setProfileCompletedScore(dto.getProfileCompletedScore());
 
         entity.setPictures(
-                pictureMapper.toEntityList(dto.getUserProfilePictureResponseList())
+                pictureMapper.toEntitySet(dto.getUserProfilePictureResponseList())
         );
 
         entity.getPictures().forEach(p -> p.setUserProfile(entity));

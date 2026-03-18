@@ -7,6 +7,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Data
 @AllArgsConstructor
@@ -19,5 +20,5 @@ public class UserProfileResponse {
     private List<String> skills;
     private Map<String, String> contactInfo;
     private Short profileCompletedScore;
-    private List<UserProfilePictureResponse> userProfilePictureResponseList;
+    private Set<UserProfilePictureResponse> userProfilePictureResponseList;
 }
