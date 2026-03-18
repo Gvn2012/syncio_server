@@ -1,5 +1,7 @@
 package io.github.gvn2012.api_gateway.filters;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -12,6 +14,7 @@ import reactor.core.publisher.Mono;
 
 @Component
 public class AuthenticationFilter implements GlobalFilter {
+    private static final Logger log = LoggerFactory.getLogger(AuthenticationFilter.class);
     private final RouteValidator routeValidator;
     private final WebClient.Builder webClientBuilder;
 
@@ -42,8 +45,10 @@ public class AuthenticationFilter implements GlobalFilter {
                 .toBodilessEntity()
                 .flatMap(response -> chain.filter(exchange))
                 .onErrorResume(error -> {
+                    log.error("Auth validation call failed: {}", error.getMessage());
                     exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                     return exchange.getResponse().setComplete();
                 });
+
     }
 }

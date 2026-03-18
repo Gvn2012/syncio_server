@@ -14,10 +14,12 @@ import io.github.gvn2012.auth_service.services.interfaces.AuthServiceInterface;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+@Slf4j
 @Service
 public class AuthService implements AuthServiceInterface {
 
@@ -79,6 +81,7 @@ public class AuthService implements AuthServiceInterface {
         }
 
         String raw = token.trim();
+        log.info("Raw: {}", raw);
         if (raw.regionMatches(true, 0, "Bearer ", 0, "Bearer ".length())) {
             raw = raw.substring("Bearer ".length()).trim();
         }
@@ -102,6 +105,9 @@ public class AuthService implements AuthServiceInterface {
             if (expiration == null || expiration.before(new Date())) {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token expired");
             }
+
+            log.info("Token subject={}, exp={}, now={}", claims.getSubject(), claims.getExpiration(), new Date());
+
 
             return true;
         } catch (ExpiredJwtException e) {

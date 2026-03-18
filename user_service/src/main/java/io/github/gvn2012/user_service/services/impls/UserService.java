@@ -2,14 +2,16 @@ package io.github.gvn2012.user_service.services.impls;
 
 import io.github.gvn2012.user_service.clients.AuthClient;
 import io.github.gvn2012.user_service.dtos.APIResource;
+import io.github.gvn2012.user_service.dtos.mappers.UserDetailMapper;
 import io.github.gvn2012.user_service.dtos.requests.GenerateLoginTokenRequest;
 import io.github.gvn2012.user_service.dtos.responses.GenerateLoginTokenResponse;
 import io.github.gvn2012.user_service.dtos.requests.LoginRequest;
+import io.github.gvn2012.user_service.dtos.responses.GetUserDetailResponse;
 import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
 import io.github.gvn2012.user_service.entities.User;
 import io.github.gvn2012.user_service.exception.BadRequestException;
 import io.github.gvn2012.user_service.repositories.UserRepository;
-import io.github.gvn2012.user_service.services.interfaces.UserServiceInterface;
+import io.github.gvn2012.user_service.services.interfaces.IUserService;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,20 +20,31 @@ import org.springframework.stereotype.Service;
 
 
 import java.time.Duration;
+import java.util.UUID;
 
 @Slf4j
 @Service
-public class UserService implements UserServiceInterface {
+public class UserService implements IUserService {
 
     private final PasswordEncoder passwordEncoder;
+
     private final UserRepository userRepository;
+
     private final AuthClient authClient;
 
+    private final UserDetailMapper userDetailMapper;
+
     @Autowired
-    public UserService(PasswordEncoder passwordEncoder, UserRepository userRepository, AuthClient authClient) {
+    public UserService(
+            PasswordEncoder passwordEncoder,
+            UserRepository userRepository,
+            AuthClient authClient,
+            UserDetailMapper userDetailMapper
+    ) {
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.authClient = authClient;
+        this.userDetailMapper = userDetailMapper;
     }
     public APIResource<LoginResponse> login(LoginRequest loginRequest) {
 
@@ -42,7 +55,7 @@ public class UserService implements UserServiceInterface {
 
         validatePassword(loginRequest, user);
 
-        if (isUserActive(user)) {
+        if (!isUserActive(user)) {
             throw new BadRequestException("Account is not active");
         }
 
@@ -114,6 +127,25 @@ public class UserService implements UserServiceInterface {
 
     public Boolean isUserBanned(@NonNull User user) {
         return user.getBanned();
+    }
+
+    public APIResource<GetUserDetailResponse> getUserDetail(String userId) {
+
+        User user = userRepository.findDetailById(UUID.fromString(userId))
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        if (isUserSoftDeleted(user)) {
+            throw new BadRequestException("Account is soft deleted");
+        }
+
+        if (isUserHardDeleted(user)) {
+            throw new BadRequestException("Account is hard deleted");
+        }
+
+        return APIResource.ok(
+                "Get user detail successfully",
+                userDetailMapper.toDto(user)
+        );
     }
 
 }

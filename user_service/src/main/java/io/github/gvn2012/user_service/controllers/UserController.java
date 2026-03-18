@@ -3,6 +3,7 @@ package io.github.gvn2012.user_service.controllers;
 import com.netflix.discovery.converters.Auto;
 import io.github.gvn2012.user_service.dtos.APIResource;
 import io.github.gvn2012.user_service.dtos.requests.LoginRequest;
+import io.github.gvn2012.user_service.dtos.responses.GetUserDetailResponse;
 import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
 import io.github.gvn2012.user_service.services.impls.UserService;
 import lombok.RequiredArgsConstructor;
@@ -28,5 +29,17 @@ public class UserController {
                 .status(response.getStatus())
                 .body(response);
     }
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<APIResource<GetUserDetailResponse>> getUserDetails(
+            @PathVariable String userId
+    )
+    {
+        APIResource<GetUserDetailResponse> response = userService.getUserDetail(userId);
+        return ResponseEntity
+                .status(response.getStatus())
+                .body(response);
+    }
+
 
 }

@@ -65,6 +65,10 @@ services:
     build:
       context: .
       dockerfile: discovery_service/Dockerfile
+    develop:
+      watch:
+        - path: discovery_service
+          action: rebuild
     container_name: discovery-service
     ports:
       - "8761:8761"
@@ -87,6 +91,10 @@ services:
     build:
       context: .
       dockerfile: auth_service/Dockerfile
+    develop:
+      watch:
+        - path: auth_service
+          action: rebuild
     container_name: auth-service
     ports:
       - "8081:8081"
@@ -116,6 +124,10 @@ services:
     build:
       context: .
       dockerfile: user_service/Dockerfile
+    develop:
+      watch:
+        - path: user_service
+          action: rebuild
     container_name: user-service
     ports:
       - "8082:8082"
@@ -147,6 +159,10 @@ services:
     build:
       context: .
       dockerfile: notification_service/Dockerfile
+    develop:
+      watch:
+        - path: notification_service
+          action: rebuild
     container_name: notification-service
     ports:
       - "8083:8083"
@@ -172,6 +188,10 @@ services:
     build:
       context: .
       dockerfile: api_gateway/Dockerfile
+    develop:
+      watch:
+        - path: api_gateway
+          action: rebuild
     container_name: api-gateway
     ports:
       - "8080:8080"
