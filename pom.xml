@@ -26,6 +26,8 @@
         <module>discovery_service</module>
         <module>user_service</module>
         <module>notification_service</module>
+        <module>friend_service</module>
+        <module>post_service</module>
     </modules>
 
     <dependencyManagement>

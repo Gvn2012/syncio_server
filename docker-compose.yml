@@ -37,6 +37,43 @@ services:
       timeout: 5s
       retries: 10
 
+  friend-mysql:
+    image: mysql:8.4
+    container_name: friend-mysql
+    environment:
+      MYSQL_DATABASE: friend_db
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    ports:
+      - "3309:3306"
+    volumes:
+      - friend_mysql_data:/var/lib/mysql
+    networks:
+      - syncio-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  post-mysql:
+    image: mysql:8.4
+    container_name: post-mysql
+    environment:
+      MYSQL_DATABASE: post_db
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    ports:
+      - "3310:3306"
+    volumes:
+      - post_mysql_data:/var/lib/mysql
+    networks:
+      - syncio-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+
   notification-mongo:
     image: mongo:7.0
     container_name: notification-mongo
@@ -155,6 +192,76 @@ services:
     networks:
       - syncio-network
 
+  friend-service:
+    build:
+      context: .
+      dockerfile: friend_service/Dockerfile
+    develop:
+      watch:
+        - path: friend_service
+          action: rebuild
+    container_name: friend-service
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_APPLICATION_NAME: friend-service
+      SERVER_PORT: 8084
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      SPRING_DATASOURCE_URL: jdbc:mysql://friend-mysql:3306/friend_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ""
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      friend-mysql:
+        condition: service_healthy
+      discovery-service:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      zipkin:
+        condition: service_started
+    networks:
+      - syncio-network
+
+  post-service:
+    build:
+      context: .
+      dockerfile: post_service/Dockerfile
+    develop:
+      watch:
+        - path: post_service
+          action: rebuild
+    container_name: post-service
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_APPLICATION_NAME: post-service
+      SERVER_PORT: 8085
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      SPRING_DATASOURCE_URL: jdbc:mysql://post-mysql:3306/post_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ""
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      post-mysql:
+        condition: service_healthy
+      discovery-service:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      zipkin:
+        condition: service_started
+    networks:
+      - syncio-network
+
   notification-service:
     build:
       context: .
@@ -209,6 +316,10 @@ services:
       auth-service:
         condition: service_started
       user-service:
+        condition: service_started
+      friend-service:
+        condition: service_started
+      post-service:
         condition: service_started
       notification-service:
         condition: service_started
@@ -265,6 +376,8 @@ networks:
 volumes:
   auth_mysql_data:
   user_mysql_data:
+  friend_mysql_data:
+  post_mysql_data:
   notification_mongo_data:
   prometheus_data:
   grafana_data:
