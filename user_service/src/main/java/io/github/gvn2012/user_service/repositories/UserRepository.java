@@ -21,4 +21,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     })
     @Transactional(readOnly = true)
     Optional<User> findDetailById(UUID userId);
+
+    @Transactional()
+    Boolean existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse (String username);
 }

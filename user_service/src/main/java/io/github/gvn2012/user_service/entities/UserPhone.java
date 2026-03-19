@@ -45,9 +45,6 @@ public class UserPhone extends AuditableEntity {
     @Column(name = "is_primary", nullable = false)
     private Boolean primary = false;
 
-    @Column(name = "added_at", nullable = false)
-    private LocalDateTime addedAt;
-
     @Column(name = "verified_at")
     private LocalDateTime verifiedAt;
 

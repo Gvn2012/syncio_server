@@ -1,6 +1,7 @@
 package io.github.gvn2012.user_service.exception;
 
 import io.github.gvn2012.user_service.dtos.APIResource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -20,22 +21,44 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(BadRequestException.class)
-    public APIResource<?> handleBadRequest(BadRequestException e) {
-        return APIResource.error(
-                "BAD_REQUEST",
-                e.getMessage(),
-                HttpStatus.BAD_REQUEST,
-                e.getMessage()
-        );
+    public ResponseEntity<APIResource<?>> handleBadRequest(BadRequestException e) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(
+                        APIResource.error(
+                                "BAD_REQUEST",
+                                e.getMessage(),
+                                HttpStatus.BAD_REQUEST,
+                                e.getMessage()
+                        )
+                );
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<APIResource<?>> handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        return ResponseEntity
+                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(
+                        APIResource.error(
+                                "DATA_INTEGRITY_VIOLATION",
+                                e.getMessage(),
+                                HttpStatus.UNPROCESSABLE_ENTITY,
+                                e.getMessage()
+                        )
+                );
     }
 
     @ExceptionHandler(Exception.class)
-    public APIResource<?> handleException(Exception e) {
-        return APIResource.error(
-                "INTERNAL_ERROR",
-                "Something went wrong",
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                e.getMessage()
-        );
+    public ResponseEntity<APIResource<?>> handleException(Exception e) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(
+                        APIResource.error(
+                                "INTERNAL_ERROR",
+                                "Something went wrong",
+                                HttpStatus.INTERNAL_SERVER_ERROR,
+                                e.getMessage()
+                        )
+                );
     }
 }

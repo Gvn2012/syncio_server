@@ -13,7 +13,6 @@ public class UserEmailResponse {
     private String email;
     private Boolean verified;
     private Boolean primary;
-    private LocalDateTime addedAt;
     private LocalDateTime verifiedAt;
     private EmailStatus status;
 }

@@ -19,7 +19,10 @@ import java.util.*;
                 @Index(name = "ix_users_soft_deleted", columnList = "is_soft_deleted")
         },
         uniqueConstraints = {
-                @UniqueConstraint(name = "ux_users_username", columnNames = "username")
+                @UniqueConstraint(
+                        name = "uk_users_username_soft_hard",
+                        columnNames = {"username", "is_soft_deleted"}
+                )
         }
 )
 public class User extends AuditableEntity {
@@ -29,7 +32,7 @@ public class User extends AuditableEntity {
     @Column(name = "id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
     private UUID id;
 
-    @Column(name = "username", nullable = false, unique = true, length = 64)
+    @Column(name = "username", nullable = false, length = 64)
     @NotBlank
     @Size(min = 3, max = 64)
     private String username;

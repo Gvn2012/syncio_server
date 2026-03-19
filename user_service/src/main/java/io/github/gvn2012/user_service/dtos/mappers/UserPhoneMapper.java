@@ -15,7 +15,6 @@ public class UserPhoneMapper implements IMapper<UserPhone, UserPhoneResponse> {
         entity.setVerified(dto.getVerified());
         entity.setPrimary(dto.getPrimary());
         entity.setVerifiedAt(dto.getVerifiedAt());
-        entity.setAddedAt(dto.getAddedAt());
         entity.setMetadata(dto.getMetadata());
         return entity;
     }
@@ -27,7 +26,6 @@ public class UserPhoneMapper implements IMapper<UserPhone, UserPhoneResponse> {
                 entity.getPhoneNumber(),
                 entity.getVerified(),
                 entity.getPrimary(),
-                entity.getAddedAt(),
                 entity.getVerifiedAt(),
                 entity.getMetadata()
         );

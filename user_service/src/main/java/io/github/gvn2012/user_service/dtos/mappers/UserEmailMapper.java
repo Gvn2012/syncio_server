@@ -14,7 +14,6 @@ public class UserEmailMapper implements IMapper<UserEmail, UserEmailResponse> {
                 userEmail.getEmail(),
                 userEmail.getVerified(),
                 userEmail.getPrimary(),
-                userEmail.getAddedAt(),
                 userEmail.getVerifiedAt(),
                 userEmail.getStatus()
         );
@@ -26,7 +25,6 @@ public class UserEmailMapper implements IMapper<UserEmail, UserEmailResponse> {
         userEmail.setEmail(dto.getEmail());
         userEmail.setVerified(dto.getVerified());
         userEmail.setPrimary(dto.getPrimary());
-        userEmail.setAddedAt(dto.getAddedAt());
         userEmail.setVerifiedAt(dto.getVerifiedAt());
         userEmail.setStatus(dto.getStatus());
         return userEmail;

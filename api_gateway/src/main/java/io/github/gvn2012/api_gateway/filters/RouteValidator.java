@@ -13,7 +13,8 @@ public class RouteValidator {
             "/eureka",
             "/eureka/",
             "/eureka/web",
-            "/api/v1/users/login"
+            "/api/v1/users/login",
+            "/api/v1/users/register"
     );
 
 

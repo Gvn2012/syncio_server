@@ -13,7 +13,6 @@ public class UserPhoneResponse {
     private String phoneNumber;
     private Boolean verified;
     private Boolean primary;
-    private LocalDateTime addedAt;
     private LocalDateTime verifiedAt;
     private String metadata;
 }
