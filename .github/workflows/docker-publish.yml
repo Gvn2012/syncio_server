@@ -1,0 +1,75 @@
+name: Build & Push Docker Images
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build & Push discovery-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: discovery_service/Dockerfile
+          push: true
+          tags: vietpham18/discovery-service:latest
+
+      - name: Build & Push auth-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: auth_service/Dockerfile
+          push: true
+          tags: vietpham18/auth-service:latest
+
+      - name: Build & Push user-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: user_service/Dockerfile
+          push: true
+          tags: vietpham18/user-service:latest
+
+      - name: Build & Push friend-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: friend_service/Dockerfile
+          push: true
+          tags: vietpham18/friend-service:latest
+
+      - name: Build & Push post-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: post_service/Dockerfile
+          push: true
+          tags: vietpham18/post-service:latest
+
+      - name: Build & Push notification-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: notification_service/Dockerfile
+          push: true
+          tags: vietpham18/notification-service:latest
+
+      - name: Build & Push api-gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: api_gateway/Dockerfile
+          push: true
+          tags: vietpham18/api-gateway:latest

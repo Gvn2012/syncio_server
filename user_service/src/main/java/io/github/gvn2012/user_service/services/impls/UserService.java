@@ -4,9 +4,9 @@ import io.github.gvn2012.user_service.clients.AuthClient;
 import io.github.gvn2012.user_service.dtos.APIResource;
 import io.github.gvn2012.user_service.dtos.mappers.UserDetailMapper;
 import io.github.gvn2012.user_service.dtos.requests.GenerateLoginTokenRequest;
+import io.github.gvn2012.user_service.dtos.requests.LoginRequest;
 import io.github.gvn2012.user_service.dtos.requests.UserRegisterRequest;
 import io.github.gvn2012.user_service.dtos.responses.GenerateLoginTokenResponse;
-import io.github.gvn2012.user_service.dtos.requests.LoginRequest;
 import io.github.gvn2012.user_service.dtos.responses.GetUserDetailResponse;
 import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
 import io.github.gvn2012.user_service.dtos.responses.UserRegisterResponse;
@@ -17,15 +17,13 @@ import io.github.gvn2012.user_service.exception.DataIntegrityViolationException;
 import io.github.gvn2012.user_service.repositories.*;
 import io.github.gvn2012.user_service.services.interfaces.IUserService;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -33,6 +31,7 @@ import java.util.UUID;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class UserService implements IUserService {
 
     private final PasswordEncoder passwordEncoder;
@@ -45,34 +44,12 @@ public class UserService implements IUserService {
 
     private final AuthClient authClient;
 
+    private final UserEmailService userEmailService;
+
     private final UserDetailMapper userDetailMapper;
-
-    @Autowired
-    public UserService(
-            PasswordEncoder passwordEncoder,
-            UserRepository userRepository,
-            UserEmailRepository userEmailRepository,
-            UserPhoneRepository userPhoneRepository,
-            UserProfilePictureRepository userProfilePictureRepository,
-            UserProfileRepository userProfileRepository,
-            AuthClient authClient,
-            UserDetailMapper userDetailMapper
-
-    ) {
-        this.passwordEncoder = passwordEncoder;
-        this.userRepository = userRepository;
-        this.userEmailRepository = userEmailRepository;
-        this.userPhoneRepository = userPhoneRepository;
-        this.userProfilePictureRepository = userProfilePictureRepository;
-        this.userProfileRepository = userProfileRepository;
-        this.authClient = authClient;
-        this.userDetailMapper = userDetailMapper;
-    }
 
     @Override
     public APIResource<LoginResponse> login(LoginRequest loginRequest) {
-
-        validateRequest(loginRequest);
 
         User user = userRepository.getByUsername(loginRequest.getUsername())
                 .orElseThrow(() -> new BadRequestException("Invalid username or password"));
@@ -122,11 +99,6 @@ public class UserService implements IUserService {
         return APIResource.ok("Login successfully", loginResponse);
     }
 
-    public void validateRequest(LoginRequest loginRequest) {
-        if (loginRequest == null) {
-            throw new BadRequestException("Missing username or password");
-        }
-    }
 
     public void validatePassword(@NonNull LoginRequest loginRequest,@NonNull User user) {
         if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPasswordHash())) {
@@ -186,7 +158,8 @@ public class UserService implements IUserService {
             throw new BadRequestException("The username already exists");
         }
 
-        if (userEmailRepository.existsByEmailAndStatusNot(request.getEmail(), EmailStatus.REMOVED)) {
+        Boolean isEmailAvailable = userEmailService.isEmailAvailable(request.getEmail());
+        if (!isEmailAvailable) {
             throw new BadRequestException("Email already exists");
         }
 
@@ -256,5 +229,8 @@ public class UserService implements IUserService {
     }
 
 
+    public User findUserById(UUID userId) {
+        return userRepository.findById(userId).orElseThrow(() ->  new BadRequestException("User doesn't exist"));
+    }
 
 }

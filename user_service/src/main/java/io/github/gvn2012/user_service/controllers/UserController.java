@@ -1,6 +1,5 @@
 package io.github.gvn2012.user_service.controllers;
 
-import com.netflix.discovery.converters.Auto;
 import io.github.gvn2012.user_service.dtos.APIResource;
 import io.github.gvn2012.user_service.dtos.requests.LoginRequest;
 import io.github.gvn2012.user_service.dtos.requests.UserRegisterRequest;
@@ -8,10 +7,9 @@ import io.github.gvn2012.user_service.dtos.responses.GetUserDetailResponse;
 import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
 import io.github.gvn2012.user_service.dtos.responses.UserRegisterResponse;
 import io.github.gvn2012.user_service.services.impls.UserService;
+import jakarta.validation.Valid;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.apache.coyote.Response;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -21,12 +19,11 @@ import org.springframework.web.reactive.function.client.WebClient;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final WebClient.Builder webClientBuilder;
     private final UserService userService;
 
     @PostMapping("/login")
     public ResponseEntity<APIResource<LoginResponse>> login(
-            @RequestBody LoginRequest request
+            @Valid @RequestBody LoginRequest request
     ) {
         APIResource<LoginResponse> response = userService.login(request);
         return ResponseEntity
@@ -36,7 +33,7 @@ public class UserController {
 
     @PostMapping("/register")
     public ResponseEntity<APIResource<UserRegisterResponse>> register(
-            @RequestBody UserRegisterRequest request
+            @Valid @RequestBody UserRegisterRequest request
             )
     {
         APIResource<UserRegisterResponse> response = userService.register(request);
@@ -47,7 +44,7 @@ public class UserController {
 
     @GetMapping("/{userId}")
     public ResponseEntity<APIResource<GetUserDetailResponse>> getUserDetails(
-            @PathVariable String userId
+            @Valid @PathVariable String userId
     )
     {
         APIResource<GetUserDetailResponse> response = userService.getUserDetail(userId);

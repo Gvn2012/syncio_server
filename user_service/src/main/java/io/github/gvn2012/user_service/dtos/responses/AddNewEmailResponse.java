@@ -6,9 +6,6 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class UserResponse {
+public class AddNewEmailResponse {
     private String id;
-    private String username;
-    private String locale;
-    private String timezone;
 }

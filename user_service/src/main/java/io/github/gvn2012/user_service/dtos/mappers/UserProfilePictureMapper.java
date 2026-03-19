@@ -1,7 +1,6 @@
 package io.github.gvn2012.user_service.dtos.mappers;
 
 import io.github.gvn2012.user_service.dtos.responses.UserProfilePictureResponse;
-import io.github.gvn2012.user_service.dtos.responses.UserProfileResponse;
 import io.github.gvn2012.user_service.entities.UserProfilePicture;
 import org.springframework.stereotype.Component;
 

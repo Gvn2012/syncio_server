@@ -1,7 +1,6 @@
 package io.github.gvn2012.user_service.repositories;
 
 import io.github.gvn2012.user_service.entities.User;
-import lombok.NonNull;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.transaction.annotation.Transactional;
