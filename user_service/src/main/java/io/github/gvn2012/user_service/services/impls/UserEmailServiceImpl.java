@@ -2,11 +2,14 @@ package io.github.gvn2012.user_service.services.impls;
 
 import io.github.gvn2012.user_service.dtos.APIResource;
 import io.github.gvn2012.user_service.dtos.requests.AddNewEmailRequest;
+import io.github.gvn2012.user_service.dtos.requests.UpdateEmailRequest;
 import io.github.gvn2012.user_service.dtos.responses.AddNewEmailResponse;
+import io.github.gvn2012.user_service.dtos.responses.UpdateEmailResponse;
 import io.github.gvn2012.user_service.entities.User;
 import io.github.gvn2012.user_service.entities.UserEmail;
 import io.github.gvn2012.user_service.entities.enums.EmailStatus;
 import io.github.gvn2012.user_service.exception.BadRequestException;
+import io.github.gvn2012.user_service.exception.NotFoundException;
 import io.github.gvn2012.user_service.repositories.UserEmailRepository;
 import io.github.gvn2012.user_service.repositories.UserRepository;
 import io.github.gvn2012.user_service.services.interfaces.IUserEmailService;
@@ -33,7 +36,7 @@ public class UserEmailService implements IUserEmailService {
             throw new BadRequestException("Email already existed");
         }
         User user = userRepository.findById(userId).orElseThrow(
-                () -> new BadRequestException("User doesn't exist")
+                () -> new NotFoundException("User not found")
         );
 
         UserEmail userEmail = new UserEmail();
@@ -55,5 +58,17 @@ public class UserEmailService implements IUserEmailService {
 
     public Boolean isEmailAvailable(String email) {
         return !userEmailRepository.existsByEmailAndStatusNot(email, EmailStatus.REMOVED);
+    }
+
+    public APIResource<UpdateEmailResponse> updateEmail(UUID userId, UUID emailId, UpdateEmailRequest request) {
+
+
+        UpdateEmailResponse response = new UpdateEmailResponse();
+            return APIResource.ok(
+                "Update email successfully",
+                    response,
+                    HttpStatus.OK
+
+        );
     }
 }

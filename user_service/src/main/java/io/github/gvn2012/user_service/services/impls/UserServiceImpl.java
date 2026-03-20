@@ -14,6 +14,7 @@ import io.github.gvn2012.user_service.entities.*;
 import io.github.gvn2012.user_service.entities.enums.EmailStatus;
 import io.github.gvn2012.user_service.exception.BadRequestException;
 import io.github.gvn2012.user_service.exception.DataIntegrityViolationException;
+import io.github.gvn2012.user_service.exception.NotFoundException;
 import io.github.gvn2012.user_service.repositories.*;
 import io.github.gvn2012.user_service.services.interfaces.IUserService;
 import lombok.NonNull;
@@ -129,7 +130,7 @@ public class UserService implements IUserService {
     public APIResource<GetUserDetailResponse> getUserDetail(String userId) {
 
         User user = userRepository.findDetailById(UUID.fromString(userId))
-                .orElseThrow(() -> new BadRequestException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
 
         if (isUserSoftDeleted(user)) {
             throw new BadRequestException("Account is soft deleted");
@@ -228,9 +229,5 @@ public class UserService implements IUserService {
         }
     }
 
-
-    public User findUserById(UUID userId) {
-        return userRepository.findById(userId).orElseThrow(() ->  new BadRequestException("User doesn't exist"));
-    }
 
 }
