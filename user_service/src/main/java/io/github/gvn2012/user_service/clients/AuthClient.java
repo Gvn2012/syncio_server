@@ -3,7 +3,7 @@ package io.github.gvn2012.user_service.clients;
 import io.github.gvn2012.user_service.dtos.APIResource;
 import io.github.gvn2012.user_service.dtos.requests.GenerateLoginTokenRequest;
 import io.github.gvn2012.user_service.dtos.responses.GenerateLoginTokenResponse;
-import io.github.gvn2012.user_service.exception.InternalServerErrorException;
+import io.github.gvn2012.user_service.exceptions.InternalServerErrorException;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;

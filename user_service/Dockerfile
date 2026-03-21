@@ -2,11 +2,10 @@ FROM eclipse-temurin:21-jdk AS build
 
 WORKDIR /build
 
-COPY pom.xml .
-COPY user_service ./user_service
+COPY . .
 
-RUN chmod +x ./user_service/mvnw && \
-    ./user_service/mvnw -f ./user_service/pom.xml clean package -Dmaven.test.skip=true
+RUN chmod +x mvnw && \
+    ./mvnw clean package -pl user_service -am -DskipTests
 
 FROM eclipse-temurin:21-jre
 

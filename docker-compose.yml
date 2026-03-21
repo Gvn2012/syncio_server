@@ -1,94 +1,126 @@
 version: "3.9"
 
 services:
-  auth-mysql:
-    image: mysql:8.4
-    container_name: auth-mysql
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
     environment:
-      MYSQL_DATABASE: auth_db
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
-    ports:
-      - "3307:3306"
-    volumes:
-      - auth_mysql_data:/var/lib/mysql
+      ZOOKEEPER_CLIENT_PORT: 2181
     networks:
       - syncio-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
-  user-mysql:
-    image: mysql:8.4
-    container_name: user-mysql
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
     environment:
-      MYSQL_DATABASE: user_db
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
-    ports:
-      - "3308:3306"
-    volumes:
-      - user_mysql_data:/var/lib/mysql
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     networks:
       - syncio-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
-  friend-mysql:
-    image: mysql:8.4
-    container_name: friend-mysql
-    environment:
-      MYSQL_DATABASE: friend_db
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
-    ports:
-      - "3309:3306"
-    volumes:
-      - friend_mysql_data:/var/lib/mysql
-    networks:
-      - syncio-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+  # auth-mysql:
+  #   image: mysql:8.4
+  #   container_name: auth-mysql
+  #   environment:
+  #     MYSQL_DATABASE: auth_db
+  #     MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+  #   ports:
+  #     - "3307:3306"
+  #   volumes:
+  #     - auth_mysql_data:/var/lib/mysql
+  #   networks:
+  #     - syncio-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
 
-  post-mysql:
-    image: mysql:8.4
-    container_name: post-mysql
-    environment:
-      MYSQL_DATABASE: post_db
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
-    ports:
-      - "3310:3306"
-    volumes:
-      - post_mysql_data:/var/lib/mysql
-    networks:
-      - syncio-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+  # user-mysql:
+  #   image: mysql:8.4
+  #   container_name: user-mysql
+  #   environment:
+  #     MYSQL_DATABASE: user_db
+  #     MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+  #   ports:
+  #     - "3308:3306"
+  #   volumes:
+  #     - user_mysql_data:/var/lib/mysql
+  #   networks:
+  #     - syncio-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
+
+  # friend-mysql:
+  #   image: mysql:8.4
+  #   container_name: friend-mysql
+  #   environment:
+  #     MYSQL_DATABASE: friend_db
+  #     MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+  #   ports:
+  #     - "3309:3306"
+  #   volumes:
+  #     - friend_mysql_data:/var/lib/mysql
+  #   networks:
+  #     - syncio-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
+
+  # post-mysql:
+  #   image: mysql:8.4
+  #   container_name: post-mysql
+  #   environment:
+  #     MYSQL_DATABASE: post_db
+  #     MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+  #   ports:
+  #     - "3310:3306"
+  #   volumes:
+  #     - post_mysql_data:/var/lib/mysql
+  #   networks:
+  #     - syncio-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
 
 
-  notification-mongo:
-    image: mongo:7.0
-    container_name: notification-mongo
-    command: [ "mongod", "--quiet" ]
-    ports:
-      - "27017:27017"
-    volumes:
-      - notification_mongo_data:/data/db
-    networks:
-      - syncio-network
-    healthcheck:
-      test: [ "CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # notification-mongo:
+  #   image: mongo:7.0
+  #   container_name: notification-mongo
+  #   command: [ "mongod", "--quiet" ]
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - notification_mongo_data:/data/db
+  #   networks:
+  #     - syncio-network
+  #   healthcheck:
+  #     test: [ "CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'" ]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   zipkin:
     image: openzipkin/zipkin:3
@@ -103,10 +135,6 @@ services:
     build:
       context: .
       dockerfile: discovery_service/Dockerfile
-    develop:
-      watch:
-        - path: discovery_service
-          action: rebuild
     container_name: discovery-service
     ports:
       - "8761:8761"
@@ -130,10 +158,6 @@ services:
     build:
       context: .
       dockerfile: auth_service/Dockerfile
-    develop:
-      watch:
-        - path: auth_service
-          action: rebuild
     container_name: auth-service
     ports:
       - "8081:8081"
@@ -142,16 +166,14 @@ services:
       SERVER_PORT: 8081
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
-      SPRING_DATASOURCE_URL: jdbc:mysql://auth-mysql:3306/auth_db
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: ""
+      SPRING_DATASOURCE_URL: jdbc:mysql://34.21.187.164:3306/syncio
+      SPRING_DATASOURCE_USERNAME: gvn
+      SPRING_DATASOURCE_PASSWORD: Gvn2012@Phmz
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
-      auth-mysql:
-        condition: service_healthy
       discovery-service:
         condition: service_started
       zipkin:
@@ -164,10 +186,6 @@ services:
     build:
       context: .
       dockerfile: user_service/Dockerfile
-    develop:
-      watch:
-        - path: user_service
-          action: rebuild
     container_name: user-service
     ports:
       - "8082:8082"
@@ -176,16 +194,14 @@ services:
       SERVER_PORT: 8082
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
-      SPRING_DATASOURCE_URL: jdbc:mysql://user-mysql:3306/user_db
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: ""
+      SPRING_DATASOURCE_URL: jdbc:mysql://34.21.187.164:3306/syncio
+      SPRING_DATASOURCE_USERNAME: gvn
+      SPRING_DATASOURCE_PASSWORD: Gvn2012@Phmz
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
-      user-mysql:
-        condition: service_healthy
       discovery-service:
         condition: service_started
       auth-service:
@@ -200,10 +216,6 @@ services:
     build:
       context: .
       dockerfile: friend_service/Dockerfile
-    develop:
-      watch:
-        - path: friend_service
-          action: rebuild
     container_name: friend-service
     ports:
       - "8084:8084"
@@ -212,16 +224,14 @@ services:
       SERVER_PORT: 8084
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
-      SPRING_DATASOURCE_URL: jdbc:mysql://friend-mysql:3306/friend_db
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: ""
+      SPRING_DATASOURCE_URL: jdbc:mysql://34.21.187.164:3306/syncio
+      SPRING_DATASOURCE_USERNAME: gvn
+      SPRING_DATASOURCE_PASSWORD: Gvn2012@Phmz
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
-      friend-mysql:
-        condition: service_healthy
       discovery-service:
         condition: service_started
       auth-service:
@@ -236,10 +246,6 @@ services:
     build:
       context: .
       dockerfile: post_service/Dockerfile
-    develop:
-      watch:
-        - path: post_service
-          action: rebuild
     container_name: post-service
     ports:
       - "8085:8085"
@@ -248,16 +254,14 @@ services:
       SERVER_PORT: 8085
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
-      SPRING_DATASOURCE_URL: jdbc:mysql://post-mysql:3306/post_db
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: ""
+      SPRING_DATASOURCE_URL: jdbc:mysql://34.21.187.164:3306/syncio
+      SPRING_DATASOURCE_USERNAME: gvn
+      SPRING_DATASOURCE_PASSWORD: Gvn2012@Phmz
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
-      post-mysql:
-        condition: service_healthy
       discovery-service:
         condition: service_started
       auth-service:
@@ -272,10 +276,6 @@ services:
     build:
       context: .
       dockerfile: notification_service/Dockerfile
-    develop:
-      watch:
-        - path: notification_service
-          action: rebuild
     container_name: notification-service
     ports:
       - "8083:8083"
@@ -284,12 +284,10 @@ services:
       SERVER_PORT: 8083
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
-      SPRING_DATA_MONGODB_URI: mongodb://notification-mongo:27017/notification_db
+      SPRING_DATA_MONGODB_URI: mongodb+srv://vietpt124010122002_db_user:TdgCjxj0PMJDG1Iy@synciocluster.mlgvysv.mongodb.net/?appName=SyncIOCluster
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
-      notification-mongo:
-        condition: service_healthy
       discovery-service:
         condition: service_started
       zipkin:
@@ -302,10 +300,6 @@ services:
     build:
       context: .
       dockerfile: api_gateway/Dockerfile
-    develop:
-      watch:
-        - path: api_gateway
-          action: rebuild
     container_name: api-gateway
     ports:
       - "8080:8080"
@@ -357,7 +351,6 @@ services:
       api-gateway:
         condition: service_started
 
-
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -374,17 +367,11 @@ services:
       prometheus:
         condition: service_started
 
-
-
 networks:
   syncio-network:
     driver: bridge
 
 volumes:
-  auth_mysql_data:
-  user_mysql_data:
-  friend_mysql_data:
-  post_mysql_data:
   notification_mongo_data:
   prometheus_data:
   grafana_data:
