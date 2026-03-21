@@ -7,6 +7,7 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="shared" />
         <module name="auth_service" />
         <module name="api_gateway" />
         <module name="notification_service" />
@@ -33,6 +34,7 @@
       <module name="friend_service" options="-parameters" />
       <module name="notification_service" options="-parameters" />
       <module name="post_service" options="-parameters" />
+      <module name="shared" options="-parameters" />
       <module name="user_service" options="-parameters" />
     </option>
   </component>

@@ -1,4 +1,4 @@
-package io.github.gvn2012.user_service.exception;
+package io.github.gvn2012.user_service.exceptions;
 
 import org.springframework.http.HttpStatus;
 

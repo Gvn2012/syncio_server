@@ -2,11 +2,10 @@ FROM eclipse-temurin:21-jdk AS build
 
 WORKDIR /build
 
-COPY pom.xml .
-COPY notification_service ./notification_service
+COPY . .
 
-RUN chmod +x ./notification_service/mvnw && \
-    ./notification_service/mvnw -f ./notification_service/pom.xml clean package -Dmaven.test.skip=true
+RUN chmod +x mvnw && \
+    ./mvnw clean package -pl notification_service -am -DskipTests
 
 FROM eclipse-temurin:21-jre
 

@@ -28,6 +28,7 @@
         <module>notification_service</module>
         <module>friend_service</module>
         <module>post_service</module>
+        <module>shared</module>
     </modules>
 
     <dependencyManagement>
