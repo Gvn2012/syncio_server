@@ -15,18 +15,23 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
-@EqualsAndHashCode(callSuper = true)
+@Entity
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Entity
-@Data
+@ToString(onlyExplicitlyIncluded = true)
+@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Table(name = "posts", indexes = {
-                @Index(name = "ix_posts_visibility", columnList = "visibility"),
-                @Index(name = "ix_posts_status", columnList = "status")
+        @Index(name = "ix_posts_visibility", columnList = "visibility"),
+        @Index(name = "ix_posts_status", columnList = "status"),
+        @Index(name = "ix_posts_parent_post", columnList = "parent_post_id")
 })
 public class Post extends AuditableEntity {
 
         @Id
+        @EqualsAndHashCode.Include
+        @ToString.Include
         @UuidGenerator(style = UuidGenerator.Style.TIME)
         @Column(name = "id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
         private UUID id;
@@ -35,14 +40,15 @@ public class Post extends AuditableEntity {
         @Column(name = "post_type", nullable = false)
         private PostType postType = PostType.MIXED;
 
+        @ToString.Include
         @Column(name = "content", columnDefinition = "TEXT")
-        private String content = null;
+        private String content;
 
         @Column(name = "content_html", columnDefinition = "MEDIUMTEXT")
-        private String contentHtml = null;
+        private String contentHtml;
 
         @Column(name = "excerpt", columnDefinition = "VARCHAR(1024)")
-        private String excerpt = null;
+        private String excerpt;
 
         @Column(name = "language", columnDefinition = "VARCHAR(16)", nullable = false)
         private String language = "en";
@@ -63,13 +69,13 @@ public class Post extends AuditableEntity {
         private Boolean isScheduled = false;
 
         @Column(name = "scheduled_for")
-        private LocalDateTime scheduledFor = null;
+        private LocalDateTime scheduledFor;
 
         @Column(name = "published_at", nullable = false, updatable = false)
         private LocalDateTime publishedAt = LocalDateTime.now();
 
         @Column(name = "archived_at")
-        private LocalDateTime archivedAt = null;
+        private LocalDateTime archivedAt;
 
         @Column(name = "edit_count", nullable = false)
         @Min(0)
@@ -96,15 +102,50 @@ public class Post extends AuditableEntity {
         private Double avgDwellSeconds = 0d;
 
         @Column(name = "native_link_preview", columnDefinition = "json")
-        private String nativeLinkPreview = null;
+        private String nativeLinkPreview;
 
         @Column(name = "metadata", columnDefinition = "json")
-        private String metadata = null;
+        private String metadata;
 
+        @Column(name = "is_shared", nullable = false)
+        private Boolean isShared = false;
+
+        // ================= RELATIONSHIPS =================
+
+        @ToString.Exclude
+        @EqualsAndHashCode.Exclude
+        @ManyToOne(fetch = FetchType.LAZY)
+        @JoinColumn(name = "parent_post_id")
+        private Post parentPost;
+
+        @ToString.Exclude
+        @EqualsAndHashCode.Exclude
+        @OneToMany(mappedBy = "parentPost")
+        private Set<Post> sharedPosts = new LinkedHashSet<>();
+
+        @ToString.Exclude
         @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
         private Set<PostMediaAttachment> attachments = new LinkedHashSet<>();
 
+        @ToString.Exclude
         @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
         private Set<PostMention> mentions = new LinkedHashSet<>();
 
+        @ToString.Exclude
+        @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+        private Set<PostTag> postTags = new LinkedHashSet<>();
+
+        // ================= VALIDATION =================
+
+        @PrePersist
+        @PreUpdate
+        private void validateSharedPost() {
+                if (Boolean.TRUE.equals(isShared) && parentPost == null) {
+                        throw new IllegalStateException("Shared post must have parentPost");
+                }
+
+                if (Boolean.FALSE.equals(isShared) && parentPost != null) {
+                        throw new IllegalStateException("Non-shared post cannot have parentPost");
+                }
+        }
 }
