@@ -63,6 +63,20 @@ public class GlobalExceptionHandler {
                 );
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<APIResource<?>> handleIllegalStateException(IllegalStateException e) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(
+                        APIResource.error(
+                                "IllegalStateException",
+                                e.getMessage(),
+                                HttpStatus.CONFLICT,
+                                e.getMessage()
+                        )
+                );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<APIResource<?>> handleException(Exception e) {
         return ResponseEntity

@@ -2,12 +2,13 @@ package io.github.gvn2012.post_service.entities;
 
 import io.github.gvn2012.post_service.entities.enums.PostModerationStatus;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
-import io.github.gvn2012.post_service.entities.enums.PostType;
+import io.github.gvn2012.post_service.entities.enums.PostCategory;
 import io.github.gvn2012.post_service.entities.enums.PostVisibility;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
+import io.github.gvn2012.post_service.exceptions.IllegalStateException;
 
 import java.math.BigInteger;
 import java.time.LocalDateTime;
@@ -38,7 +39,7 @@ public class Post extends AuditableEntity {
 
         @Enumerated(EnumType.STRING)
         @Column(name = "post_type", nullable = false)
-        private PostType postType = PostType.MIXED;
+        private PostCategory postCategory = PostCategory.NORMAL;
 
         @ToString.Include
         @Column(name = "content", columnDefinition = "TEXT")
@@ -135,16 +136,62 @@ public class Post extends AuditableEntity {
         @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
         private Set<PostTag> postTags = new LinkedHashSet<>();
 
+        @ToString.Exclude
+        @EqualsAndHashCode.Exclude
+        @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+        private PostEvent event;
+
+        @ToString.Exclude
+        @EqualsAndHashCode.Exclude
+        @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+        private PostPoll poll;
+
+        @ToString.Exclude
+        @EqualsAndHashCode.Exclude
+        @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+        private PostTask task;
+
+        @ToString.Exclude
+        @EqualsAndHashCode.Exclude
+        @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+        private PostAnnouncement announcement;
+
         // ================= VALIDATION =================
 
         @PreUpdate
-        private void validateSharedPost() {
+        private void validate() {
+
+                // ===== Shared post validation =====
                 if (Boolean.TRUE.equals(isShared) && parentPost == null) {
                         throw new IllegalStateException("Shared post must have parentPost");
                 }
 
                 if (Boolean.FALSE.equals(isShared) && parentPost != null) {
                         throw new IllegalStateException("Non-shared post cannot have parentPost");
+                }
+
+                // ===== Extension validation =====
+                switch (postCategory) {
+                        case EVENT -> {
+                                if (event == null) {
+                                        throw new IllegalStateException("Event post must have PostEvent");
+                                }
+                        }
+                        case POLL -> {
+                                if (poll == null) {
+                                        throw new IllegalStateException("Poll must have PostPoll");
+                                }
+                        }
+                        case TASK -> {
+                                if (task == null) {
+                                        throw new IllegalStateException("Task post must have PostTask");
+                                }
+                        }
+                        case ANNOUNCEMENT -> {
+                                if (announcement == null) {
+                                        throw new IllegalStateException("Announcement post must have PostAnnouncement");
+                                }
+                        }
                 }
         }
 }

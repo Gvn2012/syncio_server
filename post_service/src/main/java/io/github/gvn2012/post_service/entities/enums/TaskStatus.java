@@ -1,0 +1,8 @@
+package io.github.gvn2012.post_service.entities.enums;
+
+public enum TaskStatus {
+    OPEN,
+    IN_PROGRESS,
+    COMPLETED,
+    CANCELLED
+}
