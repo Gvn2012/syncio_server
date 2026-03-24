@@ -1,4 +1,6 @@
 package io.github.gvn2012.post_service.entities.enums;
 
-public class AttachmentType {
+public enum AttachmentType {
+    IMAGE,
+    VIDEO
 }
