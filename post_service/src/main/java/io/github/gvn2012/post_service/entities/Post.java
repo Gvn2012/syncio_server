@@ -137,7 +137,6 @@ public class Post extends AuditableEntity {
 
         // ================= VALIDATION =================
 
-        @PrePersist
         @PreUpdate
         private void validateSharedPost() {
                 if (Boolean.TRUE.equals(isShared) && parentPost == null) {
