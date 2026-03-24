@@ -1,0 +1,13 @@
+package io.github.gvn2012.post_service.entities.enums;
+
+public enum PostType {
+    MIXED,
+    TEXT,
+    IMAGE,
+    VIDEO,
+    POLL,
+    LINK,
+    EVENT,
+    ANNOUNCEMENT,
+    TASK
+}
