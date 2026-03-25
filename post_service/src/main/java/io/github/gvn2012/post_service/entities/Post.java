@@ -66,11 +66,6 @@ public class Post extends AuditableEntity {
         @Column(name = "moderation_status", nullable = false)
         private PostModerationStatus moderationStatus = PostModerationStatus.NONE;
 
-        @Column(name = "is_scheduled", nullable = false)
-        private Boolean isScheduled = false;
-
-        @Column(name = "scheduled_for")
-        private LocalDateTime scheduledFor;
 
         @Column(name = "published_at", nullable = false, updatable = false)
         private LocalDateTime publishedAt = LocalDateTime.now();
@@ -137,6 +132,11 @@ public class Post extends AuditableEntity {
         private Set<PostTag> postTags = new LinkedHashSet<>();
 
         @ToString.Exclude
+        @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+        @OrderBy("version DESC")
+        private Set<PostEditHistory> editHistory = new LinkedHashSet<>();
+
+        @ToString.Exclude
         @EqualsAndHashCode.Exclude
         @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
         private PostEvent event;
@@ -155,6 +155,15 @@ public class Post extends AuditableEntity {
         @EqualsAndHashCode.Exclude
         @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
         private PostAnnouncement announcement;
+
+        @ToString.Exclude
+        @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+        @OrderBy("createdAt DESC")
+        private Set<PostComment> comments = new LinkedHashSet<>();
+
+        @ToString.Exclude
+        @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+        private Set<PostReaction> reactions = new LinkedHashSet<>();
 
         // ================= VALIDATION =================
 

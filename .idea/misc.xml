@@ -12,7 +12,14 @@
         <option value="$PROJECT_DIR$/pom.xml" />
         <option value="$PROJECT_DIR$/friend_service/pom.xml" />
         <option value="$PROJECT_DIR$/post_service/pom.xml" />
+        <option value="$PROJECT_DIR$/relationship_service/pom.xml" />
+        <option value="$PROJECT_DIR$/post_service/test/pom.xml" />
       </list>
+    </option>
+    <option name="ignoredFiles">
+      <set>
+        <option value="$PROJECT_DIR$/post_service/test/pom.xml" />
+      </set>
     </option>
   </component>
   <component name="ProjectRootManager" version="2" languageLevel="JDK_21" project-jdk-name="ms-21" project-jdk-type="JavaSDK">

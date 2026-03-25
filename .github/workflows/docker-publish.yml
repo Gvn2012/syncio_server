@@ -55,7 +55,7 @@ jobs:
           build_if_needed "discovery-service" "discovery_service" "discovery_service/Dockerfile" "discovery-service"
           build_if_needed "auth-service" "auth_service" "auth_service/Dockerfile" "auth-service"
           build_if_needed "user-service" "user_service" "user_service/Dockerfile" "user-service"
-          build_if_needed "friend-service" "friend_service" "friend_service/Dockerfile" "friend-service"
+          build_if_needed "relationship-service" "relationship_service" "relationship_service/Dockerfile" "relationship-service"
           build_if_needed "post-service" "post_service" "post_service/Dockerfile" "post-service"
           build_if_needed "notification-service" "notification_service" "notification_service/Dockerfile" "notification-service"
           build_if_needed "api-gateway" "api_gateway" "api_gateway/Dockerfile" "api-gateway"

@@ -211,17 +211,17 @@ services:
     networks:
       - syncio-network
 
-  friend-service:
-    image: vietpham18/friend-service:latest
+  relationship-service:
+    image: vietpham18/relationship-service:latest
     build:
       context: .
-      dockerfile: friend_service/Dockerfile
-    container_name: friend-service
+      dockerfile: relationship_service/Dockerfile
+    container_name: relationship-service
     ports:
-      - "8084:8084"
+      - "8087:8087"
     environment:
-      SPRING_APPLICATION_NAME: friend-service
-      SERVER_PORT: 8084
+      SPRING_APPLICATION_NAME: relationship-service
+      SERVER_PORT: 8087
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
       SPRING_DATASOURCE_URL: jdbc:mysql://34.21.187.164:3306/syncio
@@ -240,6 +240,7 @@ services:
         condition: service_started
     networks:
       - syncio-network
+
 
   post-service:
     image: vietpham18/post-service:latest
@@ -318,7 +319,7 @@ services:
         condition: service_started
       user-service:
         condition: service_started
-      friend-service:
+      relationship-service:
         condition: service_started
       post-service:
         condition: service_started

@@ -1,12 +1,11 @@
 package io.github.gvn2012.post_service.entities;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -15,30 +14,47 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-@Table(
-        name = "tags",
-        indexes = {
-                @Index(name = "ix_tag_name", columnList = "name")
-        },
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_tag_name", columnNames = "name")
-        }
-)
+@Table(name = "tags", indexes = {
+        @Index(name = "ix_tags_name", columnList = "name"),
+        @Index(name = "ix_tags_post_count", columnList = "post_count DESC")
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uk_tags_name", columnNames = "name")
+})
 public class Tag extends AuditableEntity {
 
     @Id
     @EqualsAndHashCode.Include
     @ToString.Include
-    @UuidGenerator(style = UuidGenerator.Style.TIME)
-    @Column(name = "id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false, updatable = false)
+    private Long id;
 
+    @NotBlank
+    @Size(max = 128)
     @ToString.Include
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false, length = 128)
     private String name;
 
+    @Size(max = 128)
+    @Column(name = "display_name", length = 128)
+    private String displayName;
+
+    @Column(name = "post_count", nullable = false)
+    private Long postCount = 0L;
+
+    @Column(name = "follower_count", nullable = false)
+    private Long followerCount = 0L;
+
+    @Column(name = "is_banned", nullable = false)
+    private Boolean isBanned = false;
+
+    @Column(name = "is_featured", nullable = false)
+    private Boolean isFeatured = false;
+
+    @Column(name = "last_used_at")
+    private LocalDateTime lastUsedAt;
+
     @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    @OneToMany(mappedBy = "tag")
-    private Set<PostTag> postTags = new LinkedHashSet<>();
+    @OneToOne(mappedBy = "tag", cascade = CascadeType.ALL, orphanRemoval = true)
+    private TagTrending trending;
 }

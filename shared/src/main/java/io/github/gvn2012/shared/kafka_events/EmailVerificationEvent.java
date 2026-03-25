@@ -2,10 +2,10 @@ package io.github.gvn2012.shared.kafka_events;
 
 import java.util.UUID;
 
-
 public class EmailVerificationEvent {
     private UUID userId;
     private UUID emailId;
+
     private String email;
     private String verificationLink;
 

@@ -26,7 +26,7 @@
         <module>discovery_service</module>
         <module>user_service</module>
         <module>notification_service</module>
-        <module>friend_service</module>
+        <module>relationship_service</module>
         <module>post_service</module>
         <module>shared</module>
     </modules>
@@ -40,6 +40,15 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 

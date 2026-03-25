@@ -20,21 +20,25 @@
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.36/lombok-1.18.36.jar" />
         </processorPath>
+        <module name="relationship_service" />
         <module name="user_service" />
-        <module name="friend_service" />
         <module name="post_service" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="test" target="21" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="api_gateway" options="-parameters" />
       <module name="auth_service" options="-parameters" />
       <module name="discovery_service" options="-parameters" />
-      <module name="friend_service" options="-parameters" />
       <module name="notification_service" options="-parameters" />
       <module name="post_service" options="-parameters" />
+      <module name="relationship_service" options="-parameters" />
       <module name="shared" options="-parameters" />
+      <module name="test" options="-parameters" />
       <module name="user_service" options="-parameters" />
     </option>
   </component>

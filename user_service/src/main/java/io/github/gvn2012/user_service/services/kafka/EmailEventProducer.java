@@ -1,6 +1,7 @@
 package io.github.gvn2012.user_service.services.kafka;
 
 import io.github.gvn2012.shared.kafka_events.EmailVerificationEvent;
+import jakarta.annotation.Nonnull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
