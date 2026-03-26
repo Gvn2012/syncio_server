@@ -9,16 +9,18 @@
         <outputRelativeToContentRoot value="true" />
         <module name="shared" />
         <module name="auth_service" />
-        <module name="api_gateway" />
-        <module name="permission_service" />
+        <module name="org_service" />
         <module name="notification_service" />
         <module name="discovery_service" />
+        <module name="api_gateway" />
+        <module name="permission_service" />
       </profile>
       <profile name="Annotation profile for syncio_server" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.36/lombok-1.18.36.jar" />
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.36/lombok-1.18.36.jar" />
         </processorPath>
         <module name="relationship_service" />
@@ -36,6 +38,7 @@
       <module name="auth_service" options="-parameters" />
       <module name="discovery_service" options="-parameters" />
       <module name="notification_service" options="-parameters" />
+      <module name="org_service" options="-parameters" />
       <module name="permission_service" options="-parameters" />
       <module name="post_service" options="-parameters" />
       <module name="relationship_service" options="-parameters" />
