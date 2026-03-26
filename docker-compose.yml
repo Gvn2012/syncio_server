@@ -152,6 +152,11 @@ services:
         condition: service_started
     networks:
       - syncio-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   auth-service:
     image: vietpham18/auth-service:latest
@@ -175,7 +180,7 @@ services:
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
       discovery-service:
-        condition: service_started
+        condition: service_healthy
       zipkin:
         condition: service_started
     networks:
@@ -203,7 +208,7 @@ services:
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
       discovery-service:
-        condition: service_started
+        condition: service_healthy
       auth-service:
         condition: service_started
       zipkin:
@@ -233,7 +238,7 @@ services:
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
       discovery-service:
-        condition: service_started
+        condition: service_healthy
       auth-service:
         condition: service_started
       zipkin:
@@ -264,7 +269,37 @@ services:
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
       discovery-service:
+        condition: service_healthy
+      auth-service:
         condition: service_started
+      zipkin:
+        condition: service_started
+    networks:
+      - syncio-network
+
+  permission-service:
+    image: vietpham18/permission-service:latest
+    build:
+      context: .
+      dockerfile: permission_service/Dockerfile
+    container_name: permission-service
+    ports:
+      - "8088:8088"
+    environment:
+      SPRING_APPLICATION_NAME: permission-service
+      SERVER_PORT: 8088
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      SPRING_DATASOURCE_URL: jdbc:mysql://34.21.187.164:3306/syncio
+      SPRING_DATASOURCE_USERNAME: gvn
+      SPRING_DATASOURCE_PASSWORD: Gvn2012@Phmz
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      discovery-service:
+        condition: service_healthy
       auth-service:
         condition: service_started
       zipkin:
@@ -290,7 +325,7 @@ services:
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
       discovery-service:
-        condition: service_started
+        condition: service_healthy
       zipkin:
         condition: service_started
     networks:
@@ -314,7 +349,7 @@ services:
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
       discovery-service:
-        condition: service_started
+        condition: service_healthy
       auth-service:
         condition: service_started
       user-service:
@@ -324,6 +359,8 @@ services:
       post-service:
         condition: service_started
       notification-service:
+        condition: service_started
+      permission-service:
         condition: service_started
       zipkin:
         condition: service_started
@@ -342,7 +379,7 @@ services:
       - syncio-network
     depends_on:
       discovery-service:
-        condition: service_started
+        condition: service_healthy
       auth-service:
         condition: service_started
       user-service:
