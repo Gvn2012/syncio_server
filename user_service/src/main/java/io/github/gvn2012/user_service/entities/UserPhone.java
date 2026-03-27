@@ -1,5 +1,6 @@
 package io.github.gvn2012.user_service.entities;
 
+import io.github.gvn2012.user_service.entities.enums.PhoneStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -39,6 +40,10 @@ public class UserPhone extends AuditableEntity {
     @Pattern(regexp = "^[0-9+\\-() ]+$")
     private String phoneNumber;
 
+    @Column(name = "country_code", nullable = false)
+    @Pattern(regexp = "^(\\+?\\d{1,3}|\\d{1,4})$")
+    private String countryCode = "+84";
+
     @Column(name = "is_verified", nullable = false)
     private Boolean verified = false;
 
@@ -47,6 +52,9 @@ public class UserPhone extends AuditableEntity {
 
     @Column(name = "verified_at")
     private LocalDateTime verifiedAt;
+
+    @Column(name = "status", nullable = false)
+    private PhoneStatus status = PhoneStatus.ACTIVE;
 
     @Column(name = "verification_code_hash", length = 256)
     private String verificationCodeHash;

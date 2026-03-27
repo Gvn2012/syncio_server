@@ -18,5 +18,5 @@ public class PermissionCheckRequest {
     private UUID resourceOwnerId;
     private RoleScope scope;
     private UUID scopeId;
-    private Map<String, Object> context; // additional attributes for ABAC
+    private Map<String, Object> context;
 }

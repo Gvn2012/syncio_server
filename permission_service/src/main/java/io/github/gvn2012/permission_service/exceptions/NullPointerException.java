@@ -1,0 +1,13 @@
+package io.github.gvn2012.permission_service.exceptions;
+
+import org.springframework.http.HttpStatus;
+
+public class NullPointerException extends BaseException {
+    public NullPointerException(String message) {
+        super(
+                "NULL_POINTER",
+                message,
+                HttpStatus.UNPROCESSABLE_ENTITY);
+
+    }
+}
