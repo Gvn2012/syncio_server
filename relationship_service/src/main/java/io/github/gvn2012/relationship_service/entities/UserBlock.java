@@ -70,7 +70,6 @@ public class UserBlock extends AuditableEntity {
 
     // ================= VALIDATION =================
 
-    @PrePersist
     @PreUpdate
     private void validate() {
         if (blockerUserId.equals(blockedUserId)) {

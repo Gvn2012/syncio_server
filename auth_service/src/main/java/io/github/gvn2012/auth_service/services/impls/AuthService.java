@@ -1,15 +1,17 @@
 package io.github.gvn2012.auth_service.services.impls;
 
-
 import java.security.Key;
 import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
 
+import io.github.gvn2012.auth_service.clients.PermissionClient;
 import io.github.gvn2012.auth_service.configs.JwtConfig;
 import io.github.gvn2012.auth_service.dtos.APIResource;
 import io.github.gvn2012.auth_service.dtos.requests.GenerateLoginTokenRequest;
 import io.github.gvn2012.auth_service.dtos.responses.GenerateLoginTokenResponse;
+import io.github.gvn2012.auth_service.dtos.responses.GetUserRoleResponse;
+import io.github.gvn2012.auth_service.dtos.responses.ValidateResponse;
 import io.github.gvn2012.auth_service.services.interfaces.AuthServiceInterface;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -17,7 +19,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @Service
@@ -26,9 +27,12 @@ public class AuthService implements AuthServiceInterface {
     private final JwtConfig jwtConfig;
     private final Key key;
 
-    public AuthService(JwtConfig jwtConfig) {
+    private final PermissionClient permissionClient;
+
+    public AuthService(JwtConfig jwtConfig, PermissionClient permissionClient) {
         this.jwtConfig = jwtConfig;
         this.key = Keys.hmacShaKeyFor(jwtConfig.getSecretKey().getBytes());
+        this.permissionClient = permissionClient;
     }
 
     public String generateAccessToken(String username, UUID userId, String role) {
@@ -71,22 +75,28 @@ public class AuthService implements AuthServiceInterface {
         return getAllClaimsFromToken(token).getExpiration();
     }
 
-    public Boolean isTokenExpired(String token){
+    public Boolean isTokenExpired(String token) {
         return getExpirationDateFromToken(token).before(new Date());
     }
 
-    public Boolean validateToken(@NotNull String token) {
+    public ValidateResponse validateToken(@NotNull String token) {
         if (token == null || token.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing token");
+            return new ValidateResponse(false, "Missing token", null, null);
         }
 
-        String raw = token.trim();
-        log.info("Raw: {}", raw);
-        if (raw.regionMatches(true, 0, "Bearer ", 0, "Bearer ".length())) {
-            raw = raw.substring("Bearer ".length()).trim();
+        // 1. Handle Spring/API Gateway comma-separated multiple headers quirk
+        String raw = token.split(",")[0].trim();
+
+        // 2. Strip quotes in case the frontend sent them (e.g., from JSON.stringify)
+        raw = raw.replace("\"", "").replace("'", "");
+
+        // 3. Safely strip the "Bearer " prefix (case-insensitive)
+        if (raw.toLowerCase().startsWith("bearer ")) {
+            raw = raw.substring(7).trim();
         }
+
         if (raw.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing token");
+            return new ValidateResponse(false, "Missing token", null, null);
         }
 
         try {
@@ -98,40 +108,53 @@ public class AuthService implements AuthServiceInterface {
 
             String subject = claims.getSubject();
             if (subject == null || subject.isBlank()) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+                return new ValidateResponse(false, "Invalid token subject", null, null);
+            }
+
+            String userId = claims.get("userId", String.class);
+            if (userId == null || userId.isBlank()) {
+                return new ValidateResponse(false, "Token is missing userId claim", null, null);
+            }
+
+            String role = claims.get("role", String.class);
+            if (role == null || role.isBlank()) {
+                return new ValidateResponse(false, "Token is missing role claim", null, null);
             }
 
             Date expiration = claims.getExpiration();
             if (expiration == null || expiration.before(new Date())) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token expired");
+                return new ValidateResponse(false, "Token expired", null, null);
             }
 
-            log.info("Token subject={}, exp={}, now={}", claims.getSubject(), claims.getExpiration(), new Date());
+            log.info("Token valid: subject={}, userId={}, role={}", subject, userId, role);
 
+            return new ValidateResponse(true, null, userId, role);
 
-            return true;
-        } catch (ExpiredJwtException e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token expired", e);
-        } catch (SecurityException e) { // bad signature / key
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token signature", e);
-        } catch (MalformedJwtException e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Malformed token", e);
-        } catch (UnsupportedJwtException e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unsupported token", e);
-        } catch (IllegalArgumentException e) { // parser edge cases
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token", e);
-        } catch (JwtException e) { // any other JJWT validation failure
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token", e);
+        } catch (JwtException | IllegalArgumentException e) {
+            log.error("Token validation failed: {}", e.getMessage());
+            return new ValidateResponse(false, "Invalid or expired token", null, null);
         }
     }
 
     public APIResource<GenerateLoginTokenResponse> generateLoginToken(GenerateLoginTokenRequest request) {
-      try{
-          String accessToken = generateAccessToken(request.getUsername(), UUID.fromString(request.getUserId()), "USER");
-          String refreshToken = generateRefreshToken(request.getUsername(), UUID.fromString(request.getUserId()));
-          return APIResource.ok("Tokens are generated successfully", new GenerateLoginTokenResponse(accessToken, refreshToken));
-      } catch (Exception e) {
-          return APIResource.error("BAD_REQUEST", e.getMessage(), HttpStatus.BAD_REQUEST, e.getMessage());
-      }
+        try {
+            GetUserRoleResponse userRoleResponse = permissionClient.getUserRole(request.getUserId()).block();
+
+            if (userRoleResponse == null || userRoleResponse.getRoleName().isEmpty()
+                    || userRoleResponse.getRoleName().isBlank()) {
+                return APIResource.error("INTERNAL_SERVER_ERROR", "Permission service is not working",
+                        HttpStatus.INTERNAL_SERVER_ERROR, null);
+            }
+
+            String userRole = userRoleResponse.getRoleName();
+
+            String accessToken = generateAccessToken(request.getUsername(), UUID.fromString(request.getUserId()),
+                    userRole);
+            String refreshToken = generateRefreshToken(request.getUsername(), UUID.fromString(request.getUserId()));
+            return APIResource.ok("Tokens are generated successfully",
+                    new GenerateLoginTokenResponse(accessToken, refreshToken, userRole));
+        } catch (Exception e) {
+            return APIResource.error("BAD_REQUEST", e.getMessage(), HttpStatus.BAD_REQUEST, e.getMessage());
+        }
     }
 }

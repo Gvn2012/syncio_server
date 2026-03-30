@@ -22,14 +22,11 @@ public class UserPhoneController {
 
     private final UserPhoneServiceImpl userPhoneServiceImpl;
 
-    @GetMapping("/{userId}/phones")
-    public ResponseEntity<APIResource<GetUserPhoneResponse>> getUserPhones (
-            @PathVariable String userId
-    )
-    {
-        APIResource<GetUserPhoneResponse> response =  userPhoneServiceImpl.getUserPhone(userId);
-        return ResponseEntity.
-                status(response.getStatus()).body(response);
+    @GetMapping("/{userId}/phone")
+    public ResponseEntity<APIResource<GetUserPhoneResponse>> getUserPhones(
+            @PathVariable String userId) {
+        APIResource<GetUserPhoneResponse> response = userPhoneServiceImpl.getUserPhone(userId);
+        return ResponseEntity.status(response.getStatus()).body(response);
     }
 
 }

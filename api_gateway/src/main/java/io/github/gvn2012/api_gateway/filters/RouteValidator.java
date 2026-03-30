@@ -19,7 +19,7 @@ public class RouteValidator {
     );
 
 
-    public Predicate<ServerWebExchange> isSecured =
+    public final Predicate<ServerWebExchange> isSecured =
             exchange -> OPEN_ROUTES.stream()
                     .noneMatch(uri -> exchange.getRequest().getURI().getPath().startsWith(uri));
 }

@@ -33,7 +33,7 @@ public class UserEmail extends AuditableEntity {
         @NotNull
         private User user;
 
-        @Column(name = "email", nullable = false, length = 255)
+        @Column(name = "email", nullable = false)
         @NotBlank
         @Email
         @Size(min = 5, max = 255)

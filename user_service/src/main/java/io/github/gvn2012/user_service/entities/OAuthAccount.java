@@ -37,10 +37,10 @@ public class OAuthAccount extends AuditableEntity {
     @Column(name = "provider", nullable = false, length = 64)
     private OAuthProvider provider;
 
-    @Column(name = "provider_user_id", nullable = false, length = 255)
+    @Column(name = "provider_user_id", nullable = false)
     private String providerUserId;
 
-    @Column(name = "provider_email", length = 255)
+    @Column(name = "provider_email")
     private String providerEmail;
 
     @Lob

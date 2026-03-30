@@ -1,4 +1,5 @@
-package io.github.gvn2012.user_service.clients;
+package io.github.gvn2012.auth_service.clients;
+
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
@@ -50,5 +51,6 @@ public abstract class HttpClient {
         return webClientBuilder.baseUrl(baseUrl).build();
     }
 
-    protected void addHeaders(WebClient.RequestHeadersSpec<?> request) {}
+    protected void addHeaders(WebClient.RequestHeadersSpec<?> request) {
+    }
 }

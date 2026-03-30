@@ -58,9 +58,9 @@ public class UserServiceImpl implements IUserService {
         ensureUserCanLogin(user);
 
         GenerateLoginTokenResponse tokenResponse = authClient.generateToken(
-                new GenerateLoginTokenRequest(
-                        user.getUsername(),
-                        user.getId().toString()))
+                        new GenerateLoginTokenRequest(
+                                user.getUsername(),
+                                user.getId().toString()))
                 .block(Duration.ofSeconds(3));
 
         if (tokenResponse == null) {
@@ -70,7 +70,8 @@ public class UserServiceImpl implements IUserService {
         LoginResponse response = new LoginResponse(
                 tokenResponse.getAccessToken(),
                 tokenResponse.getRefreshToken(),
-                user.getId().toString());
+                user.getId().toString(),
+                tokenResponse.getUserRole());
 
         return APIResource.ok("Login successfully", response);
     }

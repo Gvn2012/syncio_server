@@ -17,14 +17,14 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class RoleServiceImpl implements RoleServiceInterface {
-    private final RoleRepository roleRepository;
+
     private final UserRoleRepository userRoleRepository;
 
     @Override
     public APIResource<GetUserRoleResponse> getUserRole(String userId) {
         UserRole userRole = userRoleRepository.findByUserId(UUID.fromString(userId))
                 .orElseThrow(() ->
-                        new NotFoundException("Role not found with id: " + userId)
+                        new NotFoundException("Role not found with id: ${userId}")
                 );
 
         GetUserRoleResponse getUserRoleResponse = new GetUserRoleResponse(

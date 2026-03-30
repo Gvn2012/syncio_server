@@ -41,7 +41,7 @@ public class UserProfile extends AuditableEntity {
     @Past
     private LocalDate dateOfBirth;
 
-    @Column(name = "job_title", length = 255)
+    @Column(name = "job_title")
     private String jobTitle;
 
     @Column(name = "department_id", columnDefinition = "BINARY(16)")
@@ -56,7 +56,7 @@ public class UserProfile extends AuditableEntity {
     @Column(name = "website", length = 512)
     private String website;
 
-    @Column(name = "location", length = 255)
+    @Column(name = "location")
     private String location;
 
     @Column(name = "skills", columnDefinition = "json")
