@@ -62,6 +62,20 @@ public class GlobalExceptionHandler {
                 );
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<APIResource<?>> handleForbiddenException(ForbiddenException e) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(
+                        APIResource.error(
+                                "FORBIDDEN",
+                                e.getMessage(),
+                                HttpStatus.FORBIDDEN,
+                                e.getMessage()
+                        )
+                );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<APIResource<?>> handleException(Exception e) {
         return ResponseEntity

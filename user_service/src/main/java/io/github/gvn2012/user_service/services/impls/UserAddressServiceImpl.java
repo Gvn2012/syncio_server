@@ -6,6 +6,7 @@ import io.github.gvn2012.user_service.dtos.requests.UpdateAddressRequest;
 import io.github.gvn2012.user_service.dtos.responses.*;
 import io.github.gvn2012.user_service.entities.User;
 import io.github.gvn2012.user_service.entities.UserAddress;
+import io.github.gvn2012.user_service.entities.enums.AddressStatus;
 import io.github.gvn2012.user_service.exceptions.BadRequestException;
 import io.github.gvn2012.user_service.exceptions.NotFoundException;
 import io.github.gvn2012.user_service.repositories.UserAddressRepository;
@@ -16,6 +17,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -30,7 +33,7 @@ public class UserAddressServiceImpl implements IUserAddressService {
     @Override
     public APIResource<GetUserAddressResponse> getUserAddress(String userId) {
         Set<AddressDto> addresses = userAddressRepository
-                .findByUser_Id(UUID.fromString(userId))
+                .findByUser_IdAndStatusNot(UUID.fromString(userId), AddressStatus.REMOVED)
                 .stream()
                 .map(address -> new AddressDto(
                         address.getId().toString(),
@@ -78,7 +81,7 @@ public class UserAddressServiceImpl implements IUserAddressService {
     @Transactional
     public APIResource<UpdateAddressResponse> updateAddress(UUID userId, UUID addressId, UpdateAddressRequest request) {
         UserAddress address = userAddressRepository
-                .findByIdAndUser_Id(addressId, userId)
+                .findByIdAndUser_IdAndStatusNot(addressId, userId, AddressStatus.REMOVED)
                 .orElseThrow(() -> new NotFoundException("Address not found"));
 
         if (request.getAddressType() != null) {
@@ -114,17 +117,18 @@ public class UserAddressServiceImpl implements IUserAddressService {
     @Transactional
     public APIResource<DeleteAddressResponse> deleteAddress(UUID userId, UUID addressId) {
         UserAddress address = userAddressRepository
-                .findByIdAndUser_Id(addressId, userId)
+                .findByIdAndUser_IdAndStatusNot(addressId, userId, AddressStatus.REMOVED)
                 .orElseThrow(() -> new NotFoundException("Address not found"));
 
         if (Boolean.TRUE.equals(address.getPrimary())) {
-            long count = userAddressRepository.findByUser_Id(userId).size();
-            if (count > 1) {
+            List<UserAddress> addresses = userAddressRepository.findByUser_IdAndStatusNot(userId, AddressStatus.REMOVED);
+            if (addresses.size() > 1) {
                 throw new BadRequestException("Cannot delete primary address. Set another address as primary first.");
             }
         }
 
-        userAddressRepository.delete(address);
+        address.setStatus(AddressStatus.REMOVED);
+        userAddressRepository.save(address);
 
         return APIResource.ok(
                 "Address deleted successfully",
@@ -135,7 +139,7 @@ public class UserAddressServiceImpl implements IUserAddressService {
     @Transactional
     public APIResource<SetPrimaryAddressResponse> setPrimaryAddress(UUID userId, UUID addressId) {
         UserAddress address = userAddressRepository
-                .findByIdAndUser_Id(addressId, userId)
+                .findByIdAndUser_IdAndStatusNot(addressId, userId, AddressStatus.REMOVED)
                 .orElseThrow(() -> new NotFoundException("Address not found"));
 
         if (Boolean.TRUE.equals(address.getPrimary())) {
@@ -143,11 +147,11 @@ public class UserAddressServiceImpl implements IUserAddressService {
         }
 
         String previousPrimaryId = null;
-        var currentPrimary = userAddressRepository.findByUser_IdAndPrimaryTrue(userId);
-        if (currentPrimary.isPresent()) {
-            previousPrimaryId = currentPrimary.get().getId().toString();
-            currentPrimary.get().setPrimary(false);
-            userAddressRepository.save(currentPrimary.get());
+        Optional<UserAddress> currentPrimaryOpt = userAddressRepository.findByUser_IdAndPrimaryTrueAndStatusNot(userId, AddressStatus.REMOVED);
+        if (currentPrimaryOpt.isPresent()) {
+            previousPrimaryId = currentPrimaryOpt.get().getId().toString();
+            currentPrimaryOpt.get().setPrimary(false);
+            userAddressRepository.save(currentPrimaryOpt.get());
         }
 
         address.setPrimary(true);

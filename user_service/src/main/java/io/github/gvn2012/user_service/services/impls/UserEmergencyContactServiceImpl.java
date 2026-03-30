@@ -6,22 +6,26 @@ import io.github.gvn2012.user_service.dtos.requests.UpdateEmergencyContactReques
 import io.github.gvn2012.user_service.dtos.responses.*;
 import io.github.gvn2012.user_service.entities.User;
 import io.github.gvn2012.user_service.entities.UserEmergencyContact;
+import io.github.gvn2012.user_service.entities.enums.EmergencyContactStatus;
 import io.github.gvn2012.user_service.exceptions.BadRequestException;
 import io.github.gvn2012.user_service.exceptions.NotFoundException;
 import io.github.gvn2012.user_service.repositories.UserEmergencyContactRepository;
 import io.github.gvn2012.user_service.repositories.UserRepository;
 import io.github.gvn2012.user_service.services.interfaces.IUserEmergencyContactService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserEmergencyContactServiceImpl implements IUserEmergencyContactService {
 
     private final UserEmergencyContactRepository emergencyContactRepository;
@@ -30,7 +34,7 @@ public class UserEmergencyContactServiceImpl implements IUserEmergencyContactSer
     @Override
     public APIResource<GetUserEmergencyContactResponse> getUserEmergencyContact(String userId) {
         List<EmergencyContactDto> contacts = emergencyContactRepository
-                .findByUser_IdOrderByPriorityAsc(UUID.fromString(userId))
+                .findByUser_IdAndStatusNotOrderByPriorityAsc(UUID.fromString(userId), EmergencyContactStatus.REMOVED)
                 .stream()
                 .map(contact -> new EmergencyContactDto(
                         contact.getId().toString(),
@@ -61,6 +65,7 @@ public class UserEmergencyContactServiceImpl implements IUserEmergencyContactSer
         contact.setEmail(request.getEmail());
         contact.setPrimary(false);
         contact.setPriority(request.getPriority() != null ? request.getPriority() : 1);
+        contact.setStatus(EmergencyContactStatus.ACTIVE);
 
         emergencyContactRepository.save(contact);
 
@@ -74,7 +79,7 @@ public class UserEmergencyContactServiceImpl implements IUserEmergencyContactSer
     @Transactional
     public APIResource<UpdateEmergencyContactResponse> updateEmergencyContact(UUID userId, UUID contactId, UpdateEmergencyContactRequest request) {
         UserEmergencyContact contact = emergencyContactRepository
-                .findByIdAndUser_Id(contactId, userId)
+                .findByIdAndUser_IdAndStatusNot(contactId, userId, EmergencyContactStatus.REMOVED)
                 .orElseThrow(() -> new NotFoundException("Emergency contact not found"));
 
         if (request.getContactName() != null) {
@@ -104,17 +109,18 @@ public class UserEmergencyContactServiceImpl implements IUserEmergencyContactSer
     @Transactional
     public APIResource<DeleteEmergencyContactResponse> deleteEmergencyContact(UUID userId, UUID contactId) {
         UserEmergencyContact contact = emergencyContactRepository
-                .findByIdAndUser_Id(contactId, userId)
+                .findByIdAndUser_IdAndStatusNot(contactId, userId, EmergencyContactStatus.REMOVED)
                 .orElseThrow(() -> new NotFoundException("Emergency contact not found"));
 
         if (Boolean.TRUE.equals(contact.getPrimary())) {
-            long count = emergencyContactRepository.findByUser_IdOrderByPriorityAsc(userId).size();
+            long count = emergencyContactRepository.findByUser_IdAndStatusNotOrderByPriorityAsc(userId, EmergencyContactStatus.REMOVED).size();
             if (count > 1) {
                 throw new BadRequestException("Cannot delete primary emergency contact. Set another contact as primary first.");
             }
         }
 
-        emergencyContactRepository.delete(contact);
+        contact.setStatus(EmergencyContactStatus.REMOVED);
+        emergencyContactRepository.save(contact);
 
         return APIResource.ok(
                 "Emergency contact deleted successfully",
@@ -125,7 +131,7 @@ public class UserEmergencyContactServiceImpl implements IUserEmergencyContactSer
     @Transactional
     public APIResource<SetPrimaryEmergencyContactResponse> setPrimaryEmergencyContact(UUID userId, UUID contactId) {
         UserEmergencyContact contact = emergencyContactRepository
-                .findByIdAndUser_Id(contactId, userId)
+                .findByIdAndUser_IdAndStatusNot(contactId, userId, EmergencyContactStatus.REMOVED)
                 .orElseThrow(() -> new NotFoundException("Emergency contact not found"));
 
         if (Boolean.TRUE.equals(contact.getPrimary())) {
@@ -133,11 +139,11 @@ public class UserEmergencyContactServiceImpl implements IUserEmergencyContactSer
         }
 
         String previousPrimaryId = null;
-        var currentPrimary = emergencyContactRepository.findByUser_IdAndPrimaryTrue(userId);
-        if (currentPrimary.isPresent()) {
-            previousPrimaryId = currentPrimary.get().getId().toString();
-            currentPrimary.get().setPrimary(false);
-            emergencyContactRepository.save(currentPrimary.get());
+        Optional<UserEmergencyContact> currentPrimaryOpt = emergencyContactRepository.findByUser_IdAndPrimaryTrueAndStatusNot(userId, EmergencyContactStatus.REMOVED);
+        if (currentPrimaryOpt.isPresent()) {
+            previousPrimaryId = currentPrimaryOpt.get().getId().toString();
+            currentPrimaryOpt.get().setPrimary(false);
+            emergencyContactRepository.save(currentPrimaryOpt.get());
         }
 
         contact.setPrimary(true);

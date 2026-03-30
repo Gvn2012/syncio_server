@@ -62,4 +62,8 @@ public class UserAddress extends AuditableEntity {
 
     @Column(name = "is_primary", nullable = false)
     private Boolean primary = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 32)
+    private io.github.gvn2012.user_service.entities.enums.AddressStatus status = io.github.gvn2012.user_service.entities.enums.AddressStatus.ACTIVE;
 }

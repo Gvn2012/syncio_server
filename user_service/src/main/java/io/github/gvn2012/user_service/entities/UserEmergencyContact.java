@@ -55,4 +55,8 @@ public class UserEmergencyContact extends AuditableEntity {
     @Min(1)
     @Max(10)
     private Integer priority = 1;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 32)
+    private io.github.gvn2012.user_service.entities.enums.EmergencyContactStatus status = io.github.gvn2012.user_service.entities.enums.EmergencyContactStatus.ACTIVE;
 }
