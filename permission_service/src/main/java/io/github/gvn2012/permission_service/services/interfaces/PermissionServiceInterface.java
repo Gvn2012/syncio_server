@@ -10,6 +10,6 @@ import java.util.Set;
 import java.util.UUID;
 
 public interface PermissionServiceInterface {
-
-
+    PermissionDecision evaluateAccess(String callerId, String roleCode, String permissionCode, String targetId);
+    PermissionDecision authorizeRequest(PermissionCheckRequest request);
 }

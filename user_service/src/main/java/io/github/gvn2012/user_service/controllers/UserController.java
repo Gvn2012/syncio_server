@@ -51,5 +51,15 @@ public class UserController {
                 .body(response);
     }
 
+    @GetMapping
+    public ResponseEntity<APIResource<GetUserDetailResponse>> getUserDetailsByQuery(
+            @RequestParam String id
+    ) {
+        APIResource<GetUserDetailResponse> response = userService.getUserDetail(id);
+        return ResponseEntity
+                .status(response.getStatus())
+                .body(response);
+    }
+
 
 }

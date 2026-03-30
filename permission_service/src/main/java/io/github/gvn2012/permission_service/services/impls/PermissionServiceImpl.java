@@ -4,12 +4,11 @@ import io.github.gvn2012.permission_service.dtos.requests.PermissionCheckRequest
 import io.github.gvn2012.permission_service.entities.Permission;
 import io.github.gvn2012.permission_service.entities.Role;
 import io.github.gvn2012.permission_service.entities.enums.PermissionDecision;
-import io.github.gvn2012.permission_service.repositories.PermissionRepository;
 import io.github.gvn2012.permission_service.repositories.RoleRepository;
+import io.github.gvn2012.permission_service.services.interfaces.PermissionServiceInterface;
 import io.github.gvn2012.permission_service.services.interfaces.RoutePermissionRegistryInterface;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,7 +18,7 @@ import java.util.Set;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PermissionServiceImpl {
+public class PermissionServiceImpl implements PermissionServiceInterface {
     private final RoleRepository roleRepository;
     private final RoutePermissionRegistryInterface routeRegistry;
 
@@ -70,7 +69,8 @@ public class PermissionServiceImpl {
 
             // Java 21 Switch Expression evaluates ownership
             var isOwner = switch (requestedPermission.getResource()) {
-                case "user" -> callerId.equals(targetId);
+                case "user", "user:profile", "user:address", "user:phone", "user:email", "user:contact" ->
+                    callerId.equals(targetId);
                 case "post" -> verifyPostOwnership(callerId, targetId);
                 default -> {
                     log.warn("Ownership evaluation bypassed: Unknown resource type '{}'",
@@ -112,10 +112,6 @@ public class PermissionServiceImpl {
     }
 
     private boolean verifyPostOwnership(String callerId, String targetId) {
-        return targetId.equals(callerId);
-    }
-
-    private boolean verifyCommentOwnership(String callerId, String targetId) {
         return targetId.equals(callerId);
     }
 
