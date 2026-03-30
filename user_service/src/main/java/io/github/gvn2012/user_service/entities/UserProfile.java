@@ -18,12 +18,8 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "user_profiles",
-        indexes = {
-                @Index(name = "ix_user_profiles_department_id", columnList = "department_id")
-        },
         uniqueConstraints = {
-                @UniqueConstraint(name = "ux_user_profiles_user_id", columnNames = "user_id"),
-                @UniqueConstraint(name = "ux_user_profiles_employee_id", columnNames = "employee_id")
+                @UniqueConstraint(name = "ux_user_profiles_user_id", columnNames = "user_id")
         }
 )
 public class UserProfile extends AuditableEntity {
@@ -41,15 +37,6 @@ public class UserProfile extends AuditableEntity {
     @Past
     private LocalDate dateOfBirth;
 
-    @Column(name = "job_title")
-    private String jobTitle;
-
-    @Column(name = "department_id", columnDefinition = "BINARY(16)")
-    private UUID departmentId;
-
-    @Column(name = "employee_id", length = 64)
-    private String employeeId;
-
     @Column(name = "bio", columnDefinition = "TEXT")
     private String bio;
 
@@ -58,9 +45,6 @@ public class UserProfile extends AuditableEntity {
 
     @Column(name = "location")
     private String location;
-
-    @Column(name = "skills", columnDefinition = "json")
-    private String skills;
 
     @Column(name = "contact_info", columnDefinition = "json")
     private String contactInfo;

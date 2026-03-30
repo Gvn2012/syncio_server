@@ -7,7 +7,6 @@ import io.github.gvn2012.user_service.utils.JsonHelper;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -28,14 +27,8 @@ public class UserProfileMapper implements IMapper<UserProfile, UserProfileRespon
         return new UserProfileResponse(
                 entity.getId().toString(),
                 entity.getDateOfBirth(),
-                entity.getJobTitle(),
                 entity.getBio(),
                 entity.getLocation(),
-                jsonHelper.fromJson(
-                        entity.getSkills(),
-                        new TypeReference<List<String>>() {},
-                        List.of()
-                ),
                 jsonHelper.fromJson(
                         entity.getContactInfo(),
                         new TypeReference<Map<String, String>>() {},
@@ -54,15 +47,10 @@ public class UserProfileMapper implements IMapper<UserProfile, UserProfileRespon
     @Override
     public UserProfile toEntity(UserProfileResponse dto) {
         UserProfile entity = new UserProfile();
-        entity.setJobTitle(dto.getJobTitle());
         entity.setBio(dto.getBio());
         entity.setLocation(dto.getLocation());
 
         entity.setDateOfBirth(dto.getDateOfBirth());
-
-        entity.setSkills(
-                jsonHelper.toJson(dto.getSkills(), "[]")
-        );
 
         entity.setContactInfo(
                 jsonHelper.toJson(dto.getContactInfo(), "{}")

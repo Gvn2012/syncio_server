@@ -1,5 +1,6 @@
 package io.github.gvn2012.user_service.entities;
 
+import io.github.gvn2012.user_service.entities.enums.Gender;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -38,6 +39,22 @@ public class User extends AuditableEntity {
     @NotBlank
     @Size(min = 3, max = 64)
     private String username;
+
+    @Column(name = "first_name", length = 128)
+    @Size(max = 128)
+    private String firstName;
+
+    @Column(name = "last_name", length = 128)
+    @Size(max = 128)
+    private String lastName;
+
+    @Column(name = "middle_name", length = 128)
+    @Size(max = 128)
+    private String middleName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender", length = 32)
+    private Gender gender;
 
     @Column(name = "password_hash", length = 512)
     @Size(min = 8, max = 512)
@@ -81,4 +98,22 @@ public class User extends AuditableEntity {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<OAuthAccount> oauthAccounts = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<UserAddress> addresses = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<UserEmergencyContact> emergencyContacts = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<UserEmployment> employments = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<UserSkill> skills = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<UserSession> sessions = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<UserPreference> preferences = new LinkedHashSet<>();
 }
