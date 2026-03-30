@@ -16,6 +16,7 @@ import io.github.gvn2012.user_service.exceptions.BadRequestException;
 import io.github.gvn2012.user_service.exceptions.DataIntegrityViolationException;
 import io.github.gvn2012.user_service.exceptions.NotFoundException;
 import io.github.gvn2012.user_service.repositories.*;
+import io.github.gvn2012.user_service.services.interfaces.IUserEmailService;
 import io.github.gvn2012.user_service.services.interfaces.IUserService;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +42,7 @@ public class UserServiceImpl implements IUserService {
 
     private final AuthClient authClient;
 
-    private final UserEmailServiceImpl userEmailServiceImpl;
+    private final IUserEmailService userEmailService;
 
     private final UserDetailMapper userDetailMapper;
 
@@ -115,7 +116,7 @@ public class UserServiceImpl implements IUserService {
             throw new BadRequestException("The username already exists");
         }
 
-        userEmailServiceImpl.validateEmailNotUsed(request.getEmail());
+        userEmailService.validateEmailNotUsed(request.getEmail());
 
         if (userPhoneRepository.existsUserPhoneByPhoneNumber(request.getPhoneNumber())) {
             throw new BadRequestException("Phone already exists");

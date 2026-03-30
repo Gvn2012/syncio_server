@@ -1,6 +1,7 @@
 package io.github.gvn2012.user_service.entities;
 
 import io.github.gvn2012.user_service.entities.enums.PhoneStatus;
+import io.github.gvn2012.user_service.entities.enums.PhoneType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -40,6 +41,10 @@ public class UserPhone extends AuditableEntity {
     @Pattern(regexp = "^[0-9+\\-() ]+$")
     private String phoneNumber;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "phone_type", nullable = false, length = 16)
+    private PhoneType phoneType = PhoneType.MOBILE;
+
     @Column(name = "country_code", nullable = false)
     @Pattern(regexp = "^(\\+?\\d{1,3}|\\d{1,4})$")
     private String countryCode = "+84";
@@ -58,6 +63,9 @@ public class UserPhone extends AuditableEntity {
 
     @Column(name = "verification_code_hash", length = 256)
     private String verificationCodeHash;
+
+    @Column(name = "verification_code_expires_at")
+    private LocalDateTime verificationCodeExpiresAt;
 
     @Column(name = "metadata", columnDefinition = "json")
     private String metadata;

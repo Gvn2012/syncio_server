@@ -5,14 +5,13 @@ import io.github.gvn2012.user_service.dtos.requests.AddNewEmailRequest;
 import io.github.gvn2012.user_service.dtos.requests.DeleteEmailRequest;
 import io.github.gvn2012.user_service.dtos.requests.UpdateEmailRequest;
 import io.github.gvn2012.user_service.dtos.requests.VerifyEmailRequest;
-import io.github.gvn2012.user_service.dtos.responses.AddNewEmailResponse;
-import io.github.gvn2012.user_service.dtos.responses.DeleteEmailResponse;
-import io.github.gvn2012.user_service.dtos.responses.UpdateEmailResponse;
-import io.github.gvn2012.user_service.dtos.responses.VerifyEmailResponse;
+import io.github.gvn2012.user_service.dtos.responses.*;
 
 import java.util.UUID;
 
 public interface IUserEmailService {
+
+    APIResource<GetUserEmailResponse> getUserEmail(String userId);
 
     APIResource<AddNewEmailResponse> addNewEmail(UUID userId, AddNewEmailRequest request);
 
@@ -21,4 +20,10 @@ public interface IUserEmailService {
     APIResource<VerifyEmailResponse> verifyEmail(UUID emailId, UUID userId, String token, VerifyEmailRequest request);
 
     APIResource<DeleteEmailResponse> deleteEmail(UUID userId, UUID emailId, DeleteEmailRequest request);
+
+    APIResource<SetPrimaryEmailResponse> setPrimaryEmail(UUID userId, UUID emailId);
+
+    APIResource<Void> resendVerificationEmail(UUID userId, UUID emailId);
+
+    void validateEmailNotUsed(String email);
 }

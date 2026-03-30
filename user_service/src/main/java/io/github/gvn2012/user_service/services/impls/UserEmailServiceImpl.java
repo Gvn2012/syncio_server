@@ -6,10 +6,7 @@ import io.github.gvn2012.user_service.dtos.requests.AddNewEmailRequest;
 import io.github.gvn2012.user_service.dtos.requests.DeleteEmailRequest;
 import io.github.gvn2012.user_service.dtos.requests.UpdateEmailRequest;
 import io.github.gvn2012.user_service.dtos.requests.VerifyEmailRequest;
-import io.github.gvn2012.user_service.dtos.responses.AddNewEmailResponse;
-import io.github.gvn2012.user_service.dtos.responses.DeleteEmailResponse;
-import io.github.gvn2012.user_service.dtos.responses.UpdateEmailResponse;
-import io.github.gvn2012.user_service.dtos.responses.VerifyEmailResponse;
+import io.github.gvn2012.user_service.dtos.responses.*;
 import io.github.gvn2012.user_service.entities.User;
 import io.github.gvn2012.user_service.entities.UserEmail;
 import io.github.gvn2012.user_service.entities.enums.EmailStatus;
@@ -17,6 +14,7 @@ import io.github.gvn2012.user_service.exceptions.BadRequestException;
 import io.github.gvn2012.user_service.exceptions.NotFoundException;
 import io.github.gvn2012.user_service.repositories.UserEmailRepository;
 import io.github.gvn2012.user_service.repositories.UserRepository;
+import io.github.gvn2012.user_service.services.interfaces.ITokenService;
 import io.github.gvn2012.user_service.services.interfaces.IUserEmailService;
 import io.github.gvn2012.user_service.services.kafka.EmailEventProducer;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,12 +34,32 @@ public class UserEmailServiceImpl implements IUserEmailService {
 
     private static final int VERIFICATION_TOKEN_TTL_MINUTES = 15;
 
-    private final TokenServiceImpl tokenService;
+    private final ITokenService tokenService;
     private final UserEmailRepository userEmailRepository;
     private final UserRepository userRepository;
     private final EmailEventProducer emailEventProducer;
 
     private record PendingEmail(UserEmail email, String rawToken) {
+    }
+
+    @Override
+    public APIResource<GetUserEmailResponse> getUserEmail(String userId) {
+        Set<EmailDto> emails = userEmailRepository
+                .findAllByUser_Id(UUID.fromString(userId))
+                .stream()
+                .filter(email -> email.getStatus() != EmailStatus.REMOVED)
+                .map(email -> new EmailDto(
+                        email.getId().toString(),
+                        email.getEmail(),
+                        email.getVerified(),
+                        email.getPrimary()
+                ))
+                .collect(Collectors.toSet());
+
+        return APIResource.ok(
+                "Get user emails successfully",
+                new GetUserEmailResponse(emails)
+        );
     }
 
     @Override
@@ -138,6 +158,7 @@ public class UserEmailServiceImpl implements IUserEmailService {
                 HttpStatus.OK);
     }
 
+    @Override
     @Transactional
     public APIResource<DeleteEmailResponse> deleteEmail(UUID userId, UUID emailId, DeleteEmailRequest request) {
         UserEmail email = userEmailRepository
@@ -146,6 +167,13 @@ public class UserEmailServiceImpl implements IUserEmailService {
                         userId,
                         List.of(EmailStatus.ACTIVE, EmailStatus.UNVERIFIED))
                 .orElseThrow(() -> new NotFoundException("Email not found"));
+
+        if (Boolean.TRUE.equals(email.getPrimary())) {
+            long otherActiveCount = userEmailRepository.countByUser_IdAndStatusNot(userId, EmailStatus.REMOVED) - 1;
+            if (otherActiveCount <= 0) {
+                throw new BadRequestException("Cannot remove your only email. Add another email first.");
+            }
+        }
 
         email.setStatus(EmailStatus.REMOVED);
         email.setVerified(false);
@@ -162,6 +190,41 @@ public class UserEmailServiceImpl implements IUserEmailService {
                 HttpStatus.OK);
     }
 
+    @Override
+    @Transactional
+    public APIResource<SetPrimaryEmailResponse> setPrimaryEmail(UUID userId, UUID emailId) {
+        UserEmail email = userEmailRepository
+                .findByIdAndUser_IdAndStatus(emailId, userId, EmailStatus.ACTIVE)
+                .orElseThrow(() -> new NotFoundException("Email not found or not verified"));
+
+        if (!Boolean.TRUE.equals(email.getVerified())) {
+            throw new BadRequestException("Only verified emails can be set as primary");
+        }
+
+        if (Boolean.TRUE.equals(email.getPrimary())) {
+            throw new BadRequestException("This email is already the primary email");
+        }
+
+        String previousPrimaryId = null;
+        var currentPrimary = userEmailRepository
+                .findByUser_IdAndPrimaryTrueAndStatusNot(userId, EmailStatus.REMOVED);
+        if (currentPrimary.isPresent()) {
+            previousPrimaryId = currentPrimary.get().getId().toString();
+            currentPrimary.get().setPrimary(false);
+            userEmailRepository.save(currentPrimary.get());
+        }
+
+        email.setPrimary(true);
+        userEmailRepository.save(email);
+
+        return APIResource.ok(
+                "Primary email updated successfully",
+                new SetPrimaryEmailResponse(email.getId().toString(), previousPrimaryId),
+                HttpStatus.OK
+        );
+    }
+
+    @Override
     @Transactional
     public APIResource<Void> resendVerificationEmail(UUID userId, UUID emailId) {
         UserEmail email = userEmailRepository
