@@ -89,8 +89,6 @@ public class UserPhoneServiceImpl implements IUserPhoneService {
 
                 userPhoneRepository.save(phone);
 
-                // TODO: Send verification SMS via Kafka/notification service
-                // For now, log the code (in production, this would be sent via SMS)
                 logVerificationCode(phone, rawCode);
 
                 return APIResource.ok(

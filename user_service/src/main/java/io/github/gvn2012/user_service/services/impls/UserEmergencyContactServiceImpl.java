@@ -53,7 +53,9 @@ public class UserEmergencyContactServiceImpl implements IUserEmergencyContactSer
 
     @Override
     @Transactional
-    public APIResource<AddNewEmergencyContactResponse> addNewEmergencyContact(UUID userId, AddNewEmergencyContactRequest request) {
+    public APIResource<AddNewEmergencyContactResponse> addNewEmergencyContact(UUID userId,
+            AddNewEmergencyContactRequest request) {
+        @SuppressWarnings("null")
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
@@ -75,9 +77,11 @@ public class UserEmergencyContactServiceImpl implements IUserEmergencyContactSer
                 HttpStatus.CREATED);
     }
 
+    @SuppressWarnings("null")
     @Override
     @Transactional
-    public APIResource<UpdateEmergencyContactResponse> updateEmergencyContact(UUID userId, UUID contactId, UpdateEmergencyContactRequest request) {
+    public APIResource<UpdateEmergencyContactResponse> updateEmergencyContact(UUID userId, UUID contactId,
+            UpdateEmergencyContactRequest request) {
         UserEmergencyContact contact = emergencyContactRepository
                 .findByIdAndUser_IdAndStatusNot(contactId, userId, EmergencyContactStatus.REMOVED)
                 .orElseThrow(() -> new NotFoundException("Emergency contact not found"));
@@ -113,9 +117,11 @@ public class UserEmergencyContactServiceImpl implements IUserEmergencyContactSer
                 .orElseThrow(() -> new NotFoundException("Emergency contact not found"));
 
         if (Boolean.TRUE.equals(contact.getPrimary())) {
-            long count = emergencyContactRepository.findByUser_IdAndStatusNotOrderByPriorityAsc(userId, EmergencyContactStatus.REMOVED).size();
+            long count = emergencyContactRepository
+                    .findByUser_IdAndStatusNotOrderByPriorityAsc(userId, EmergencyContactStatus.REMOVED).size();
             if (count > 1) {
-                throw new BadRequestException("Cannot delete primary emergency contact. Set another contact as primary first.");
+                throw new BadRequestException(
+                        "Cannot delete primary emergency contact. Set another contact as primary first.");
             }
         }
 
@@ -127,6 +133,7 @@ public class UserEmergencyContactServiceImpl implements IUserEmergencyContactSer
                 new DeleteEmergencyContactResponse(contact.getId().toString()));
     }
 
+    @SuppressWarnings("null")
     @Override
     @Transactional
     public APIResource<SetPrimaryEmergencyContactResponse> setPrimaryEmergencyContact(UUID userId, UUID contactId) {
@@ -139,7 +146,8 @@ public class UserEmergencyContactServiceImpl implements IUserEmergencyContactSer
         }
 
         String previousPrimaryId = null;
-        Optional<UserEmergencyContact> currentPrimaryOpt = emergencyContactRepository.findByUser_IdAndPrimaryTrueAndStatusNot(userId, EmergencyContactStatus.REMOVED);
+        Optional<UserEmergencyContact> currentPrimaryOpt = emergencyContactRepository
+                .findByUser_IdAndPrimaryTrueAndStatusNot(userId, EmergencyContactStatus.REMOVED);
         if (currentPrimaryOpt.isPresent()) {
             previousPrimaryId = currentPrimaryOpt.get().getId().toString();
             currentPrimaryOpt.get().setPrimary(false);

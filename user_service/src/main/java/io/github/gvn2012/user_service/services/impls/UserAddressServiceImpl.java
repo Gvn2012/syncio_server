@@ -55,6 +55,7 @@ public class UserAddressServiceImpl implements IUserAddressService {
     @Override
     @Transactional
     public APIResource<AddNewAddressResponse> addNewAddress(UUID userId, AddNewAddressRequest request) {
+        @SuppressWarnings("null")
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
@@ -77,6 +78,7 @@ public class UserAddressServiceImpl implements IUserAddressService {
                 HttpStatus.CREATED);
     }
 
+    @SuppressWarnings("null")
     @Override
     @Transactional
     public APIResource<UpdateAddressResponse> updateAddress(UUID userId, UUID addressId, UpdateAddressRequest request) {
@@ -121,7 +123,8 @@ public class UserAddressServiceImpl implements IUserAddressService {
                 .orElseThrow(() -> new NotFoundException("Address not found"));
 
         if (Boolean.TRUE.equals(address.getPrimary())) {
-            List<UserAddress> addresses = userAddressRepository.findByUser_IdAndStatusNot(userId, AddressStatus.REMOVED);
+            List<UserAddress> addresses = userAddressRepository.findByUser_IdAndStatusNot(userId,
+                    AddressStatus.REMOVED);
             if (addresses.size() > 1) {
                 throw new BadRequestException("Cannot delete primary address. Set another address as primary first.");
             }
@@ -135,6 +138,7 @@ public class UserAddressServiceImpl implements IUserAddressService {
                 new DeleteAddressResponse(address.getId().toString()));
     }
 
+    @SuppressWarnings("null")
     @Override
     @Transactional
     public APIResource<SetPrimaryAddressResponse> setPrimaryAddress(UUID userId, UUID addressId) {
@@ -147,7 +151,8 @@ public class UserAddressServiceImpl implements IUserAddressService {
         }
 
         String previousPrimaryId = null;
-        Optional<UserAddress> currentPrimaryOpt = userAddressRepository.findByUser_IdAndPrimaryTrueAndStatusNot(userId, AddressStatus.REMOVED);
+        Optional<UserAddress> currentPrimaryOpt = userAddressRepository.findByUser_IdAndPrimaryTrueAndStatusNot(userId,
+                AddressStatus.REMOVED);
         if (currentPrimaryOpt.isPresent()) {
             previousPrimaryId = currentPrimaryOpt.get().getId().toString();
             currentPrimaryOpt.get().setPrimary(false);

@@ -52,14 +52,12 @@ public class UserEmailServiceImpl implements IUserEmailService {
                         email.getId().toString(),
                         email.getEmail(),
                         email.getVerified(),
-                        email.getPrimary()
-                ))
+                        email.getPrimary()))
                 .collect(Collectors.toSet());
 
         return APIResource.ok(
                 "Get user emails successfully",
-                new GetUserEmailResponse(emails)
-        );
+                new GetUserEmailResponse(emails));
     }
 
     @Override
@@ -220,8 +218,7 @@ public class UserEmailServiceImpl implements IUserEmailService {
         return APIResource.ok(
                 "Primary email updated successfully",
                 new SetPrimaryEmailResponse(email.getId().toString(), previousPrimaryId),
-                HttpStatus.OK
-        );
+                HttpStatus.OK);
     }
 
     @Override

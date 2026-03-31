@@ -11,15 +11,30 @@ public class UserDetailMapper {
     private final UserEmailMapper emailMapper;
     private final UserPhoneMapper phoneMapper;
     private final UserProfileMapper profileMapper;
+    private final UserAddressMapper addressMapper;
+    private final UserEmergencyContactMapper emergencyContactMapper;
+    private final UserEmploymentMapper employmentMapper;
+    private final UserSkillMapper skillMapper;
+    private final UserPreferenceMapper preferenceMapper;
 
     public UserDetailMapper(UserMapper userMapper,
                             UserEmailMapper emailMapper,
                             UserPhoneMapper phoneMapper,
-                            UserProfileMapper profileMapper) {
+                            UserProfileMapper profileMapper,
+                            UserAddressMapper addressMapper,
+                            UserEmergencyContactMapper emergencyContactMapper,
+                            UserEmploymentMapper employmentMapper,
+                            UserSkillMapper skillMapper,
+                            UserPreferenceMapper preferenceMapper) {
         this.userMapper = userMapper;
         this.emailMapper = emailMapper;
         this.phoneMapper = phoneMapper;
         this.profileMapper = profileMapper;
+        this.addressMapper = addressMapper;
+        this.emergencyContactMapper = emergencyContactMapper;
+        this.employmentMapper = employmentMapper;
+        this.skillMapper = skillMapper;
+        this.preferenceMapper = preferenceMapper;
     }
 
     public GetUserDetailResponse toDto(User user) {
@@ -29,7 +44,12 @@ public class UserDetailMapper {
                 phoneMapper.toDtoSet(user.getPhones()),
                 user.getProfile() != null
                         ? profileMapper.toDto(user.getProfile())
-                        : null
+                        : null,
+                addressMapper.toDtoSet(user.getAddresses()),
+                emergencyContactMapper.toDtoSet(user.getEmergencyContacts()),
+                employmentMapper.toDtoSet(user.getEmployments()),
+                skillMapper.toDtoSet(user.getSkills()),
+                preferenceMapper.toDtoSet(user.getPreferences())
         );
     }
 }

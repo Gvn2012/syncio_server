@@ -15,4 +15,9 @@ public class GetUserDetailResponse {
     private Set<UserEmailResponse> userEmailResponse;
     private Set<UserPhoneResponse> userPhoneResponse;
     private UserProfileResponse userProfileResponse;
+    private Set<AddressDto> addresses;
+    private Set<EmergencyContactDto> emergencyContacts;
+    private Set<UserEmploymentDto> employments;
+    private Set<UserSkillDto> skills;
+    private Set<UserPreferenceDto> preferences;
 }

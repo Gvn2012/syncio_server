@@ -82,6 +82,8 @@ public class UserServiceImpl implements IUserService {
         return APIResource.ok("Login successfully", response);
     }
 
+    @Override
+    @Transactional(readOnly = true)
     public APIResource<GetUserDetailResponse> getUserDetail(String userId) {
 
         User user = userRepository.findDetailById(UUID.fromString(userId))

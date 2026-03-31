@@ -16,7 +16,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             "profile",
             "profile.pictures",
             "emails",
-            "phones"
+            "phones",
+            "addresses",
+            "emergencyContacts",
+            "employments",
+            "skills",
+            "preferences"
     })
     @Transactional(readOnly = true)
     Optional<User> findDetailById(UUID userId);
