@@ -4,5 +4,6 @@ public enum OrganizationStatus {
     ACTIVE,
     INACTIVE,
     SUSPENDED,
-    DISSOLVED
+    DISSOLVED,
+    DELETED
 }

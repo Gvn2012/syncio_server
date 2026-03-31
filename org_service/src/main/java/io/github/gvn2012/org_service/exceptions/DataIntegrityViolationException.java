@@ -1,0 +1,13 @@
+package io.github.gvn2012.org_service.exceptions;
+
+import org.springframework.http.HttpStatus;
+
+public class DataIntegrityViolationException extends BaseException {
+    public DataIntegrityViolationException(String message) {
+        super(
+                "DATA_INTEGRITY_VIOLATION",
+                message,
+                HttpStatus.UNPROCESSABLE_ENTITY
+        );
+    }
+}

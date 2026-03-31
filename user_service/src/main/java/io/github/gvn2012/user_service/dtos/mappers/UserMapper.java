@@ -12,8 +12,16 @@ public class UserMapper implements IMapper<User, UserResponse> {
         return new UserResponse(
                 user.getId().toString(),
                 user.getUsername(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getMiddleName(),
+                user.getGender(),
                 user.getLocale(),
-                user.getTimezone()
+                user.getTimezone(),
+                user.getActive(),
+                user.getSuspended(),
+                user.getBanned(),
+                user.getMustChangePassword()
         );
     }
 
@@ -21,6 +29,10 @@ public class UserMapper implements IMapper<User, UserResponse> {
     public User toEntity(UserResponse dto) {
         User user = new User();
         user.setUsername(dto.getUsername());
+        user.setFirstName(dto.getFirstName());
+        user.setLastName(dto.getLastName());
+        user.setMiddleName(dto.getMiddleName());
+        user.setGender(dto.getGender());
         user.setLocale(dto.getLocale());
         user.setTimezone(dto.getTimezone());
         return user;
