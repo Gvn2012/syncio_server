@@ -1,0 +1,72 @@
+package io.github.gvn2012.org_service.controllers;
+
+import io.github.gvn2012.org_service.dtos.requests.CreateOrgJobLevelRequest;
+import io.github.gvn2012.org_service.dtos.requests.UpdateOrgJobLevelRequest;
+import io.github.gvn2012.org_service.dtos.responses.CreateOrgJobLevelResponse;
+import io.github.gvn2012.org_service.dtos.responses.OrgJobLevelDto;
+import io.github.gvn2012.org_service.dtos.responses.UpdateOrgJobLevelResponse;
+import io.github.gvn2012.org_service.services.interfaces.IOrgJobLevelService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/v1/organizations/{orgId}/job-levels")
+@RequiredArgsConstructor
+public class OrgJobLevelController {
+
+    private final IOrgJobLevelService jobLevelService;
+
+    @PostMapping
+    public ResponseEntity<CreateOrgJobLevelResponse> createJobLevel(
+            @PathVariable UUID orgId,
+            @Valid @RequestBody CreateOrgJobLevelRequest request) {
+        OrgJobLevelDto dto = jobLevelService.createJobLevel(orgId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                CreateOrgJobLevelResponse.builder()
+                        .message("Job level created successfully")
+                        .jobLevel(dto)
+                        .build()
+        );
+    }
+
+    @PutMapping("/{jobLevelId}")
+    public ResponseEntity<UpdateOrgJobLevelResponse> updateJobLevel(
+            @PathVariable UUID orgId,
+            @PathVariable UUID jobLevelId,
+            @Valid @RequestBody UpdateOrgJobLevelRequest request) {
+        OrgJobLevelDto dto = jobLevelService.updateJobLevel(orgId, jobLevelId, request);
+        return ResponseEntity.ok(
+                UpdateOrgJobLevelResponse.builder()
+                        .message("Job level updated successfully")
+                        .jobLevel(dto)
+                        .build()
+        );
+    }
+
+    @GetMapping("/{jobLevelId}")
+    public ResponseEntity<OrgJobLevelDto> getJobLevelById(
+            @PathVariable UUID orgId,
+            @PathVariable UUID jobLevelId) {
+        return ResponseEntity.ok(jobLevelService.getJobLevelById(orgId, jobLevelId));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<OrgJobLevelDto>> getJobLevelsByOrgId(
+            @PathVariable UUID orgId) {
+        return ResponseEntity.ok(jobLevelService.getJobLevelsByOrgId(orgId));
+    }
+
+    @DeleteMapping("/{jobLevelId}")
+    public ResponseEntity<Void> deleteJobLevel(
+            @PathVariable UUID orgId,
+            @PathVariable UUID jobLevelId) {
+        jobLevelService.deleteJobLevel(orgId, jobLevelId);
+        return ResponseEntity.noContent().build();
+    }
+}
