@@ -2,10 +2,16 @@ FROM eclipse-temurin:21-jdk AS build
 
 WORKDIR /build
 
-COPY . .
+COPY mvnw .
+COPY .mvn .mvn
+COPY pom.xml .
+RUN chmod +x mvnw && ./mvnw install -N -DskipTests
+RUN sed -i '/<modules>/,/<\/modules>/d' pom.xml
+COPY shared shared
+COPY user_service user_service
 
-RUN chmod +x mvnw && \
-    ./mvnw clean package -pl user_service -am -DskipTests
+RUN ./mvnw clean install -f shared/pom.xml -DskipTests && \
+    ./mvnw clean package -f user_service/pom.xml -DskipTests
 
 FROM eclipse-temurin:21-jre
 

@@ -4,9 +4,10 @@ WORKDIR /build
 
 COPY pom.xml .
 COPY relationship_service ./relationship_service
+RUN chmod +x ./relationship_service/mvnw && ./relationship_service/mvnw install -N -DskipTests
+RUN sed -i '/<modules>/,/<\/modules>/d' pom.xml
 
-RUN chmod +x ./relationship_service/mvnw && \
-    ./relationship_service/mvnw -f ./relationship_service/pom.xml clean package -Dmaven.test.skip=true
+RUN ./relationship_service/mvnw -f ./relationship_service/pom.xml clean package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:21-jre
 

@@ -4,9 +4,10 @@ WORKDIR /build
 
 COPY pom.xml .
 COPY post_service ./post_service
+RUN chmod +x ./post_service/mvnw && ./post_service/mvnw install -N -DskipTests
+RUN sed -i '/<modules>/,/<\/modules>/d' pom.xml
 
-RUN chmod +x ./post_service/mvnw && \
-    ./post_service/mvnw -f ./post_service/pom.xml clean package -Dmaven.test.skip=true
+RUN ./post_service/mvnw -f ./post_service/pom.xml clean package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:21-jre
 

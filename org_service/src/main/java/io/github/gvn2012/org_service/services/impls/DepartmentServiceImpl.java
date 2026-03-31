@@ -35,7 +35,8 @@ public class DepartmentServiceImpl implements IDepartmentService {
 
     @Override
     @Transactional
-    public CreateDepartmentResponse createDepartment(UUID orgId, UUID requestingUserId, CreateDepartmentRequest request) {
+    public CreateDepartmentResponse createDepartment(UUID orgId, UUID requestingUserId,
+            CreateDepartmentRequest request) {
         Organization org = validateOrgAccess(orgId, requestingUserId);
 
         if (departmentRepository.findByOrganization_IdAndCode(orgId, request.getCode()).isPresent()) {
@@ -59,11 +60,12 @@ public class DepartmentServiceImpl implements IDepartmentService {
         }
 
         Department savedDepartment = departmentRepository.save(department);
-        
+
         return CreateDepartmentResponse.builder()
                 .id(savedDepartment.getId())
                 .code(savedDepartment.getCode())
                 .build();
+
     }
 
     @Override
@@ -76,7 +78,8 @@ public class DepartmentServiceImpl implements IDepartmentService {
 
     @Override
     @Transactional
-    public UpdateDepartmentResponse updateDepartment(UUID orgId, UUID deptId, UUID requestingUserId, UpdateDepartmentRequest request) {
+    public UpdateDepartmentResponse updateDepartment(UUID orgId, UUID deptId, UUID requestingUserId,
+            UpdateDepartmentRequest request) {
         validateOrgAccess(orgId, requestingUserId);
         Department dept = getDepartmentOrThrow(deptId, orgId);
 
@@ -87,11 +90,16 @@ public class DepartmentServiceImpl implements IDepartmentService {
             dept.setCode(request.getCode());
         }
 
-        if (request.getName() != null) dept.setName(request.getName());
-        if (request.getDescription() != null) dept.setDescription(request.getDescription());
-        if (request.getHeadOfDepartmentId() != null) dept.setHeadOfDepartmentId(request.getHeadOfDepartmentId());
-        if (request.getBudget() != null) dept.setBudget(request.getBudget());
-        if (request.getCostCenterCode() != null) dept.setCostCenterCode(request.getCostCenterCode());
+        if (request.getName() != null)
+            dept.setName(request.getName());
+        if (request.getDescription() != null)
+            dept.setDescription(request.getDescription());
+        if (request.getHeadOfDepartmentId() != null)
+            dept.setHeadOfDepartmentId(request.getHeadOfDepartmentId());
+        if (request.getBudget() != null)
+            dept.setBudget(request.getBudget());
+        if (request.getCostCenterCode() != null)
+            dept.setCostCenterCode(request.getCostCenterCode());
 
         // Update Parent Department safely to avoid cycles
         if (request.getParentDepartmentId() != null) {
@@ -104,7 +112,7 @@ public class DepartmentServiceImpl implements IDepartmentService {
         }
 
         Department updatedDept = departmentRepository.save(dept);
-        
+
         return UpdateDepartmentResponse.builder()
                 .id(updatedDept.getId())
                 .code(updatedDept.getCode())
@@ -116,7 +124,7 @@ public class DepartmentServiceImpl implements IDepartmentService {
     public void deleteDepartment(UUID orgId, UUID deptId, UUID requestingUserId) {
         validateOrgAccess(orgId, requestingUserId);
         Department dept = getDepartmentOrThrow(deptId, orgId);
-        
+
         dept.setStatus(DepartmentStatus.INACTIVE);
         departmentRepository.save(dept);
     }
@@ -134,15 +142,16 @@ public class DepartmentServiceImpl implements IDepartmentService {
     private Organization validateOrgAccess(UUID orgId, UUID requestingUserId) {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new NotFoundException("Organization not found"));
-                
+
         // For Phase 1 we use owner logic only. In later phases, Orbac applies.
-        // Wait, the interceptor handles token parsing but for data retrieval we might double check.
+        // Wait, the interceptor handles token parsing but for data retrieval we might
+        // double check.
         // We'll trust interceptor or check owner:
         /*
-        if (requestingUserId != null && !org.getOwnerId().equals(requestingUserId)) {
-            // Member check logic can be added later
-        }
-        */
+         * if (requestingUserId != null && !org.getOwnerId().equals(requestingUserId)) {
+         * // Member check logic can be added later
+         * }
+         */
         return org;
     }
 

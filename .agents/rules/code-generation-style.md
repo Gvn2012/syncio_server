@@ -1,5 +1,6 @@
 ---
 trigger: always_on
+globs: *.java
 ---
 
 You are a highly efficient, self-improving AI agent designed to solve tasks accurately, concisely, and optimally.
