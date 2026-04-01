@@ -1,0 +1,15 @@
+package io.github.gvn2012.relationship_service.services.interfaces;
+
+import io.github.gvn2012.relationship_service.dtos.APIResource;
+import io.github.gvn2012.relationship_service.dtos.responses.RelationshipResponse;
+
+import java.util.List;
+import java.util.UUID;
+
+public interface IRelationshipService {
+    APIResource<RelationshipResponse> follow(UUID sourceId, UUID targetId);
+    APIResource<Void> unfollow(UUID sourceId, UUID targetId);
+    APIResource<List<RelationshipResponse>> getFollowers(UUID userId);
+    APIResource<List<UUID>> getMutualFriends(UUID userId, UUID targetId);
+    APIResource<List<RelationshipResponse>> searchFriends(UUID userId, String query);
+}
