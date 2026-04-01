@@ -16,47 +16,44 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
 public class PermissionController {
 
-        private final PermissionServiceImpl permissionServiceImpl;
+    private final PermissionServiceImpl permissionServiceImpl;
 
-        // Inject the new registry
-        private final RoutePermissionRegistryInterface routeRegistry;
+    private final RoutePermissionRegistryInterface routeRegistry;
 
-        @PostMapping("/authorize")
-        public ResponseEntity<Void> authorize(@RequestBody PermissionCheckRequest request) {
+    @PostMapping("/authorize")
+    public ResponseEntity<Void> authorize(@RequestBody PermissionCheckRequest request) {
 
-                log.info("Request{} {} {} {}", request.getHttpMethod().toString(), request.getRequestPath(),
-                                request.getUserId(), request.getUserRole());
+        log.info("Request{} {} {} {}", request.getHttpMethod().toString(), request.getRequestPath(),
+                request.getUserId(), request.getUserRole());
 
-                var resolvedOpt = routeRegistry.resolve(
-                                request.getHttpMethod().toString(),
-                                request.getRequestPath());
+        var resolvedOpt = routeRegistry.resolve(
+                request.getHttpMethod().toString(),
+                request.getRequestPath());
 
-                log.info("ResolvedOpt Count {}", resolvedOpt.stream().count());
+        log.info("ResolvedOpt Count {}", resolvedOpt.stream().count());
 
-                if (resolvedOpt.isEmpty()) {
-                        log.warn("Access denied. Unmapped route requested: {} {}",
-                                        request.getHttpMethod(), request.getRequestPath());
-                        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-                }
-
-                var resolved = resolvedOpt.get();
-
-                log.info("Resolved {} {}", resolved.permissionCode(), resolved.targetId());
-
-                var decision = permissionServiceImpl.evaluateAccess(
-                                request.getUserId(),
-                                request.getUserRole(),
-                                resolved.permissionCode(), // e.g., "user:phone:read"
-                                resolved.targetId() // e.g., "user-123" (Can be null for creations/lists)
-                );
-
-                // 4. Return the HTTP response based on the engine's decision
-                return switch (decision) {
-                        case PERMIT ->
-                                ResponseEntity.ok().build(); // 200 OK tells the API Gateway to proceed
-
-                        case DENY, NOT_APPLICABLE, INDETERMINATE ->
-                                ResponseEntity.status(HttpStatus.FORBIDDEN).build(); // 403 blocks the request
-                };
+        if (resolvedOpt.isEmpty()) {
+            log.warn("Access denied. Unmapped route requested: {} {}",
+                    request.getHttpMethod(), request.getRequestPath());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+
+        var resolved = resolvedOpt.get();
+
+        log.info("Resolved {} {}", resolved.permissionCode(), resolved.targetId());
+
+        var decision = permissionServiceImpl.evaluateAccess(
+                request.getUserId(),
+                request.getUserRole(),
+                resolved.permissionCode(),
+                resolved.targetId());
+
+        return switch (decision) {
+            case PERMIT ->
+                ResponseEntity.ok().build();
+
+            case DENY, NOT_APPLICABLE, INDETERMINATE ->
+                ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        };
+    }
 }
