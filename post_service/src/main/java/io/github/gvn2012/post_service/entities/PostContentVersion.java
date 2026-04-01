@@ -13,7 +13,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @AllArgsConstructor
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @Table(name = "post_content_versions", indexes = {
         @Index(name = "ix_content_version_post", columnList = "post_id"),
         @Index(name = "ix_content_version_number", columnList = "post_id, version_number")

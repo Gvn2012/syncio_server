@@ -10,13 +10,12 @@ import java.util.UUID;
 @Getter
 @Setter
 @AllArgsConstructor
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Table(name = "post_announcements", indexes = {
         @Index(name = "ix_post_ann_post_id", columnList = "post_id"),
-        @Index(name = "ix_post_ann_priority", columnList = "priority"),
-        @Index(name = "ix_post_ann_expires", columnList = "expires_at")
+        @Index(name = "ix_post_ann_priority", columnList = "priority")
 })
 public class PostAnnouncement {
 
@@ -31,14 +30,8 @@ public class PostAnnouncement {
     @JoinColumn(name = "post_id")
     private Post post;
 
-    @Column(name = "title")
-    private String title;
-
-    @Column(name = "summary")
-    private String summary;
-
     @Column(name = "priority", nullable = false)
-    private Integer priority = 2;
+    private String priority = "NORMAL";
 
     @Column(name = "is_pinned", nullable = false)
     private Boolean isPinned = false;
@@ -46,6 +39,9 @@ public class PostAnnouncement {
     @Column(name = "pinned_until")
     private LocalDateTime pinnedUntil;
 
-    @Column(name = "expires_at")
-    private LocalDateTime expiresAt;
+    @Column(name = "requires_acknowledgement", nullable = false)
+    private Boolean requiresAcknowledgement = false;
+
+    @Column(name = "read_count", nullable = false)
+    private Integer readCount = 0;
 }

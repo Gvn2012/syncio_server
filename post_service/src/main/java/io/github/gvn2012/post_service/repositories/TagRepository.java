@@ -7,5 +7,5 @@ import io.github.gvn2012.post_service.entities.Tag;
 
 @Repository
 public interface TagRepository extends JpaRepository<Tag, Long> {
-
+    java.util.Optional<Tag> findByName(String name);
 }

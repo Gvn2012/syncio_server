@@ -18,7 +18,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @AllArgsConstructor
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @Table(name = "moderation_queue", indexes = {
         @Index(name = "ix_moderation_queue_status", columnList = "status"),
         @Index(name = "ix_moderation_queue_priority", columnList = "priority, created_at"),

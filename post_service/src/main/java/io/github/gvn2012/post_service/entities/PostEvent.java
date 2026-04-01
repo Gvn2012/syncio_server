@@ -17,7 +17,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @AllArgsConstructor
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Table(name = "post_events", indexes = {
@@ -62,6 +62,12 @@ public class PostEvent extends AuditableEntity {
     @Column(name = "max_participants")
     @Min(1)
     private Integer maxParticipants;
+
+    @Column(name = "is_virtual", nullable = false)
+    private Boolean isVirtual = false;
+
+    @Column(name = "join_url")
+    private String joinUrl;
 
     @Column(name = "allow_guests", nullable = false)
     private Boolean allowGuests = false;

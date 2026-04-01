@@ -20,13 +20,13 @@ import java.util.UUID;
 @Getter
 @Setter
 @AllArgsConstructor
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Table(name = "posts", indexes = {
-        @Index(name = "ix_posts_visibility", columnList = "visibility"),
-        @Index(name = "ix_posts_status", columnList = "status"),
-        @Index(name = "ix_posts_parent_post", columnList = "parent_post_id")
+                @Index(name = "ix_posts_visibility", columnList = "visibility"),
+                @Index(name = "ix_posts_status", columnList = "status"),
+                @Index(name = "ix_posts_parent_post", columnList = "parent_post_id")
 })
 public class Post extends AuditableEntity {
 
@@ -40,6 +40,12 @@ public class Post extends AuditableEntity {
         @Enumerated(EnumType.STRING)
         @Column(name = "post_type", nullable = false)
         private PostCategory postCategory = PostCategory.NORMAL;
+
+        @Column(name = "org_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
+        private UUID orgId;
+
+        @Column(name = "author_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
+        private UUID authorId;
 
         @ToString.Include
         @Column(name = "content", columnDefinition = "TEXT")
@@ -65,7 +71,6 @@ public class Post extends AuditableEntity {
         @Enumerated(EnumType.STRING)
         @Column(name = "moderation_status", nullable = false)
         private PostModerationStatus moderationStatus = PostModerationStatus.NONE;
-
 
         @Column(name = "published_at", nullable = false, updatable = false)
         private LocalDateTime publishedAt = LocalDateTime.now();
@@ -181,6 +186,12 @@ public class Post extends AuditableEntity {
 
                 // ===== Extension validation =====
                 switch (postCategory) {
+                        case NORMAL -> {
+                                if (event != null || poll != null || task != null || announcement != null) {
+                                        throw new IllegalStateException(
+                                                        "Normal post cannot have PostEvent, PostPoll, PostTask, or PostAnnouncement");
+                                }
+                        }
                         case EVENT -> {
                                 if (event == null) {
                                         throw new IllegalStateException("Event post must have PostEvent");
