@@ -1,7 +1,10 @@
 package io.github.gvn2012.post_service.services.impls;
 
+import io.github.gvn2012.post_service.dtos.mappers.CommentMapper;
+import io.github.gvn2012.post_service.dtos.responses.CommentResponse;
 import io.github.gvn2012.post_service.entities.Post;
 import io.github.gvn2012.post_service.entities.PostComment;
+import io.github.gvn2012.post_service.exceptions.ForbiddenException;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
 import io.github.gvn2012.post_service.repositories.PostCommentRepository;
 import io.github.gvn2012.post_service.repositories.PostRepository;
@@ -23,67 +26,96 @@ public class PostCommentServiceImpl implements IPostCommentService {
     private final PostCommentRepository commentRepository;
     private final PostRepository postRepository;
     private final PostEventProducer postEventProducer;
+    private final CommentMapper commentMapper;
+    private final UserValidationService userValidationService;
 
     @Override
     @Transactional
-    public PostComment addComment(UUID postId, UUID authorId, String content, UUID parentCommentId) {
+    public CommentResponse addComment(UUID postId, UUID authorId, String content, UUID parentCommentId) {
+        userValidationService.validateUserCanInteract(authorId);
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("Post not found: " + postId));
+        
         PostComment comment = new PostComment();
         comment.setPost(post);
         comment.setContent(content);
         comment.setUserId(authorId);
+        
         if (parentCommentId != null) {
-            PostComment parent = commentRepository.findById(parentCommentId)
-                    .orElseThrow(() -> new NotFoundException("Parent comment not found: " + parentCommentId));
+            PostComment parent = fetchCommentById(parentCommentId);
             comment.setParentComment(parent);
+            comment.setDepth(parent.getDepth() + 1);
+            commentRepository.incrementReplyCount(parentCommentId, 1);
+        } else {
+            comment.setDepth(0);
         }
-        post.setCommentCount(post.getCommentCount() + 1);
-        postRepository.save(post);
+        
+        postRepository.incrementCommentCount(postId, 1);
         PostComment saved = commentRepository.save(comment);
         postEventProducer.publishPostCommented(postId, post.getAuthorId(), authorId);
-        return saved;
+        return commentMapper.toResponse(saved);
+    }
+
+    private PostComment fetchCommentById(UUID id) {
+        return commentRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Comment not found: " + id));
     }
 
     @Override
-    public PostComment getCommentById(UUID commentId) {
-        return commentRepository.findById(commentId)
-                .orElseThrow(() -> new NotFoundException("Comment not found: " + commentId));
+    public CommentResponse getCommentById(UUID commentId) {
+        return commentMapper.toResponse(fetchCommentById(commentId));
     }
 
     @Override
     @Transactional
-    public PostComment updateComment(UUID commentId, UUID authorId, String newContent) {
-        PostComment comment = getCommentById(commentId);
+    public CommentResponse updateComment(UUID commentId, UUID authorId, String newContent) {
+        userValidationService.validateUserCanInteract(authorId);
+        PostComment comment = fetchCommentById(commentId);
+        validateOwnership(comment, authorId);
+        
         comment.setContent(newContent);
         comment.setUpdatedAt(LocalDateTime.now());
-        return commentRepository.save(comment);
+        return commentMapper.toResponse(commentRepository.save(comment));
+    }
+
+    private void validateOwnership(PostComment comment, UUID userId) {
+        if (!comment.getUserId().equals(userId)) {
+            throw new ForbiddenException("User is not the author of this comment");
+        }
     }
 
     @Override
     @Transactional
     public void deleteComment(UUID commentId, UUID authorId) {
-        PostComment comment = getCommentById(commentId);
-        Post post = comment.getPost();
+        userValidationService.validateUserCanInteract(authorId);
+        PostComment comment = fetchCommentById(commentId);
+        validateOwnership(comment, authorId);
+        
+        UUID postId = comment.getPost().getId();
         commentRepository.delete(comment);
-        post.setCommentCount(Math.max(0, post.getCommentCount() - 1));
-        postRepository.save(post);
+        
+        postRepository.incrementCommentCount(postId, -1);
+        if (comment.getParentComment() != null) {
+            commentRepository.incrementReplyCount(comment.getParentComment().getId(), -1);
+        }
     }
 
     @Override
-    public List<PostComment> getCommentsByPost(UUID postId, Pageable pageable) {
-        return commentRepository.findByPostIdOrderByCreatedAtDesc(postId, pageable);
+    public List<CommentResponse> getCommentsByPost(UUID postId, Pageable pageable) {
+        return commentRepository.findByPostIdAndParentCommentIdIsNullOrderByCreatedAtDesc(postId, pageable)
+                .stream().map(commentMapper::toResponse).toList();
     }
 
     @Override
-    public List<PostComment> getReplies(UUID parentCommentId, Pageable pageable) {
-        return commentRepository.findByParentCommentId(parentCommentId, pageable);
+    public List<CommentResponse> getReplies(UUID parentCommentId, Pageable pageable) {
+        return commentRepository.findByParentCommentId(parentCommentId, pageable)
+                .stream().map(commentMapper::toResponse).toList();
     }
 
     @Override
     @Transactional
     public void pinComment(UUID commentId) {
-        PostComment comment = getCommentById(commentId);
+        PostComment comment = fetchCommentById(commentId);
         comment.setIsPinned(true);
         commentRepository.save(comment);
     }

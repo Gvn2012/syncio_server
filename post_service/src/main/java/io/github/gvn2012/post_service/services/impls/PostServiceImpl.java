@@ -89,6 +89,8 @@ public class PostServiceImpl implements IPostService {
         userValidationService.validateUserCanInteract(editorId);
         
         Post post = fetchPostById(postId);
+        validateOwnership(post, editorId);
+        
         contentVersionService.captureNewVersion(post, editorId, request.getContent());
         
         if (request.getContent() != null) post.setContent(request.getContent());
@@ -117,31 +119,43 @@ public class PostServiceImpl implements IPostService {
         return postMapper.toResponse(saved);
     }
 
+    private void validateOwnership(Post post, UUID userId) {
+        if (!post.getAuthorId().equals(userId)) {
+            // Ideally check for ADMIN role here too via a security context or client call
+            throw new io.github.gvn2012.post_service.exceptions.ForbiddenException("User is not the author of this post");
+        }
+    }
+
     private void processMentions(Post post, List<UUID> userIds) {
-        if (userIds == null) return;
-        userIds.forEach(userId -> {
-            PostMention mention = new PostMention(null, post, userId, io.github.gvn2012.post_service.entities.enums.MentionStatus.ACTIVE);
-            mentionRepository.save(mention);
-        });
+        if (userIds == null || userIds.isEmpty()) return;
+        List<PostMention> mentions = userIds.stream()
+                .map(userId -> new PostMention(null, post, userId, io.github.gvn2012.post_service.entities.enums.MentionStatus.ACTIVE))
+                .toList();
+        mentionRepository.saveAll(mentions);
     }
 
     private void processTags(Post post, List<String> tagNames) {
-        if (tagNames == null) return;
-        tagNames.forEach(name -> {
-            Tag tag = tagRepository.findByName(name)
-                    .orElseGet(() -> tagRepository.save(new Tag(null, name, name, 0L, 0L, false, false, null, null)));
-            PostTag postTag = new PostTag(new io.github.gvn2012.post_service.entities.composite_keys.PostTagId(post.getId(), tag.getId()), post, tag);
-            postTagRepository.save(postTag);
-        });
+        if (tagNames == null || tagNames.isEmpty()) return;
+        List<PostTag> postTags = tagNames.stream()
+                .map(name -> {
+                    Tag tag = tagRepository.findByName(name)
+                            .orElseGet(() -> tagRepository.save(new Tag(null, name, name, 0L, 0L, false, false, null, null)));
+                    return new PostTag(new io.github.gvn2012.post_service.entities.composite_keys.PostTagId(post.getId(), tag.getId()), post, tag);
+                })
+                .toList();
+        postTagRepository.saveAll(postTags);
     }
 
     private void processAttachments(Post post, List<MediaAttachmentRequest> requests) {
-        if (requests == null) return;
-        requests.forEach(req -> {
-            PostMediaAttachment attachment = mediaAttachmentMapper.toEntity(req);
-            attachment.setPost(post);
-            attachmentRepository.save(attachment);
-        });
+        if (requests == null || requests.isEmpty()) return;
+        List<PostMediaAttachment> attachments = requests.stream()
+                .map(req -> {
+                    PostMediaAttachment attachment = mediaAttachmentMapper.toEntity(req);
+                    attachment.setPost(post);
+                    return attachment;
+                })
+                .toList();
+        attachmentRepository.saveAll(attachments);
     }
 
     @Override
@@ -149,6 +163,7 @@ public class PostServiceImpl implements IPostService {
     public void deletePost(UUID id, UUID userId) {
         userValidationService.validateUserCanInteract(userId);
         Post post = fetchPostById(id);
+        validateOwnership(post, userId);
         post.setStatus(PostStatus.DELETED);
         postRepository.save(post);
         postEventProducer.publishPostDeleted(post.getId(), post.getAuthorId());
@@ -159,6 +174,7 @@ public class PostServiceImpl implements IPostService {
     public void archivePost(UUID id, UUID userId) {
         userValidationService.validateUserCanInteract(userId);
         Post post = fetchPostById(id);
+        validateOwnership(post, userId);
         post.setStatus(PostStatus.ARCHIVED);
         postRepository.save(post);
     }
@@ -198,8 +214,7 @@ public class PostServiceImpl implements IPostService {
         sharedPost.setPublishedAt(LocalDateTime.now());
         
         Post saved = postRepository.save(sharedPost);
-        original.setShareCount(original.getShareCount() + 1);
-        postRepository.save(original);
+        postRepository.incrementShareCount(originalPostId, 1);
         
         postEventProducer.publishPostCreated(saved.getId(), sharerId);
         return postMapper.toResponse(saved);
@@ -214,11 +229,9 @@ public class PostServiceImpl implements IPostService {
     @Override
     @Transactional
     public void updateEngagementMetrics(UUID postId, int viewInc, int reactionInc, int commentInc, int shareInc) {
-        Post post = fetchPostById(postId);
-        if (viewInc != 0) post.setViewCount(post.getViewCount().add(java.math.BigInteger.valueOf(viewInc)));
-        if (reactionInc != 0) post.setReactionCount(post.getReactionCount() + reactionInc);
-        if (commentInc != 0) post.setCommentCount(post.getCommentCount() + commentInc);
-        if (shareInc != 0) post.setShareCount(post.getShareCount() + shareInc);
-        postRepository.save(post);
+        if (viewInc != 0) postRepository.incrementViewCount(postId, viewInc);
+        if (reactionInc != 0) postRepository.incrementReactionCount(postId, reactionInc);
+        if (commentInc != 0) postRepository.incrementCommentCount(postId, commentInc);
+        if (shareInc != 0) postRepository.incrementShareCount(postId, shareInc);
     }
 }

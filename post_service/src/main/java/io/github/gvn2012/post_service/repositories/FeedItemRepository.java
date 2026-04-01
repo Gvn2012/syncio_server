@@ -6,10 +6,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@Repository
 public interface FeedItemRepository extends JpaRepository<FeedItem, UUID> {
 
     @Query("SELECT f FROM FeedItem f WHERE f.recipientId = :recipientId AND f.isHidden = false ORDER BY f.weightScore DESC, f.createdAt DESC")
@@ -25,4 +29,9 @@ public interface FeedItemRepository extends JpaRepository<FeedItem, UUID> {
     @Modifying
     @Query("UPDATE FeedItem f SET f.isRead = true WHERE f.id = :feedItemId")
     void markAsRead(@Param("feedItemId") UUID feedItemId);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM FeedItem f WHERE f.createdAt < :cutoff")
+    void purgeOldItems(@Param("cutoff") LocalDateTime cutoff);
 }

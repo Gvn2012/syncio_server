@@ -8,8 +8,9 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Setter
+@Builder
 @AllArgsConstructor
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Table(name = "tag_trending", indexes = {
@@ -32,15 +33,19 @@ public class TagTrending extends AuditableEntity {
 
     // ================= TIME-WINDOW COUNTS =================
 
+    @Builder.Default
     @Column(name = "post_count_1h", nullable = false)
     private Long postCount1h = 0L;
 
+    @Builder.Default
     @Column(name = "post_count_6h", nullable = false)
     private Long postCount6h = 0L;
 
+    @Builder.Default
     @Column(name = "post_count_24h", nullable = false)
     private Long postCount24h = 0L;
 
+    @Builder.Default
     @Column(name = "post_count_7d", nullable = false)
     private Long postCount7d = 0L;
 
@@ -57,17 +62,21 @@ public class TagTrending extends AuditableEntity {
 
     // ================= ENGAGEMENT METRICS =================
 
+    @Builder.Default
     @Column(name = "total_views_24h", nullable = false)
     private Long totalViews24h = 0L;
 
+    @Builder.Default
     @Column(name = "total_reactions_24h", nullable = false)
     private Long totalReactions24h = 0L;
 
+    @Builder.Default
     @Column(name = "unique_authors_24h", nullable = false)
     private Long uniqueAuthors24h = 0L;
 
     // ================= TRENDING CALCULATION =================
 
+    @Builder.Default
     @Column(name = "trending_score", nullable = false)
     private Double trendingScore = 0.0;
 
@@ -82,6 +91,7 @@ public class TagTrending extends AuditableEntity {
 
     // ================= STATUS =================
 
+    @Builder.Default
     @Column(name = "is_trending", nullable = false)
     private Boolean isTrending = false;
 
@@ -102,9 +112,11 @@ public class TagTrending extends AuditableEntity {
 
     // ================= METADATA =================
 
+    @Builder.Default
     @Column(name = "last_calculated_at", nullable = false)
     private LocalDateTime lastCalculatedAt = LocalDateTime.now();
 
+    @Builder.Default
     @Column(name = "calculation_version", nullable = false)
     private Integer calculationVersion = 1; // for algorithm versioning
 

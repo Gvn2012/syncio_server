@@ -90,6 +90,10 @@ public class APIResource<T> {
                 .build();
     }
 
+    public static <T> APIResource <T> success(T data) {
+        return ok("Success", data);
+    }
+
     public static <T> APIResource <T> ok(String message, T data, HttpStatus httpStatus) {
         return APIResource.<T>builder()
                 .success(true)
