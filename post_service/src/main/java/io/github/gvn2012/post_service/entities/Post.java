@@ -111,6 +111,9 @@ public class Post extends AuditableEntity {
         @Column(name = "is_shared", nullable = false)
         private Boolean isShared = false;
 
+        @Column(name = "is_pinned", nullable = false)
+        private Boolean isPinned = false;
+
         // ================= RELATIONSHIPS =================
 
         @ToString.Exclude

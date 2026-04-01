@@ -23,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -96,7 +95,8 @@ public class PostEventServiceImpl implements IPostEventService {
 
     @Override
     @Transactional
-    public void cancelEvent(UUID eventId) {
+    public void cancelEvent(UUID eventId, UUID userId) {
+        userValidationService.validateUserCanInteract(userId);
         PostEvent event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
         event.setStatus(EventStatus.CANCELLED);

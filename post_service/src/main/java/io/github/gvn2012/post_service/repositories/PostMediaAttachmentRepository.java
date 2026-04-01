@@ -9,5 +9,5 @@ import io.github.gvn2012.post_service.entities.PostMediaAttachment;
 
 @Repository
 public interface PostMediaAttachmentRepository extends JpaRepository<PostMediaAttachment, UUID> {
-
+    void deleteByPostId(UUID postId);
 }

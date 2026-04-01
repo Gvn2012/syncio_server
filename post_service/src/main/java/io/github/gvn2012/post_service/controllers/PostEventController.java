@@ -50,8 +50,10 @@ public class PostEventController {
     }
 
     @DeleteMapping("/{eventId}/cancel")
-    public ResponseEntity<Void> cancelEvent(@PathVariable UUID eventId) {
-        eventService.cancelEvent(eventId);
+    public ResponseEntity<Void> cancelEvent(
+            @PathVariable UUID eventId,
+            @RequestHeader("X-User-ID") UUID userId) {
+        eventService.cancelEvent(eventId, userId);
         return ResponseEntity.noContent().build();
     }
 

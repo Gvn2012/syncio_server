@@ -36,6 +36,7 @@ public class PostResponse {
 
     private PostModerationStatus moderationStatus;
     private Boolean isShared;
+    private Boolean isPinned;
     private UUID parentPostId;
     
     private List<MediaAttachmentResponse> attachments;

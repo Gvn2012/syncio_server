@@ -104,7 +104,8 @@ public class PostPollServiceImpl implements IPostPollService {
 
     @Override
     @Transactional
-    public void closePoll(UUID pollId) {
+    public void closePoll(UUID pollId, UUID userId) {
+        userValidationService.validateUserCanInteract(userId);
         PostPoll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new NotFoundException("Poll not found: " + pollId));
         poll.setIsClosed(true);

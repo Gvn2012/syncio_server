@@ -13,6 +13,6 @@ public interface IPostEventService {
     PostEventResponse getEventByPostId(UUID postId);
     List<PostEventResponse> getUpcomingEvents(Pageable pageable);
     void respondToEvent(UUID eventId, UUID userId, String status);
-    void cancelEvent(UUID eventId);
+    void cancelEvent(UUID eventId, UUID userId);
     List<PostEventParticipantResponse> getParticipants(UUID eventId);
 }

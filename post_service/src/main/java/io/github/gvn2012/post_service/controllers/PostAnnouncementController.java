@@ -42,14 +42,18 @@ public class PostAnnouncementController {
     }
 
     @PatchMapping("/{announcementId}/pin")
-    public ResponseEntity<Void> pinAnnouncement(@PathVariable UUID announcementId) {
-        announcementService.pinAnnouncement(announcementId);
+    public ResponseEntity<Void> pinAnnouncement(
+            @PathVariable UUID announcementId,
+            @RequestHeader("X-User-ID") UUID userId) {
+        announcementService.pinAnnouncement(announcementId, userId);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{announcementId}/unpin")
-    public ResponseEntity<Void> unpinAnnouncement(@PathVariable UUID announcementId) {
-        announcementService.unpinAnnouncement(announcementId);
+    public ResponseEntity<Void> unpinAnnouncement(
+            @PathVariable UUID announcementId,
+            @RequestHeader("X-User-ID") UUID userId) {
+        announcementService.unpinAnnouncement(announcementId, userId);
         return ResponseEntity.noContent().build();
     }
 

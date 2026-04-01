@@ -65,7 +65,8 @@ public class PostAnnouncementServiceImpl implements IPostAnnouncementService {
 
     @Override
     @Transactional
-    public void pinAnnouncement(UUID announcementId) {
+    public void pinAnnouncement(UUID announcementId, UUID userId) {
+        userValidationService.validateUserCanInteract(userId);
         PostAnnouncement ann = announcementRepository.findById(announcementId)
                 .orElseThrow(() -> new NotFoundException("Announcement not found: " + announcementId));
         ann.setIsPinned(true);
@@ -74,7 +75,8 @@ public class PostAnnouncementServiceImpl implements IPostAnnouncementService {
 
     @Override
     @Transactional
-    public void unpinAnnouncement(UUID announcementId) {
+    public void unpinAnnouncement(UUID announcementId, UUID userId) {
+        userValidationService.validateUserCanInteract(userId);
         PostAnnouncement ann = announcementRepository.findById(announcementId)
                 .orElseThrow(() -> new NotFoundException("Announcement not found: " + announcementId));
         ann.setIsPinned(false);
