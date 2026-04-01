@@ -4,6 +4,7 @@ import io.github.gvn2012.post_service.entities.Post;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -27,4 +28,20 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     @Query("SELECT p FROM Post p JOIN p.announcement a WHERE a.isPinned = true AND p.status = 'PUBLISHED' ORDER BY a.priority ASC")
     List<Post> findPinnedAndPublishedAnnouncements(Pageable pageable);
+
+    @Modifying
+    @Query("UPDATE Post p SET p.commentCount = p.commentCount + :increment WHERE p.id = :id")
+    void incrementCommentCount(@Param("id") UUID id, @Param("increment") int increment);
+
+    @Modifying
+    @Query("UPDATE Post p SET p.reactionCount = p.reactionCount + :increment WHERE p.id = :id")
+    void incrementReactionCount(@Param("id") UUID id, @Param("increment") int increment);
+
+    @Modifying
+    @Query("UPDATE Post p SET p.shareCount = p.shareCount + :increment WHERE p.id = :id")
+    void incrementShareCount(@Param("id") UUID id, @Param("increment") int increment);
+
+    @Modifying
+    @Query("UPDATE Post p SET p.viewCount = p.viewCount + :increment WHERE p.id = :id")
+    void incrementViewCount(@Param("id") UUID id, @Param("increment") long increment);
 }

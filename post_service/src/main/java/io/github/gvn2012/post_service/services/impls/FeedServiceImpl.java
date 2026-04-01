@@ -84,8 +84,11 @@ public class FeedServiceImpl implements IFeedService {
 
     private List<UUID> resolveHighVolumeFollows(UUID userId) {
         try {
-            List<UUID> followers = relationshipClient.getFollowers(userId).block();
-            return followers != null ? followers : List.of();
+            // High volume follows logic usually involves a specific flag or threshold
+            // For now, we use getFollowing as it's the intended source for feed content
+            return relationshipClient.getFollowing(userId)
+                    .onErrorReturn(List.of())
+                    .block();
         } catch (Exception e) {
             return List.of();
         }
@@ -93,8 +96,9 @@ public class FeedServiceImpl implements IFeedService {
 
     private List<UUID> resolveFollows(UUID userId) {
         try {
-            List<UUID> followers = relationshipClient.getFollowers(userId).block();
-            return followers != null ? followers : List.of();
+            return relationshipClient.getFollowing(userId)
+                    .onErrorReturn(List.of())
+                    .block();
         } catch (Exception e) {
             return List.of();
         }

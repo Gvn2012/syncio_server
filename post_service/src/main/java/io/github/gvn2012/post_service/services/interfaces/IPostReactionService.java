@@ -13,4 +13,5 @@ public interface IPostReactionService {
     boolean hasUserReacted(UUID postId, UUID userId);
     void addCommentReaction(UUID commentId, UUID userId, Short reactionTypeId);
     void removeCommentReaction(UUID commentId, UUID userId);
+    void toggleCommentReaction(UUID commentId, UUID userId, Short reactionTypeId);
 }

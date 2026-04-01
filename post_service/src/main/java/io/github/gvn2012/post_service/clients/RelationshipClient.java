@@ -33,6 +33,22 @@ public class RelationshipClient extends HttpClient {
         });
     }
 
+    @SuppressWarnings("unchecked")
+    public Mono<List<UUID>> getFollowing(UUID userId) {
+        return get(
+                "/api/v1/relationships/{userId}/following",
+                new ParameterizedTypeReference<APIResource<List<UUID>>>() {},
+                userId.toString()
+        ).flatMap(response -> {
+            if (!response.isSuccess() || response.getData() == null) {
+                return Mono.error(new InternalServerErrorException(
+                        response.getError() != null ? response.getError().getMessage() : "Relationship service error"
+                ));
+            }
+            return Mono.just(response.getData());
+        });
+    }
+
     public Mono<Boolean> isFollowing(UUID sourceId, UUID targetId) {
         return get(
                 "/api/v1/relationships/{sourceId}/following/{targetId}",
