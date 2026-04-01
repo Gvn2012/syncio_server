@@ -1,6 +1,7 @@
 package io.github.gvn2012.post_service.services.impls;
 
 import io.github.gvn2012.post_service.dtos.mappers.PostPollMapper;
+import io.github.gvn2012.post_service.dtos.requests.PollOptionRequest;
 import io.github.gvn2012.post_service.dtos.requests.PostPollRequest;
 import io.github.gvn2012.post_service.dtos.responses.PostPollResponse;
 import io.github.gvn2012.post_service.entities.PollOption;
@@ -39,12 +40,12 @@ public class PostPollServiceImpl implements IPostPollService {
     public PostPollResponse createPoll(UUID postId, PostPollRequest request) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("Post not found: " + postId));
-        
+
         userValidationService.validateUserCanInteract(post.getAuthorId());
-        
+
         post.setPostCategory(PostCategory.POLL);
         postRepository.save(post);
-        
+
         PostPoll poll = pollMapper.toEntity(request);
         poll.setPost(post);
         poll.setPostId(post.getId());
@@ -53,7 +54,7 @@ public class PostPollServiceImpl implements IPostPollService {
             option.setPoll(poll);
             return option;
         }).collect(Collectors.toSet()));
-        
+
         PostPoll saved = pollRepository.save(poll);
         return pollMapper.toResponse(saved);
     }
@@ -67,30 +68,61 @@ public class PostPollServiceImpl implements IPostPollService {
 
     @Override
     @Transactional
-    public void voteOnPoll(UUID pollId, UUID optionId, UUID userId) {
-        userValidationService.validateUserCanInteract(userId);
-        
+    public void addPollOption(UUID pollId, PollOptionRequest request) {
         PostPoll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new NotFoundException("Poll not found: " + pollId));
-        
-        if (Boolean.TRUE.equals(poll.getIsClosed()) || 
-            (poll.getExpiresAt() != null && poll.getExpiresAt().isBefore(LocalDateTime.now()))) {
-            throw new BadRequestException("Poll is closed");
-        }
-        
+
+        userValidationService.validateUserCanInteract(poll.getPost().getAuthorId());
+
+        PollOption option = pollMapper.toOptionEntity(request);
+        option.setPoll(poll);
+        optionRepository.save(option);
+    }
+
+    @Override
+    @Transactional
+    public void removePollOption(UUID pollId, UUID optionId) {
+        PostPoll poll = pollRepository.findById(pollId)
+                .orElseThrow(() -> new NotFoundException("Poll not found: " + pollId));
+
+        userValidationService.validateUserCanInteract(poll.getPost().getAuthorId());
+
         PollOption option = optionRepository.findById(optionId)
                 .orElseThrow(() -> new NotFoundException("Option not found: " + optionId));
-        
+
         if (!option.getPoll().getPostId().equals(pollId)) {
             throw new BadRequestException("Option does not belong to poll");
         }
-        
+
+        optionRepository.delete(option);
+    }
+
+    @Override
+    @Transactional
+    public void voteOnPoll(UUID pollId, UUID optionId, UUID userId) {
+        userValidationService.validateUserCanInteract(userId);
+
+        PostPoll poll = pollRepository.findById(pollId)
+                .orElseThrow(() -> new NotFoundException("Poll not found: " + pollId));
+
+        if (Boolean.TRUE.equals(poll.getIsClosed()) ||
+                (poll.getExpiresAt() != null && poll.getExpiresAt().isBefore(LocalDateTime.now()))) {
+            throw new BadRequestException("Poll is closed");
+        }
+
+        PollOption option = optionRepository.findById(optionId)
+                .orElseThrow(() -> new NotFoundException("Option not found: " + optionId));
+
+        if (!option.getPoll().getPostId().equals(pollId)) {
+            throw new BadRequestException("Option does not belong to poll");
+        }
+
         // Simple vote logic (could be extended for multiple answers)
         PollVote vote = new PollVote();
         vote.setOption(option);
         vote.setUserId(userId);
         voteRepository.save(vote);
-        
+
         option.setVoteCount(option.getVoteCount() + 1);
         optionRepository.save(option);
     }

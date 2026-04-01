@@ -2,11 +2,11 @@ package io.github.gvn2012.post_service.dtos.requests;
 
 import io.github.gvn2012.post_service.entities.enums.PostCategory;
 import io.github.gvn2012.post_service.entities.enums.PostVisibility;
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.util.List;
 import java.util.UUID;
 

@@ -1,14 +1,13 @@
 package io.github.gvn2012.post_service.clients;
 
 import io.github.gvn2012.post_service.dtos.APIResource;
-import io.github.gvn2012.post_service.exceptions.InternalServerErrorException;
+import io.github.gvn2012.post_service.dtos.UserStatusResponse;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
-import io.github.gvn2012.post_service.dtos.UserStatusResponse;
 
 @Component
 public class UserClient extends HttpClient {

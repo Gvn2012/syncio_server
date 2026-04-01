@@ -1,19 +1,18 @@
 package io.github.gvn2012.post_service.services.impls;
 
+import io.github.gvn2012.post_service.dtos.mappers.MediaAttachmentMapper;
+import io.github.gvn2012.post_service.dtos.mappers.PostMapper;
+import io.github.gvn2012.post_service.dtos.requests.MediaAttachmentRequest;
+import io.github.gvn2012.post_service.dtos.requests.PostCreateRequest;
+import io.github.gvn2012.post_service.dtos.requests.PostUpdateRequest;
+import io.github.gvn2012.post_service.dtos.responses.PostResponse;
 import io.github.gvn2012.post_service.entities.*;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
-import io.github.gvn2012.post_service.entities.enums.PostVisibility;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
 import io.github.gvn2012.post_service.repositories.*;
 import io.github.gvn2012.post_service.services.interfaces.IPostContentVersionService;
 import io.github.gvn2012.post_service.services.interfaces.IPostService;
 import io.github.gvn2012.post_service.services.kafka.PostEventProducer;
-import io.github.gvn2012.post_service.dtos.requests.PostCreateRequest;
-import io.github.gvn2012.post_service.dtos.requests.PostUpdateRequest;
-import io.github.gvn2012.post_service.dtos.requests.MediaAttachmentRequest;
-import io.github.gvn2012.post_service.dtos.responses.PostResponse;
-import io.github.gvn2012.post_service.dtos.mappers.PostMapper;
-import io.github.gvn2012.post_service.dtos.mappers.MediaAttachmentMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;

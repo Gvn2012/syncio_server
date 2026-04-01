@@ -3,7 +3,10 @@ package io.github.gvn2012.post_service.entities;
 import io.github.gvn2012.post_service.entities.enums.DiffAlgorithm;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;

@@ -1,7 +1,6 @@
 package io.github.gvn2012.post_service.exceptions;
 
 import io.github.gvn2012.post_service.dtos.APIResource;
-import io.github.gvn2012.post_service.exceptions.BaseException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;

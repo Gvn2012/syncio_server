@@ -1,14 +1,19 @@
 package io.github.gvn2012.post_service.controllers;
 
 import io.github.gvn2012.post_service.dtos.APIResource;
+import io.github.gvn2012.post_service.dtos.requests.PollOptionRequest;
 import io.github.gvn2012.post_service.dtos.requests.PostPollRequest;
 import io.github.gvn2012.post_service.dtos.responses.PostPollResponse;
 import io.github.gvn2012.post_service.services.interfaces.IPostPollService;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/v1/posts/polls")
@@ -50,4 +55,17 @@ public class PostPollController {
         pollService.closePoll(pollId, userId);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{pollId}/add-option")
+    public ResponseEntity<Void> addPollOption(@PathVariable UUID pollId, @RequestBody PollOptionRequest entity) {
+        pollService.addPollOption(pollId, entity);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @DeleteMapping("/{pollId}/remove-option/{optionId}")
+    public ResponseEntity<Void> removePollOption(@PathVariable UUID pollId, @PathVariable UUID optionId) {
+        pollService.removePollOption(pollId, optionId);
+        return ResponseEntity.noContent().build();
+    }
+
 }

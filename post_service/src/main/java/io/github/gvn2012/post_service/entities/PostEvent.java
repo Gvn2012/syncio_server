@@ -1,11 +1,10 @@
 package io.github.gvn2012.post_service.entities;
 
-import io.github.gvn2012.post_service.exceptions.IllegalStateException;
 import io.github.gvn2012.post_service.entities.enums.EventStatus;
+import io.github.gvn2012.post_service.exceptions.IllegalStateException;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;

@@ -1,9 +1,9 @@
 package io.github.gvn2012.post_service.dtos;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Builder;
 
 @Data
 @NoArgsConstructor
