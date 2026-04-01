@@ -11,7 +11,7 @@ import java.util.UUID;
 
 public interface IPostService {
     PostResponse createPost(PostCreateRequest request, UUID authorId);
-    PostResponse getPostById(UUID id);
+    PostResponse getPostById(UUID id, UUID viewerId);
     List<PostResponse> getPostsByAuthor(UUID authorId, Pageable pageable);
     List<PostResponse> getPostsByStatus(PostStatus status, Pageable pageable);
     PostResponse updatePostContent(UUID postId, UUID editorId, PostUpdateRequest request);

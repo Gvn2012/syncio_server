@@ -36,7 +36,7 @@ public class FeedServiceImpl implements IFeedService {
                 recipientId, PageRequest.of(0, limit * 2));
         pushedItems.forEach(item -> candidates.add(item.getSourcePost()));
 
-        List<UUID> highVolumeFollows = resolveHighVolumeFollows(recipientId);
+        List<UUID> highVolumeFollows = resolveFollows(recipientId);
         if (!highVolumeFollows.isEmpty()) {
             LocalDateTime cutoff = LocalDateTime.now().minusDays(7);
             List<ContentRanking> pulledRankings = contentRankingRepository.findTopRankingsByAuthors(
@@ -82,21 +82,10 @@ public class FeedServiceImpl implements IFeedService {
                 followedIds, PostStatus.PUBLISHED, PageRequest.of(0, limit));
     }
 
-    private List<UUID> resolveHighVolumeFollows(UUID userId) {
-        try {
-            // High volume follows logic usually involves a specific flag or threshold
-            // For now, we use getFollowing as it's the intended source for feed content
-            return relationshipClient.getFollowing(userId)
-                    .onErrorReturn(List.of())
-                    .block();
-        } catch (Exception e) {
-            return List.of();
-        }
-    }
-
     private List<UUID> resolveFollows(UUID userId) {
         try {
             return relationshipClient.getFollowing(userId)
+                    .timeout(java.time.Duration.ofMillis(3000))
                     .onErrorReturn(List.of())
                     .block();
         } catch (Exception e) {

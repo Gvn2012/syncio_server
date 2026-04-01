@@ -35,6 +35,7 @@ public class PostCommentServiceImpl implements IPostCommentService {
         userValidationService.validateUserCanInteract(authorId);
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("Post not found: " + postId));
+        userValidationService.validateCanView(post, authorId);
         
         PostComment comment = new PostComment();
         comment.setPost(post);

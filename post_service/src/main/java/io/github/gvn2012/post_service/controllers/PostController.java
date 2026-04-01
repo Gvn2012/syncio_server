@@ -29,8 +29,10 @@ public class PostController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<APIResource<PostResponse>> getPost(@PathVariable UUID id) {
-        return ResponseEntity.ok(APIResource.ok("Post retrieved", postService.getPostById(id)));
+    public ResponseEntity<APIResource<PostResponse>> getPost(
+            @RequestHeader(value = "X-User-ID", required = false) UUID viewerId,
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(APIResource.ok("Post retrieved", postService.getPostById(id, viewerId)));
     }
 
     @GetMapping("/author/{authorId}")

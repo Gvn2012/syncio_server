@@ -4,7 +4,6 @@ import io.github.gvn2012.post_service.clients.RelationshipClient;
 import io.github.gvn2012.post_service.entities.FeedItem;
 import io.github.gvn2012.post_service.entities.Post;
 import io.github.gvn2012.post_service.entities.UserAffinity;
-import io.github.gvn2012.post_service.entities.enums.PostVisibility;
 import io.github.gvn2012.post_service.repositories.FeedItemRepository;
 import io.github.gvn2012.post_service.repositories.UserAffinityRepository;
 import lombok.RequiredArgsConstructor;
@@ -62,8 +61,10 @@ public class FeedFanoutWorker {
 
     private List<UUID> lookupFollowers(UUID authorId) {
         try {
-            List<UUID> followers = relationshipClient.getFollowers(authorId).block();
-            return followers != null ? followers : List.of();
+            return relationshipClient.getFollowers(authorId)
+                    .timeout(java.time.Duration.ofMillis(5000))
+                    .onErrorReturn(List.of())
+                    .block();
         } catch (Exception e) {
             log.warn("Failed to fetch followers for {}: {}", authorId, e.getMessage());
             return List.of();
@@ -71,13 +72,23 @@ public class FeedFanoutWorker {
     }
 
     private boolean canViewPost(Post post, UUID recipientId) {
-        if (post.getVisibility() == PostVisibility.PUBLIC || post.getVisibility() == PostVisibility.COMPANY) {
-            return true;
+        if (post.getAuthorId().equals(recipientId)) return true;
+        
+        switch (post.getVisibility()) {
+            case PUBLIC, COMPANY -> {
+                return true;
+            }
+            case FOLLOWER -> {
+                // If they are in the followers list, they can see it (implied by the loop)
+                return true;
+            }
+            case PRIVATE -> {
+                return false;
+            }
+            default -> {
+                return false;
+            }
         }
-        if (post.getVisibility() == PostVisibility.FOLLOWER) {
-            return true;
-        }
-        return post.getVisibility() != PostVisibility.PRIVATE;
     }
 
     private double calculateInitialWeight(Post post, UUID recipientId) {

@@ -66,8 +66,10 @@ public class PostServiceImpl implements IPostService {
     }
 
     @Override
-    public PostResponse getPostById(UUID id) {
-        return postMapper.toResponse(fetchPostById(id));
+    public PostResponse getPostById(UUID id, UUID viewerId) {
+        Post post = fetchPostById(id);
+        userValidationService.validateCanView(post, viewerId);
+        return postMapper.toResponse(post);
     }
 
     @Override
@@ -183,6 +185,7 @@ public class PostServiceImpl implements IPostService {
     public PostResponse pinPost(UUID id, UUID userId) {
         userValidationService.validateUserCanInteract(userId);
         Post post = fetchPostById(id);
+        validateOwnership(post, userId);
         post.setIsPinned(true);
         return postMapper.toResponse(postRepository.save(post));
     }
@@ -192,6 +195,7 @@ public class PostServiceImpl implements IPostService {
     public PostResponse unpinPost(UUID id, UUID userId) {
         userValidationService.validateUserCanInteract(userId);
         Post post = fetchPostById(id);
+        validateOwnership(post, userId);
         post.setIsPinned(false);
         return postMapper.toResponse(postRepository.save(post));
     }
@@ -201,6 +205,7 @@ public class PostServiceImpl implements IPostService {
     public PostResponse sharePost(UUID originalPostId, UUID sharerId, String shareContent) {
         userValidationService.validateUserCanInteract(sharerId);
         Post original = fetchPostById(originalPostId);
+        userValidationService.validateCanView(original, sharerId);
         
         Post sharedPost = new Post();
         sharedPost.setAuthorId(sharerId);

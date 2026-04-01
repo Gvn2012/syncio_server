@@ -17,36 +17,22 @@ public class RelationshipClient extends HttpClient {
         super(webClientBuilder, "http://relationship-service");
     }
 
-    @SuppressWarnings("unchecked")
     public Mono<List<UUID>> getFollowers(UUID userId) {
         return get(
                 "/api/v1/relationships/followers/{userId}",
                 new ParameterizedTypeReference<APIResource<List<UUID>>>() {
                 },
-                userId.toString()).flatMap(response -> {
-                    if (!response.isSuccess() || response.getData() == null) {
-                        return Mono.error(new InternalServerErrorException(
-                                response.getError() != null ? response.getError().getMessage()
-                                        : "Relationship service error"));
-                    }
-                    return Mono.just(response.getData());
-                });
+                userId.toString())
+                .flatMap(this::handleListResponse);
     }
 
-    @SuppressWarnings("unchecked")
     public Mono<List<UUID>> getFollowing(UUID userId) {
         return get(
                 "/api/v1/relationships/following/{userId}",
                 new ParameterizedTypeReference<APIResource<List<UUID>>>() {
                 },
-                userId.toString()).flatMap(response -> {
-                    if (!response.isSuccess() || response.getData() == null) {
-                        return Mono.error(new InternalServerErrorException(
-                                response.getError() != null ? response.getError().getMessage()
-                                        : "Relationship service error"));
-                    }
-                    return Mono.just(response.getData());
-                });
+                userId.toString())
+                .flatMap(this::handleListResponse);
     }
 
     public Mono<Boolean> isFollowing(UUID sourceId, UUID targetId) {
@@ -54,12 +40,9 @@ public class RelationshipClient extends HttpClient {
                 "/api/v1/relationships/{sourceId}/following/{targetId}",
                 new ParameterizedTypeReference<APIResource<Boolean>>() {
                 },
-                sourceId.toString(), targetId.toString()).flatMap(response -> {
-                    if (!response.isSuccess() || response.getData() == null) {
-                        return Mono.just(false);
-                    }
-                    return Mono.just(response.getData());
-                }).onErrorReturn(false);
+                sourceId.toString(), targetId.toString())
+                .map(response -> response.isSuccess() && Boolean.TRUE.equals(response.getData()))
+                .onErrorReturn(false);
     }
 
     public Mono<Boolean> isBlocked(UUID sourceId, UUID targetId) {
@@ -70,5 +53,14 @@ public class RelationshipClient extends HttpClient {
                 sourceId.toString(), targetId.toString())
                 .map(response -> response.isSuccess() && Boolean.TRUE.equals(response.getData()))
                 .onErrorReturn(false);
+    }
+
+    private <T> Mono<T> handleListResponse(APIResource<T> response) {
+        if (!response.isSuccess() || response.getData() == null) {
+            String errorMsg = response.getError() != null ? response.getError().getMessage()
+                    : "Relationship service error";
+            return Mono.error(new InternalServerErrorException(errorMsg));
+        }
+        return Mono.just(response.getData());
     }
 }

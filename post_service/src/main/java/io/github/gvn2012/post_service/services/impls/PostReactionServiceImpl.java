@@ -29,6 +29,7 @@ public class PostReactionServiceImpl implements IPostReactionService {
     public void addPostReaction(UUID postId, UUID userId, Short reactionTypeId) {
         userValidationService.validateUserCanInteract(userId);
         Post post = fetchPostById(postId);
+        userValidationService.validateCanView(post, userId);
         ReactionType type = fetchReactionTypeById(reactionTypeId);
 
         PostReaction reaction = PostReaction.builder()
@@ -87,6 +88,7 @@ public class PostReactionServiceImpl implements IPostReactionService {
         userValidationService.validateUserCanInteract(userId);
         PostComment comment = postCommentRepository.findById(commentId)
                 .orElseThrow(() -> new NotFoundException("Comment not found: " + commentId));
+        userValidationService.validateNotBlocked(comment.getUserId(), userId);
         ReactionType type = fetchReactionTypeById(reactionTypeId);
 
         PostCommentReaction reaction = PostCommentReaction.builder()
