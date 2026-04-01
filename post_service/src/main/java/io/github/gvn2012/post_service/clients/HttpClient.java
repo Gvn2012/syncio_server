@@ -20,6 +20,18 @@ public abstract class HttpClient {
                 .bodyToMono(responseType);
     }
 
+    protected <T> Mono<T> get(
+            String uri,
+            ParameterizedTypeReference<T> responseType,
+            Object... uriVariables
+    ) {
+        return buildClient().get()
+                .uri(uri, uriVariables)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .bodyToMono(responseType);
+    }
+
     protected <T, R> Mono<R> post(
             String uri,
             T body,
@@ -33,10 +45,7 @@ public abstract class HttpClient {
                 .bodyToMono(responseType);
     }
 
-
     protected WebClient buildClient() {
         return webClientBuilder.baseUrl(baseUrl).build();
     }
-
-    protected void addHeaders(WebClient.RequestHeadersSpec<?> request) {}
 }

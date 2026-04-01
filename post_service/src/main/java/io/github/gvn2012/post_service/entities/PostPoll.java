@@ -12,7 +12,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @AllArgsConstructor
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Table(name = "post_polls", indexes = {
@@ -35,14 +35,17 @@ public class PostPoll {
     @Column(name = "question", nullable = false)
     private String question;
 
-    @Column(name = "allows_multiple_answers", nullable = false)
-    private Boolean allowsMultipleAnswers = false;
+    @Column(name = "allow_multiple_answers", nullable = false)
+    private Boolean allowMultipleAnswers = false;
 
-    @Column(name = "is_anonymous", nullable = false)
-    private Boolean isAnonymous = false;
+    @Column(name = "max_options_selected")
+    private Integer maxOptionsSelected = 1;
 
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
+
+    @Column(name = "is_closed", nullable = false)
+    private Boolean isClosed = false;
 
     @Column(name = "total_votes", nullable = false)
     private Integer totalVotes = 0;

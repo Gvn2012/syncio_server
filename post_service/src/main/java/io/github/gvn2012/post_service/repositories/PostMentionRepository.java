@@ -9,5 +9,5 @@ import io.github.gvn2012.post_service.entities.PostMention;
 
 @Repository
 public interface PostMentionRepository extends JpaRepository<PostMention, UUID> {
-
+    void deleteByPostId(UUID postId);
 }

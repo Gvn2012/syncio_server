@@ -5,5 +5,6 @@ public enum PostModerationStatus {
     FLAGGED,
     UNDER_REVIEW,
     REMOVED,
-    RESTRICTED
+    RESTRICTED,
+    REPORTED
 }
