@@ -10,5 +10,5 @@ public interface IPostPollService {
     PostPollResponse getPollByPostId(UUID postId);
     void voteOnPoll(UUID pollId, UUID optionId, UUID userId);
     PostPollResponse getPollResults(UUID pollId);
-    void closePoll(UUID pollId);
+    void closePoll(UUID pollId, UUID userId);
 }

@@ -1,13 +1,19 @@
 package io.github.gvn2012.post_service.services.impls;
 
-import io.github.gvn2012.post_service.entities.Post;
+import io.github.gvn2012.post_service.entities.*;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
 import io.github.gvn2012.post_service.entities.enums.PostVisibility;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
-import io.github.gvn2012.post_service.repositories.PostRepository;
+import io.github.gvn2012.post_service.repositories.*;
 import io.github.gvn2012.post_service.services.interfaces.IPostContentVersionService;
 import io.github.gvn2012.post_service.services.interfaces.IPostService;
 import io.github.gvn2012.post_service.services.kafka.PostEventProducer;
+import io.github.gvn2012.post_service.dtos.requests.PostCreateRequest;
+import io.github.gvn2012.post_service.dtos.requests.PostUpdateRequest;
+import io.github.gvn2012.post_service.dtos.requests.MediaAttachmentRequest;
+import io.github.gvn2012.post_service.dtos.responses.PostResponse;
+import io.github.gvn2012.post_service.dtos.mappers.PostMapper;
+import io.github.gvn2012.post_service.dtos.mappers.MediaAttachmentMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
@@ -18,11 +24,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import io.github.gvn2012.post_service.dtos.requests.PostCreateRequest;
-import io.github.gvn2012.post_service.dtos.requests.PostUpdateRequest;
-import io.github.gvn2012.post_service.dtos.responses.PostResponse;
-import io.github.gvn2012.post_service.dtos.mappers.PostMapper;
-
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements IPostService {
@@ -32,19 +33,28 @@ public class PostServiceImpl implements IPostService {
     private final PostEventProducer postEventProducer;
     private final ApplicationEventPublisher eventPublisher;
     private final UserValidationService userValidationService;
-    private final io.github.gvn2012.post_service.dtos.mappers.PostMapper postMapper;
+    private final PostMapper postMapper;
+    private final MediaAttachmentMapper mediaAttachmentMapper;
+    private final PostMentionRepository mentionRepository;
+    private final PostMediaAttachmentRepository attachmentRepository;
+    private final TagRepository tagRepository;
+    private final PostTagRepository postTagRepository;
 
     @Override
     @Transactional
-    public PostResponse createPost(io.github.gvn2012.post_service.dtos.requests.PostCreateRequest request, UUID authorId) {
+    public PostResponse createPost(PostCreateRequest request, UUID authorId) {
         userValidationService.validateUserCanInteract(authorId);
         
         Post post = postMapper.toEntity(request);
         post.setAuthorId(authorId);
-        post.setStatus(PostStatus.PUBLISHED);
         post.setPublishedAt(LocalDateTime.now());
         
         Post saved = postRepository.save(post);
+        
+        processMentions(saved, request.getMentions());
+        processTags(saved, request.getTags());
+        processAttachments(saved, request.getAttachments());
+        
         contentVersionService.captureNewVersion(saved, saved.getAuthorId(), saved.getContent());
         postEventProducer.publishPostCreated(saved.getId(), saved.getAuthorId());
         eventPublisher.publishEvent(new FeedFanoutWorker.PostCreatedEvent(saved));
@@ -75,15 +85,31 @@ public class PostServiceImpl implements IPostService {
 
     @Override
     @Transactional
-    public PostResponse updatePostContent(UUID postId, UUID editorId, io.github.gvn2012.post_service.dtos.requests.PostUpdateRequest request) {
+    public PostResponse updatePostContent(UUID postId, UUID editorId, PostUpdateRequest request) {
         userValidationService.validateUserCanInteract(editorId);
         
         Post post = fetchPostById(postId);
         contentVersionService.captureNewVersion(post, editorId, request.getContent());
         
         if (request.getContent() != null) post.setContent(request.getContent());
+        if (request.getContentHtml() != null) post.setContentHtml(request.getContentHtml());
+        if (request.getExcerpt() != null) post.setExcerpt(request.getExcerpt());
         if (request.getLanguage() != null) post.setLanguage(request.getLanguage());
         if (request.getVisibility() != null) post.setVisibility(request.getVisibility());
+        if (request.getMetadata() != null) post.setMetadata(request.getMetadata());
+        
+        if (request.getMentions() != null) {
+            mentionRepository.deleteByPostId(postId);
+            processMentions(post, request.getMentions());
+        }
+        if (request.getTags() != null) {
+            postTagRepository.deleteByPostId(postId);
+            processTags(post, request.getTags());
+        }
+        if (request.getAttachments() != null) {
+            attachmentRepository.deleteByPostId(postId);
+            processAttachments(post, request.getAttachments());
+        }
         
         post.setEditCount(post.getEditCount() + 1);
         Post saved = postRepository.save(post);
@@ -91,9 +117,37 @@ public class PostServiceImpl implements IPostService {
         return postMapper.toResponse(saved);
     }
 
+    private void processMentions(Post post, List<UUID> userIds) {
+        if (userIds == null) return;
+        userIds.forEach(userId -> {
+            PostMention mention = new PostMention(null, post, userId, io.github.gvn2012.post_service.entities.enums.MentionStatus.ACTIVE);
+            mentionRepository.save(mention);
+        });
+    }
+
+    private void processTags(Post post, List<String> tagNames) {
+        if (tagNames == null) return;
+        tagNames.forEach(name -> {
+            Tag tag = tagRepository.findByName(name)
+                    .orElseGet(() -> tagRepository.save(new Tag(null, name, name, 0L, 0L, false, false, null, null)));
+            PostTag postTag = new PostTag(new io.github.gvn2012.post_service.entities.composite_keys.PostTagId(post.getId(), tag.getId()), post, tag);
+            postTagRepository.save(postTag);
+        });
+    }
+
+    private void processAttachments(Post post, List<MediaAttachmentRequest> requests) {
+        if (requests == null) return;
+        requests.forEach(req -> {
+            PostMediaAttachment attachment = mediaAttachmentMapper.toEntity(req);
+            attachment.setPost(post);
+            attachmentRepository.save(attachment);
+        });
+    }
+
     @Override
     @Transactional
-    public void deletePost(UUID id) {
+    public void deletePost(UUID id, UUID userId) {
+        userValidationService.validateUserCanInteract(userId);
         Post post = fetchPostById(id);
         post.setStatus(PostStatus.DELETED);
         postRepository.save(post);
@@ -102,25 +156,28 @@ public class PostServiceImpl implements IPostService {
 
     @Override
     @Transactional
-    public void archivePost(UUID id) {
+    public void archivePost(UUID id, UUID userId) {
+        userValidationService.validateUserCanInteract(userId);
         Post post = fetchPostById(id);
         post.setStatus(PostStatus.ARCHIVED);
-        post.setArchivedAt(LocalDateTime.now());
         postRepository.save(post);
     }
 
     @Override
     @Transactional
-    public PostResponse pinPost(UUID id) {
+    public PostResponse pinPost(UUID id, UUID userId) {
+        userValidationService.validateUserCanInteract(userId);
         Post post = fetchPostById(id);
-        post.setVisibility(PostVisibility.PUBLIC);
+        post.setIsPinned(true);
         return postMapper.toResponse(postRepository.save(post));
     }
 
     @Override
     @Transactional
-    public PostResponse unpinPost(UUID id) {
+    public PostResponse unpinPost(UUID id, UUID userId) {
+        userValidationService.validateUserCanInteract(userId);
         Post post = fetchPostById(id);
+        post.setIsPinned(false);
         return postMapper.toResponse(postRepository.save(post));
     }
 
@@ -129,22 +186,22 @@ public class PostServiceImpl implements IPostService {
     public PostResponse sharePost(UUID originalPostId, UUID sharerId, String shareContent) {
         userValidationService.validateUserCanInteract(sharerId);
         Post original = fetchPostById(originalPostId);
-        userValidationService.validateNotBlocked(original.getAuthorId(), sharerId);
         
-        Post shared = new Post();
-        shared.setAuthorId(sharerId);
-        shared.setContent(shareContent);
-        shared.setOrgId(original.getOrgId());
-        shared.setIsShared(true);
-        shared.setParentPost(original);
-        shared.setStatus(PostStatus.PUBLISHED);
-        shared.setPublishedAt(LocalDateTime.now());
+        Post sharedPost = new Post();
+        sharedPost.setAuthorId(sharerId);
+        sharedPost.setContent(shareContent);
+        sharedPost.setIsShared(true);
+        sharedPost.setParentPost(original);
+        sharedPost.setStatus(PostStatus.PUBLISHED);
+        sharedPost.setPostCategory(original.getPostCategory());
+        sharedPost.setVisibility(original.getVisibility());
+        sharedPost.setPublishedAt(LocalDateTime.now());
         
-        Post saved = postRepository.save(shared);
+        Post saved = postRepository.save(sharedPost);
         original.setShareCount(original.getShareCount() + 1);
         postRepository.save(original);
         
-        postEventProducer.publishPostShared(original.getId(), original.getAuthorId(), sharerId);
+        postEventProducer.publishPostCreated(saved.getId(), sharerId);
         return postMapper.toResponse(saved);
     }
 
@@ -158,9 +215,10 @@ public class PostServiceImpl implements IPostService {
     @Transactional
     public void updateEngagementMetrics(UUID postId, int viewInc, int reactionInc, int commentInc, int shareInc) {
         Post post = fetchPostById(postId);
-        post.setReactionCount(post.getReactionCount() + reactionInc);
-        post.setCommentCount(post.getCommentCount() + commentInc);
-        post.setShareCount(post.getShareCount() + shareInc);
+        if (viewInc != 0) post.setViewCount(post.getViewCount().add(java.math.BigInteger.valueOf(viewInc)));
+        if (reactionInc != 0) post.setReactionCount(post.getReactionCount() + reactionInc);
+        if (commentInc != 0) post.setCommentCount(post.getCommentCount() + commentInc);
+        if (shareInc != 0) post.setShareCount(post.getShareCount() + shareInc);
         postRepository.save(post);
     }
 }

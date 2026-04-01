@@ -15,12 +15,13 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PostCreateRequest {
-    @NotBlank(message = "Content is required")
     private String content;
     private String contentHtml;
     private String excerpt;
     private String language;
+    @Builder.Default
     private PostCategory postCategory = PostCategory.NORMAL;
+    @Builder.Default
     private PostVisibility visibility = PostVisibility.PUBLIC;
     private UUID orgId;
     private List<MediaAttachmentRequest> attachments;

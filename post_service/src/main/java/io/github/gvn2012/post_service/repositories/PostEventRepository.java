@@ -1,7 +1,6 @@
 package io.github.gvn2012.post_service.repositories;
 
 import io.github.gvn2012.post_service.entities.PostEvent;
-import io.github.gvn2012.post_service.entities.enums.EventStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

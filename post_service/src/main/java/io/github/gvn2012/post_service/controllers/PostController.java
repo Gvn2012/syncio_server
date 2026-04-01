@@ -70,25 +70,33 @@ public class PostController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletePost(@PathVariable UUID id) {
-        postService.deletePost(id);
+    public ResponseEntity<Void> deletePost(
+            @PathVariable UUID id,
+            @RequestHeader("X-User-ID") UUID userId) {
+        postService.deletePost(id, userId);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/archive")
-    public ResponseEntity<Void> archivePost(@PathVariable UUID id) {
-        postService.archivePost(id);
+    public ResponseEntity<Void> archivePost(
+            @PathVariable UUID id,
+            @RequestHeader("X-User-ID") UUID userId) {
+        postService.archivePost(id, userId);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/pin")
-    public ResponseEntity<APIResource<PostResponse>> pinPost(@PathVariable UUID id) {
-        return ResponseEntity.ok(APIResource.ok("Post pinned", postService.pinPost(id)));
+    public ResponseEntity<APIResource<PostResponse>> pinPost(
+            @PathVariable UUID id,
+            @RequestHeader("X-User-ID") UUID userId) {
+        return ResponseEntity.ok(APIResource.ok("Post pinned", postService.pinPost(id, userId)));
     }
 
     @PatchMapping("/{id}/unpin")
-    public ResponseEntity<APIResource<PostResponse>> unpinPost(@PathVariable UUID id) {
-        return ResponseEntity.ok(APIResource.ok("Post unpinned", postService.unpinPost(id)));
+    public ResponseEntity<APIResource<PostResponse>> unpinPost(
+            @PathVariable UUID id,
+            @RequestHeader("X-User-ID") UUID userId) {
+        return ResponseEntity.ok(APIResource.ok("Post unpinned", postService.unpinPost(id, userId)));
     }
 
     @PostMapping("/{id}/share")

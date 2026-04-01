@@ -23,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,17 +39,17 @@ public class PostEventServiceImpl implements IPostEventService {
     public PostEventResponse createEvent(UUID postId, PostEventRequest request) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("Post not found: " + postId));
-        
+
         userValidationService.validateUserCanInteract(post.getAuthorId());
-        
+
         post.setPostCategory(PostCategory.EVENT);
         postRepository.save(post);
-        
+
         PostEvent event = eventMapper.toEntity(request);
         event.setPost(post);
         event.setPostId(post.getId());
         event.setStatus(EventStatus.SCHEDULED);
-        
+
         PostEvent saved = eventRepository.save(event);
         return eventMapper.toResponse(saved);
     }
@@ -74,7 +73,7 @@ public class PostEventServiceImpl implements IPostEventService {
         userValidationService.validateUserCanInteract(userId);
         PostEvent event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
-        
+
         PostEventParticipant participant = participantRepository.findByEventPostIdAndUserId(eventId, userId)
                 .orElseGet(() -> {
                     PostEventParticipant p = new PostEventParticipant();
@@ -82,21 +81,24 @@ public class PostEventServiceImpl implements IPostEventService {
                     p.setUserId(userId);
                     return p;
                 });
-        
+
         participant.setStatus(EventParticipantStatus.valueOf(status.toUpperCase()));
         participant.setRespondedAt(LocalDateTime.now());
         participantRepository.save(participant);
-        
-        // Update counts
-        event.setAcceptedCount((int) participantRepository.countByEventPostIdAndStatus(eventId, EventParticipantStatus.ACCEPTED));
-        event.setDeclinedCount((int) participantRepository.countByEventPostIdAndStatus(eventId, EventParticipantStatus.DECLINED));
-        event.setTentativeCount((int) participantRepository.countByEventPostIdAndStatus(eventId, EventParticipantStatus.TENTATIVE));
+
+        event.setAcceptedCount(
+                (int) participantRepository.countByEventPostIdAndStatus(eventId, EventParticipantStatus.ACCEPTED));
+        event.setDeclinedCount(
+                (int) participantRepository.countByEventPostIdAndStatus(eventId, EventParticipantStatus.DECLINED));
+        event.setTentativeCount(
+                (int) participantRepository.countByEventPostIdAndStatus(eventId, EventParticipantStatus.TENTATIVE));
         eventRepository.save(event);
     }
 
     @Override
     @Transactional
-    public void cancelEvent(UUID eventId) {
+    public void cancelEvent(UUID eventId, UUID userId) {
+        userValidationService.validateUserCanInteract(userId);
         PostEvent event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
         event.setStatus(EventStatus.CANCELLED);

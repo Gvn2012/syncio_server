@@ -92,6 +92,7 @@ public class PostTaskServiceImpl implements IPostTaskService {
     @Override
     @Transactional
     public void unassignUser(UUID taskId, UUID userId) {
+        userValidationService.validateUserCanInteract(userId);
         taskRepository.findById(taskId)
                 .orElseThrow(() -> new NotFoundException("Task not found: " + taskId));
         assigneeRepository.deleteByTaskIdAndUserId(taskId, userId);

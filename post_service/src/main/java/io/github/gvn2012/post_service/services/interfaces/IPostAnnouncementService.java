@@ -11,7 +11,7 @@ public interface IPostAnnouncementService {
     PostAnnouncementResponse createAnnouncement(UUID postId, PostAnnouncementRequest data);
     PostAnnouncementResponse getAnnouncementByPostId(UUID postId);
     void markAsRead(UUID announcementId, UUID userId);
-    void pinAnnouncement(UUID announcementId);
-    void unpinAnnouncement(UUID announcementId);
+    void pinAnnouncement(UUID announcementId, UUID userId);
+    void unpinAnnouncement(UUID announcementId, UUID userId);
     List<PostAnnouncementResponse> getActiveAnnouncements(Pageable pageable);
 }

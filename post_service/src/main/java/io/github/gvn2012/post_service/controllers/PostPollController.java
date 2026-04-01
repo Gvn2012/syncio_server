@@ -43,9 +43,11 @@ public class PostPollController {
         return ResponseEntity.ok(APIResource.ok("Poll results", pollService.getPollResults(pollId)));
     }
 
-    @PostMapping("/{pollId}/close")
-    public ResponseEntity<Void> closePoll(@PathVariable UUID pollId) {
-        pollService.closePoll(pollId);
+    @PatchMapping("/{pollId}/close")
+    public ResponseEntity<Void> closePoll(
+            @PathVariable UUID pollId,
+            @RequestHeader("X-User-ID") UUID userId) {
+        pollService.closePoll(pollId, userId);
         return ResponseEntity.noContent().build();
     }
 }
