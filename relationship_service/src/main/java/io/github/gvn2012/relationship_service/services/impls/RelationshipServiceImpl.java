@@ -6,6 +6,7 @@ import io.github.gvn2012.relationship_service.dtos.responses.RelationshipRespons
 import io.github.gvn2012.relationship_service.entities.UserRelationship;
 import io.github.gvn2012.relationship_service.entities.enums.RelationshipStatus;
 import io.github.gvn2012.relationship_service.entities.enums.RelationshipType;
+import io.github.gvn2012.relationship_service.repositories.UserBlockRepository;
 import io.github.gvn2012.relationship_service.repositories.UserRelationshipRepository;
 import io.github.gvn2012.relationship_service.services.interfaces.IRelationshipService;
 import io.github.gvn2012.relationship_service.services.kafka.RelationshipEventProducer;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 public class RelationshipServiceImpl implements IRelationshipService {
 
     private final UserRelationshipRepository relationshipRepository;
+    private final UserBlockRepository userBlockRepository;
     private final RelationshipMapper relationshipMapper;
     private final RelationshipEventProducer eventProducer;
 
@@ -81,6 +83,34 @@ public class RelationshipServiceImpl implements IRelationshipService {
                 .map(relationshipMapper::toResponse)
                 .collect(Collectors.toList());
         return APIResource.ok("Followers retrieved", responses);
+    }
+
+    @Override
+    public APIResource<List<UUID>> getFollowersIds(UUID userId) {
+        List<UUID> followers = relationshipRepository.findAllByTargetUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+                .stream().map(UserRelationship::getSourceUserId).collect(Collectors.toList());
+        return APIResource.ok("Follower IDs retrieved", followers);
+    }
+
+    @Override
+    public APIResource<List<UUID>> getFollowingIds(UUID userId) {
+        List<UUID> following = relationshipRepository.findAllBySourceUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+                .stream().filter(r -> r.getRelationshipType() == RelationshipType.FOLLOW)
+                .map(UserRelationship::getTargetUserId).collect(Collectors.toList());
+        return APIResource.ok("Following IDs retrieved", following);
+    }
+
+    @Override
+    public APIResource<Boolean> isFollowing(UUID sourceId, UUID targetId) {
+        boolean exists = relationshipRepository.existsBySourceUserIdAndTargetUserIdAndRelationshipTypeAndStatus(
+                sourceId, targetId, RelationshipType.FOLLOW, RelationshipStatus.ACTIVE);
+        return APIResource.ok("Checked following status", exists);
+    }
+
+    @Override
+    public APIResource<Boolean> isBlocked(UUID sourceId, UUID targetId) {
+        boolean exists = userBlockRepository.existsByBlockerIdAndBlockedId(sourceId, targetId);
+        return APIResource.ok("Checked block status", exists);
     }
 
     @Override

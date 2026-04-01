@@ -36,10 +36,36 @@ public class RelationshipController {
     }
 
     @GetMapping("/followers/{userId}")
-    public ResponseEntity<APIResource<List<RelationshipResponse>>> getFollowers(
+    public ResponseEntity<APIResource<List<UUID>>> getFollowers(
             @PathVariable UUID userId
     ) {
-        APIResource<List<RelationshipResponse>> response = relationshipService.getFollowers(userId);
+        APIResource<List<UUID>> response = relationshipService.getFollowersIds(userId);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value())).body(response);
+    }
+
+    @GetMapping("/following/{userId}")
+    public ResponseEntity<APIResource<List<UUID>>> getFollowing(
+            @PathVariable UUID userId
+    ) {
+        APIResource<List<UUID>> response = relationshipService.getFollowingIds(userId);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value())).body(response);
+    }
+
+    @GetMapping("/{sourceId}/following/{targetId}")
+    public ResponseEntity<APIResource<Boolean>> isFollowing(
+            @PathVariable UUID sourceId,
+            @PathVariable UUID targetId
+    ) {
+        APIResource<Boolean> response = relationshipService.isFollowing(sourceId, targetId);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value())).body(response);
+    }
+
+    @GetMapping("/{sourceId}/blocked/{targetId}")
+    public ResponseEntity<APIResource<Boolean>> isBlocked(
+            @PathVariable UUID sourceId,
+            @PathVariable UUID targetId
+    ) {
+        APIResource<Boolean> response = relationshipService.isBlocked(sourceId, targetId);
         return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value())).body(response);
     }
 }
