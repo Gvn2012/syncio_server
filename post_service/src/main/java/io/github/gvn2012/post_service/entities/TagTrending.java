@@ -25,7 +25,6 @@ public class TagTrending extends AuditableEntity {
     @Column(name = "tag_id", nullable = false, updatable = false)
     private Long tagId;
 
-    @ToString.Exclude
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @MapsId
     @JoinColumn(name = "tag_id")

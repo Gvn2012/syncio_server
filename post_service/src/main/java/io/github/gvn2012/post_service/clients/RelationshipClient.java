@@ -10,11 +10,13 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory;
+
 @Component
 public class RelationshipClient extends HttpClient {
 
-    public RelationshipClient(WebClient.Builder webClientBuilder) {
-        super(webClientBuilder, "http://relationship-service");
+    public RelationshipClient(WebClient.Builder webClientBuilder, ReactiveCircuitBreakerFactory<?, ?> cbFactory) {
+        super(webClientBuilder, cbFactory, "http://relationship-service");
     }
 
     public Mono<List<UUID>> getFollowers(UUID userId) {

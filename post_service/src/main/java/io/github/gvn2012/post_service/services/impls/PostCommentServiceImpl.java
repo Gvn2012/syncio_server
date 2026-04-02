@@ -12,6 +12,7 @@ import io.github.gvn2012.post_service.services.interfaces.IPostCommentService;
 import io.github.gvn2012.post_service.services.kafka.PostEventProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,17 +32,17 @@ public class PostCommentServiceImpl implements IPostCommentService {
 
     @Override
     @Transactional
-    public CommentResponse addComment(UUID postId, UUID authorId, String content, UUID parentCommentId) {
+    public CommentResponse addComment(@NonNull UUID postId, UUID authorId, String content, UUID parentCommentId) {
         userValidationService.validateUserCanInteract(authorId);
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("Post not found: " + postId));
         userValidationService.validateCanView(post, authorId);
-        
+
         PostComment comment = new PostComment();
         comment.setPost(post);
         comment.setContent(content);
         comment.setUserId(authorId);
-        
+
         if (parentCommentId != null) {
             PostComment parent = fetchCommentById(parentCommentId);
             comment.setParentComment(parent);
@@ -50,30 +51,30 @@ public class PostCommentServiceImpl implements IPostCommentService {
         } else {
             comment.setDepth(0);
         }
-        
+
         postRepository.incrementCommentCount(postId, 1);
         PostComment saved = commentRepository.save(comment);
         postEventProducer.publishPostCommented(postId, post.getAuthorId(), authorId);
         return commentMapper.toResponse(saved);
     }
 
-    private PostComment fetchCommentById(UUID id) {
+    private PostComment fetchCommentById(@NonNull UUID id) {
         return commentRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Comment not found: " + id));
     }
 
     @Override
-    public CommentResponse getCommentById(UUID commentId) {
+    public CommentResponse getCommentById(@NonNull UUID commentId) {
         return commentMapper.toResponse(fetchCommentById(commentId));
     }
 
     @Override
     @Transactional
-    public CommentResponse updateComment(UUID commentId, UUID authorId, String newContent) {
+    public CommentResponse updateComment(@NonNull UUID commentId, UUID authorId, String newContent) {
         userValidationService.validateUserCanInteract(authorId);
         PostComment comment = fetchCommentById(commentId);
         validateOwnership(comment, authorId);
-        
+
         comment.setContent(newContent);
         comment.setUpdatedAt(LocalDateTime.now());
         return commentMapper.toResponse(commentRepository.save(comment));
@@ -87,14 +88,14 @@ public class PostCommentServiceImpl implements IPostCommentService {
 
     @Override
     @Transactional
-    public void deleteComment(UUID commentId, UUID authorId) {
+    public void deleteComment(@NonNull UUID commentId, @NonNull UUID authorId) {
         userValidationService.validateUserCanInteract(authorId);
         PostComment comment = fetchCommentById(commentId);
         validateOwnership(comment, authorId);
-        
+
         UUID postId = comment.getPost().getId();
         commentRepository.delete(comment);
-        
+
         postRepository.incrementCommentCount(postId, -1);
         if (comment.getParentComment() != null) {
             commentRepository.incrementReplyCount(comment.getParentComment().getId(), -1);
@@ -102,27 +103,27 @@ public class PostCommentServiceImpl implements IPostCommentService {
     }
 
     @Override
-    public List<CommentResponse> getCommentsByPost(UUID postId, Pageable pageable) {
+    public List<CommentResponse> getCommentsByPost(@NonNull UUID postId, Pageable pageable) {
         return commentRepository.findByPostIdAndParentCommentIdIsNullOrderByCreatedAtDesc(postId, pageable)
                 .stream().map(commentMapper::toResponse).toList();
     }
 
     @Override
-    public List<CommentResponse> getReplies(UUID parentCommentId, Pageable pageable) {
+    public List<CommentResponse> getReplies(@NonNull UUID parentCommentId, Pageable pageable) {
         return commentRepository.findByParentCommentId(parentCommentId, pageable)
                 .stream().map(commentMapper::toResponse).toList();
     }
 
     @Override
     @Transactional
-    public void pinComment(UUID commentId) {
+    public void pinComment(@NonNull UUID commentId) {
         PostComment comment = fetchCommentById(commentId);
         comment.setIsPinned(true);
         commentRepository.save(comment);
     }
 
     @Override
-    public long getCommentCount(UUID postId) {
+    public long getCommentCount(@NonNull UUID postId) {
         return commentRepository.countByPostId(postId);
     }
 }

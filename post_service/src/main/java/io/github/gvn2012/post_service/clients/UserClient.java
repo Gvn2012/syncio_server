@@ -9,11 +9,13 @@ import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
+import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory;
+
 @Component
 public class UserClient extends HttpClient {
 
-    public UserClient(WebClient.Builder webClientBuilder) {
-        super(webClientBuilder, "http://user-service");
+    public UserClient(WebClient.Builder webClientBuilder, ReactiveCircuitBreakerFactory<?, ?> cbFactory) {
+        super(webClientBuilder, cbFactory, "http://user-service");
     }
 
     public Mono<Boolean> userExists(UUID userId) {

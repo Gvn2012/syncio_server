@@ -7,16 +7,28 @@ public class RelationshipChangedEvent {
         FOLLOW, UNFOLLOW, FRIEND_REQUEST_SENT, FRIEND_REQUEST_ACCEPTED, BLOCK, UNBLOCK, MUTE, UNMUTE
     }
 
+    private UUID eventId;
     private UUID sourceUserId;
     private UUID targetUserId;
     private ChangeType changeType;
 
-    public RelationshipChangedEvent() {}
+    public RelationshipChangedEvent() {
+        this.eventId = UUID.randomUUID();
+    }
 
     public RelationshipChangedEvent(UUID sourceUserId, UUID targetUserId, ChangeType changeType) {
+        this.eventId = UUID.randomUUID();
         this.sourceUserId = sourceUserId;
         this.targetUserId = targetUserId;
         this.changeType = changeType;
+    }
+
+    public UUID getEventId() {
+        return eventId;
+    }
+
+    public void setEventId(UUID eventId) {
+        this.eventId = eventId;
     }
 
     public UUID getSourceUserId() {

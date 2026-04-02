@@ -4,6 +4,7 @@ import io.github.gvn2012.notification_service.entities.enums.NotificationType;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.index.Indexed;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -18,6 +19,9 @@ public class Notification {
 
     @Id
     private String id;
+    
+    @Indexed(unique = true)
+    private String eventId;
 
     private UUID recipientId;
     private UUID actorId;

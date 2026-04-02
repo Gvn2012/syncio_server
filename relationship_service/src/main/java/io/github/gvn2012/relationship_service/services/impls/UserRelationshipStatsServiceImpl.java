@@ -1,5 +1,7 @@
 package io.github.gvn2012.relationship_service.services.impls;
 
+import io.github.gvn2012.relationship_service.entities.ProcessedEvent;
+import io.github.gvn2012.relationship_service.repositories.ProcessedEventRepository;
 import io.github.gvn2012.relationship_service.entities.UserRelationship;
 import io.github.gvn2012.relationship_service.entities.UserRelationshipStats;
 import io.github.gvn2012.relationship_service.entities.enums.RelationshipStatus;
@@ -31,11 +33,21 @@ public class UserRelationshipStatsServiceImpl implements IUserRelationshipStatsS
     private final UserBlockRepository blockRepository;
     private final UserMuteRepository muteRepository;
     private final MutualFriendshipRepository mutualFriendshipRepository;
+    private final ProcessedEventRepository processedEventRepository;
 
     @Override
     @KafkaListener(topics = "relationship-events", groupId = "relationship-stats-group")
     @Transactional
     public void handleRelationshipChange(RelationshipChangedEvent event) {
+        if (event.getEventId() != null) {
+            String eventIdStr = event.getEventId().toString();
+            if (processedEventRepository.existsById(eventIdStr)) {
+                log.info("Duplicate relationship event dropped: {}", eventIdStr);
+                return;
+            }
+            processedEventRepository.save(new ProcessedEvent(eventIdStr, LocalDateTime.now()));
+        }
+
         log.info("Handling relationship change for stats: {} between {} and {}", 
             event.getChangeType(), event.getSourceUserId(), event.getTargetUserId());
         

@@ -12,6 +12,7 @@ import io.github.gvn2012.post_service.repositories.PostRepository;
 import io.github.gvn2012.post_service.services.interfaces.IPostAnnouncementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,15 +32,15 @@ public class PostAnnouncementServiceImpl implements IPostAnnouncementService {
 
     @Override
     @Transactional
-    public PostAnnouncementResponse createAnnouncement(UUID postId, PostAnnouncementRequest request) {
+    public PostAnnouncementResponse createAnnouncement(@NonNull UUID postId, PostAnnouncementRequest request) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("Post not found: " + postId));
-        
+
         userValidationService.validateUserCanInteract(post.getAuthorId());
-        
+
         post.setPostCategory(PostCategory.ANNOUNCEMENT);
         postRepository.save(post);
-        
+
         PostAnnouncement announcement = announcementMapper.toEntity(request);
         announcement.setPost(post);
         PostAnnouncement saved = announcementRepository.save(announcement);
@@ -47,7 +48,7 @@ public class PostAnnouncementServiceImpl implements IPostAnnouncementService {
     }
 
     @Override
-    public PostAnnouncementResponse getAnnouncementByPostId(UUID postId) {
+    public PostAnnouncementResponse getAnnouncementByPostId(@NonNull UUID postId) {
         PostAnnouncement announcement = announcementRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("Announcement not found for post: " + postId));
         return announcementMapper.toResponse(announcement);
@@ -55,7 +56,7 @@ public class PostAnnouncementServiceImpl implements IPostAnnouncementService {
 
     @Override
     @Transactional
-    public void markAsRead(UUID announcementId, UUID userId) {
+    public void markAsRead(@NonNull UUID announcementId, UUID userId) {
         userValidationService.validateUserCanInteract(userId);
         PostAnnouncement ann = announcementRepository.findById(announcementId)
                 .orElseThrow(() -> new NotFoundException("Announcement not found: " + announcementId));
@@ -65,7 +66,7 @@ public class PostAnnouncementServiceImpl implements IPostAnnouncementService {
 
     @Override
     @Transactional
-    public void pinAnnouncement(UUID announcementId, UUID userId) {
+    public void pinAnnouncement(@NonNull UUID announcementId, UUID userId) {
         userValidationService.validateUserCanInteract(userId);
         PostAnnouncement ann = announcementRepository.findById(announcementId)
                 .orElseThrow(() -> new NotFoundException("Announcement not found: " + announcementId));
@@ -75,7 +76,7 @@ public class PostAnnouncementServiceImpl implements IPostAnnouncementService {
 
     @Override
     @Transactional
-    public void unpinAnnouncement(UUID announcementId, UUID userId) {
+    public void unpinAnnouncement(@NonNull UUID announcementId, UUID userId) {
         userValidationService.validateUserCanInteract(userId);
         PostAnnouncement ann = announcementRepository.findById(announcementId)
                 .orElseThrow(() -> new NotFoundException("Announcement not found: " + announcementId));

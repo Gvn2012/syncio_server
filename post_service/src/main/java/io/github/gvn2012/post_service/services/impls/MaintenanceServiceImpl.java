@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -51,9 +52,10 @@ public class MaintenanceServiceImpl {
     public void recalculateTrendingTags() {
         log.info("Starting maintenance: Recalculating trending tags");
         tagTrendingRepository.deleteAllInBatch();
-        
-        List<Object[]> topTags = postTagRepository.findTopTags(LocalDateTime.now().minusHours(24), PageRequest.of(0, 10));
-        
+
+        List<Object[]> topTags = postTagRepository.findTopTags(LocalDateTime.now().minusHours(24),
+                PageRequest.of(0, 10));
+
         List<TagTrending> trending = topTags.stream()
                 .map(row -> {
                     io.github.gvn2012.post_service.entities.Tag tag = (io.github.gvn2012.post_service.entities.Tag) row[0];
@@ -68,7 +70,7 @@ public class MaintenanceServiceImpl {
                             .build();
                 })
                 .toList();
-        
-        tagTrendingRepository.saveAll(trending);
+
+        tagTrendingRepository.saveAll(Objects.requireNonNull(trending));
     }
 }

@@ -23,6 +23,11 @@ public class PostEventConsumer {
         if (event.getActorId().equals(event.getAuthorId()))
             return;
 
+        if (event.getEventId() != null && notificationRepository.existsByEventId(event.getEventId().toString())) {
+            log.info("Duplicate event dropped: {}", event.getEventId());
+            return;
+        }
+
         NotificationType type = mapActivityToNotificationType(event.getActivityType());
         if (type == null)
             return;
@@ -31,6 +36,7 @@ public class PostEventConsumer {
         String title = formatTitle(event);
 
         Notification notification = Notification.builder()
+                .eventId(event.getEventId() != null ? event.getEventId().toString() : null)
                 .recipientId(event.getAuthorId())
                 .actorId(event.getActorId())
                 .targetId(event.getPostId())

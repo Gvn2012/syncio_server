@@ -98,20 +98,16 @@ public class PostComment extends AuditableEntity {
     @JoinColumn(name = "parent_comment_id")
     private PostComment parentComment;
 
-    @ToString.Exclude
     @OneToMany(mappedBy = "parentComment", fetch = FetchType.LAZY)
     @OrderBy("createdAt ASC")
     private Set<PostComment> replies = new LinkedHashSet<>();
 
-    @ToString.Exclude
     @OneToMany(mappedBy = "comment", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<PostCommentReaction> reactions = new LinkedHashSet<>();
 
-    @ToString.Exclude
     @OneToMany(mappedBy = "comment", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<PostCommentMention> mentions = new LinkedHashSet<>();
 
-    @ToString.Exclude
     @OneToMany(mappedBy = "comment", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<PostCommentEditHistory> editHistory = new LinkedHashSet<>();
 }

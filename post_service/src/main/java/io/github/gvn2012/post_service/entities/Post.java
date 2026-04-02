@@ -116,60 +116,42 @@ public class Post extends AuditableEntity {
 
         // ================= RELATIONSHIPS =================
 
-        @ToString.Exclude
-        @EqualsAndHashCode.Exclude
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "parent_post_id")
         private Post parentPost;
 
-        @ToString.Exclude
-        @EqualsAndHashCode.Exclude
         @OneToMany(mappedBy = "parentPost")
         private Set<Post> sharedPosts = new LinkedHashSet<>();
 
-        @ToString.Exclude
         @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
         private Set<PostMediaAttachment> attachments = new LinkedHashSet<>();
 
-        @ToString.Exclude
         @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
         private Set<PostMention> mentions = new LinkedHashSet<>();
 
-        @ToString.Exclude
         @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
         private Set<PostTag> postTags = new LinkedHashSet<>();
 
-        @ToString.Exclude
         @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
         @OrderBy("version DESC")
         private Set<PostEditHistory> editHistory = new LinkedHashSet<>();
 
-        @ToString.Exclude
-        @EqualsAndHashCode.Exclude
         @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
         private PostEvent event;
 
-        @ToString.Exclude
-        @EqualsAndHashCode.Exclude
         @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
         private PostPoll poll;
 
-        @ToString.Exclude
-        @EqualsAndHashCode.Exclude
         @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
         private PostTask task;
 
-        @ToString.Exclude
-        @EqualsAndHashCode.Exclude
         @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
         private PostAnnouncement announcement;
 
-        @ToString.Exclude
         @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
         @OrderBy("createdAt DESC")
         private Set<PostComment> comments = new LinkedHashSet<>();
 
-        @ToString.Exclude
         @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
         private Set<PostReaction> reactions = new LinkedHashSet<>();
 

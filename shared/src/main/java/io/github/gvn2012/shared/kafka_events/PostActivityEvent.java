@@ -9,6 +9,7 @@ public class PostActivityEvent {
         CREATED, UPDATED, DELETED, COMMENTED, REACTED, SHARED, REPORTED
     }
 
+    private UUID eventId;
     private UUID postId;
     private UUID authorId;
     private UUID actorId;
@@ -16,9 +17,12 @@ public class PostActivityEvent {
     private String metadata;
     private LocalDateTime timestamp;
 
-    public PostActivityEvent() {}
+    public PostActivityEvent() {
+        this.eventId = UUID.randomUUID();
+    }
 
     public PostActivityEvent(UUID postId, UUID authorId, UUID actorId, ActivityType activityType, String metadata) {
+        this.eventId = UUID.randomUUID();
         this.postId = postId;
         this.authorId = authorId;
         this.actorId = actorId;
@@ -27,6 +31,8 @@ public class PostActivityEvent {
         this.timestamp = LocalDateTime.now();
     }
 
+    public UUID getEventId() { return eventId; }
+    public void setEventId(UUID eventId) { this.eventId = eventId; }
     public UUID getPostId() { return postId; }
     public void setPostId(UUID postId) { this.postId = postId; }
     public UUID getAuthorId() { return authorId; }

@@ -11,30 +11,23 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-@Table(
-        name = "post_tags",
-        indexes = {
+@Table(name = "post_tags", indexes = {
                 @Index(name = "ix_post_tag_post_id", columnList = "post_id"),
                 @Index(name = "ix_post_tag_tag_id", columnList = "tag_id")
-        }
-)
+})
 public class PostTag extends AuditableEntity {
 
-    @EmbeddedId
-    @EqualsAndHashCode.Include
-    private PostTagId id = new PostTagId();
+        @EmbeddedId
+        @EqualsAndHashCode.Include
+        private PostTagId id = new PostTagId();
 
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("postId")
-    @JoinColumn(name = "post_id", nullable = false)
-    private Post post;
+        @ManyToOne(fetch = FetchType.LAZY)
+        @MapsId("postId")
+        @JoinColumn(name = "post_id", nullable = false)
+        private Post post;
 
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("tagId")
-    @JoinColumn(name = "tag_id", nullable = false)
-    private Tag tag;
+        @ManyToOne(fetch = FetchType.LAZY)
+        @MapsId("tagId")
+        @JoinColumn(name = "tag_id", nullable = false)
+        private Tag tag;
 }

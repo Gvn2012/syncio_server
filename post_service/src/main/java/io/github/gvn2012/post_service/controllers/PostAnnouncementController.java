@@ -7,6 +7,7 @@ import io.github.gvn2012.post_service.services.interfaces.IPostAnnouncementServi
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,21 +22,21 @@ public class PostAnnouncementController {
 
     @PostMapping("/{postId}")
     public ResponseEntity<APIResource<PostAnnouncementResponse>> createAnnouncement(
-            @PathVariable UUID postId,
+            @NonNull @PathVariable UUID postId,
             @RequestBody PostAnnouncementRequest announcement) {
         return ResponseEntity.ok(APIResource.ok("Announcement created",
                 announcementService.createAnnouncement(postId, announcement)));
     }
 
     @GetMapping("/{postId}")
-    public ResponseEntity<APIResource<PostAnnouncementResponse>> getAnnouncement(@PathVariable UUID postId) {
+    public ResponseEntity<APIResource<PostAnnouncementResponse>> getAnnouncement(@NonNull @PathVariable UUID postId) {
         return ResponseEntity.ok(APIResource.ok("Announcement retrieved",
                 announcementService.getAnnouncementByPostId(postId)));
     }
 
     @PostMapping("/{announcementId}/read")
     public ResponseEntity<Void> markAsRead(
-            @PathVariable UUID announcementId,
+            @NonNull @PathVariable UUID announcementId,
             @RequestHeader("X-User-ID") UUID userId) {
         announcementService.markAsRead(announcementId, userId);
         return ResponseEntity.noContent().build();
@@ -43,7 +44,7 @@ public class PostAnnouncementController {
 
     @PatchMapping("/{announcementId}/pin")
     public ResponseEntity<Void> pinAnnouncement(
-            @PathVariable UUID announcementId,
+            @NonNull @PathVariable UUID announcementId,
             @RequestHeader("X-User-ID") UUID userId) {
         announcementService.pinAnnouncement(announcementId, userId);
         return ResponseEntity.noContent().build();
@@ -51,7 +52,7 @@ public class PostAnnouncementController {
 
     @PatchMapping("/{announcementId}/unpin")
     public ResponseEntity<Void> unpinAnnouncement(
-            @PathVariable UUID announcementId,
+            @NonNull @PathVariable UUID announcementId,
             @RequestHeader("X-User-ID") UUID userId) {
         announcementService.unpinAnnouncement(announcementId, userId);
         return ResponseEntity.noContent().build();
