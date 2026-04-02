@@ -9,7 +9,7 @@ import java.util.UUID;
 @Repository
 public interface PostTaskAssigneeRepository extends JpaRepository<PostTaskAssignee, UUID> {
 
-    boolean existsByTaskIdAndUserId(UUID taskId, UUID userId);
+    boolean existsByTaskPostIdAndUserId(UUID taskId, UUID userId);
 
-    void deleteByTaskIdAndUserId(UUID taskId, UUID userId);
+    void deleteByTaskPostIdAndUserId(UUID taskId, UUID userId);
 }

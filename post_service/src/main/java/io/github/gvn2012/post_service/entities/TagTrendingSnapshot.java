@@ -24,7 +24,7 @@ public class TagTrendingSnapshot {
     private UUID id;
 
     @Column(name = "tag_id", nullable = false)
-    private Long tagId;
+    private Integer tagId;
 
     @Column(name = "snapshot_time", nullable = false)
     private LocalDateTime snapshotTime;

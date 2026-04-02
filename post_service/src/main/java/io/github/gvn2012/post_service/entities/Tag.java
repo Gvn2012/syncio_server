@@ -26,8 +26,8 @@ public class Tag extends AuditableEntity {
         @EqualsAndHashCode.Include
         @ToString.Include
         @GeneratedValue(strategy = GenerationType.IDENTITY)
-        @Column(name = "id", nullable = false, updatable = false)
-        private Long id;
+        @Column(name = "id", nullable = false, updatable = false, columnDefinition = "INT")
+        private Integer id;
 
         @NotBlank
         @Size(max = 128)

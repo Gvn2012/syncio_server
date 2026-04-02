@@ -9,8 +9,11 @@ import java.util.UUID;
 
 @Repository
 public interface UserBlockRepository extends JpaRepository<UserBlock, UUID> {
-    Optional<UserBlock> findByBlockerIdAndBlockedId(UUID blockerId, UUID blockedId);
-    boolean existsByBlockerIdAndBlockedId(UUID blockerId, UUID blockedId);
-    long countAllByBlockerId(UUID blockerId);
-    long countAllByBlockedId(UUID blockedId);
+    Optional<UserBlock> findByBlockerUserIdAndBlockedUserId(UUID blockerId, UUID blockedId);
+
+    boolean existsByBlockerUserIdAndBlockedUserId(UUID blockerId, UUID blockedId);
+
+    long countAllByBlockerUserId(UUID blockerId);
+
+    long countAllByBlockedUserId(UUID blockedId);
 }

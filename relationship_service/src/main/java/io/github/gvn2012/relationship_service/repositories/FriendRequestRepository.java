@@ -12,12 +12,15 @@ import java.util.UUID;
 @Repository
 public interface FriendRequestRepository extends JpaRepository<FriendRequest, UUID> {
 
-    Optional<FriendRequest> findBySenderIdAndReceiverIdAndStatus(
-            UUID senderId, UUID receiverId, FriendRequestStatus status);
+    Optional<FriendRequest> findBySenderUserIdAndReceiverUserIdAndStatus(
+            UUID senderUserId, UUID receiverUserId, FriendRequestStatus status);
 
-    List<FriendRequest> findAllByReceiverIdAndStatus(UUID receiverId, FriendRequestStatus status);
+    List<FriendRequest> findAllByReceiverUserIdAndStatus(UUID receiverUserId, FriendRequestStatus status);
 
-    List<FriendRequest> findAllBySenderIdAndStatus(UUID senderId, FriendRequestStatus status);
 
-    boolean existsBySenderIdAndReceiverIdAndStatus(UUID senderId, UUID receiverId, FriendRequestStatus status);
+    List<FriendRequest> findAllBySenderUserIdAndStatus(UUID senderUserId, FriendRequestStatus status);
+
+
+    boolean existsBySenderUserIdAndReceiverUserIdAndStatus(UUID senderUserId, UUID receiverUserId, FriendRequestStatus status);
+
 }

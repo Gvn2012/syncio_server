@@ -236,6 +236,7 @@ services:
       SPRING_JPA_SHOW_SQL: "true"
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       discovery-service:
         condition: service_healthy
@@ -267,6 +268,7 @@ services:
       SPRING_JPA_SHOW_SQL: "true"
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       discovery-service:
         condition: service_healthy
@@ -327,6 +329,7 @@ services:
       SPRING_JPA_SHOW_SQL: "true"
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       discovery-service:
         condition: service_healthy

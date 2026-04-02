@@ -23,7 +23,7 @@ public class TagTrending extends AuditableEntity {
     @Id
     @EqualsAndHashCode.Include
     @Column(name = "tag_id", nullable = false, updatable = false)
-    private Long tagId;
+    private Integer tagId;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @MapsId

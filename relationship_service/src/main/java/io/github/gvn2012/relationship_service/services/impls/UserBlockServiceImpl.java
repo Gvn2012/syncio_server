@@ -34,7 +34,7 @@ public class UserBlockServiceImpl implements IUserBlockService {
             return APIResource.error("SELF_BLOCK", "Cannot block yourself", HttpStatus.BAD_REQUEST, null);
         }
 
-        if (blockRepository.existsByBlockerIdAndBlockedId(blockerId, blockedId)) {
+        if (blockRepository.existsByBlockerUserIdAndBlockedUserId(blockerId, blockedId)) {
             return APIResource.error("ALREADY_BLOCKED", "User is already blocked", HttpStatus.BAD_REQUEST, null);
         }
 
@@ -58,7 +58,7 @@ public class UserBlockServiceImpl implements IUserBlockService {
     @Override
     @Transactional
     public APIResource<Void> unblockUser(UUID blockerId, UUID blockedId) {
-        UserBlock block = blockRepository.findByBlockerIdAndBlockedId(blockerId, blockedId).orElse(null);
+        UserBlock block = blockRepository.findByBlockerUserIdAndBlockedUserId(blockerId, blockedId).orElse(null);
         if (block == null) {
             return APIResource.error("NOT_BLOCKED", "User is not blocked", HttpStatus.NOT_FOUND, null);
         }

@@ -2,7 +2,6 @@ package io.github.gvn2012.api_gateway.dtos;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import org.springframework.http.HttpMethod;
 
 @Data
 @AllArgsConstructor

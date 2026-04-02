@@ -34,7 +34,7 @@ public class FriendRequestServiceImpl implements IFriendRequestService {
             return APIResource.error("SELF_FRIEND", "Cannot send friend request to yourself", HttpStatus.BAD_REQUEST, null);
         }
 
-        if (friendRequestRepository.existsBySenderIdAndReceiverIdAndStatus(senderId, receiverId, FriendRequestStatus.PENDING)) {
+        if (friendRequestRepository.existsBySenderUserIdAndReceiverUserIdAndStatus(senderId, receiverId, FriendRequestStatus.PENDING)) {
             return APIResource.error("ALREADY_PENDING", "Friend request already pending", HttpStatus.BAD_REQUEST, null);
         }
 

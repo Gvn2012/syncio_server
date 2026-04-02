@@ -109,7 +109,7 @@ public class RelationshipServiceImpl implements IRelationshipService {
 
     @Override
     public APIResource<Boolean> isBlocked(UUID sourceId, UUID targetId) {
-        boolean exists = userBlockRepository.existsByBlockerIdAndBlockedId(sourceId, targetId);
+        boolean exists = userBlockRepository.existsByBlockerUserIdAndBlockedUserId(sourceId, targetId);
         return APIResource.ok("Checked block status", exists);
     }
 

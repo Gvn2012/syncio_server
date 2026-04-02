@@ -14,5 +14,6 @@ import java.util.UUID;
 @AllArgsConstructor
 public class PostTagId implements Serializable {
     private UUID postId;
-    private Long tagId;
+    @jakarta.persistence.Column(name = "tag_id", columnDefinition = "INT")
+    private Integer tagId;
 }

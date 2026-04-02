@@ -18,7 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -40,7 +39,7 @@ public class UserRelationshipStatsServiceImpl implements IUserRelationshipStatsS
     @Transactional
     public void handleRelationshipChange(RelationshipChangedEvent event) {
         if (event.getEventId() != null) {
-            String eventIdStr = event.getEventId().toString();
+            String eventIdStr = java.util.Objects.requireNonNull(event.getEventId()).toString();
             if (processedEventRepository.existsById(eventIdStr)) {
                 log.info("Duplicate relationship event dropped: {}", eventIdStr);
                 return;
@@ -126,8 +125,8 @@ public class UserRelationshipStatsServiceImpl implements IUserRelationshipStatsS
         stats.setFriendCount(countActive(userId, RelationshipType.FRIEND, true));
         
         // Count blocks/mutes
-        stats.setBlockedCount((long) blockRepository.countAllByBlockerId(userId));
-        stats.setBlockedByCount((long) blockRepository.countAllByBlockedId(userId));
+        stats.setBlockedCount((long) blockRepository.countAllByBlockerUserId(userId));
+        stats.setBlockedByCount((long) blockRepository.countAllByBlockedUserId(userId));
         stats.setMutedCount((long) muteRepository.countAllByMuterUserIdAndIsActive(userId, true));
 
         stats.setLastCalculatedAt(LocalDateTime.now());

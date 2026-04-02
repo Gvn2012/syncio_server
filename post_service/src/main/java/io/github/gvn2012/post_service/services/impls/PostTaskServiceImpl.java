@@ -15,6 +15,7 @@ import io.github.gvn2012.post_service.repositories.PostTaskRepository;
 import io.github.gvn2012.post_service.services.interfaces.IPostTaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +34,7 @@ public class PostTaskServiceImpl implements IPostTaskService {
 
     @Override
     @Transactional
-    public PostTaskResponse createTask(UUID postId, PostTaskRequest request) {
+    public PostTaskResponse createTask(@NonNull UUID postId, PostTaskRequest request) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("Post not found: " + postId));
         
@@ -95,7 +96,7 @@ public class PostTaskServiceImpl implements IPostTaskService {
         userValidationService.validateUserCanInteract(userId);
         taskRepository.findById(taskId)
                 .orElseThrow(() -> new NotFoundException("Task not found: " + taskId));
-        assigneeRepository.deleteByTaskIdAndUserId(taskId, userId);
+        assigneeRepository.deleteByTaskPostIdAndUserId(taskId, userId);
     }
 
     @Override
