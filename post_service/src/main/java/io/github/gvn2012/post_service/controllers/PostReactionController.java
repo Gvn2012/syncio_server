@@ -15,18 +15,18 @@ public class PostReactionController {
 
     private final IPostReactionService postReactionService;
 
-    @PostMapping("/{postId}/toggle")
+    @PostMapping("/{pid}/toggle")
     public ResponseEntity<APIResource<Void>> togglePostReaction(
-            @PathVariable UUID postId,
+            @PathVariable("pid") UUID postId,
             @RequestHeader("X-User-Id") UUID userId,
             @RequestParam Short typeId) {
         postReactionService.toggleReaction(postId, userId, typeId);
         return ResponseEntity.ok(APIResource.success(null));
     }
 
-    @PostMapping("/comments/{commentId}/toggle")
+    @PostMapping("/comments/{cmid}/toggle")
     public ResponseEntity<APIResource<Void>> toggleCommentReaction(
-            @PathVariable UUID commentId,
+            @PathVariable("cmid") UUID commentId,
             @RequestHeader("X-User-Id") UUID userId,
             @RequestParam Short typeId) {
         postReactionService.toggleCommentReaction(commentId, userId, typeId);

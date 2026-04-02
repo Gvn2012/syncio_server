@@ -12,29 +12,30 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/mutes")
+@RequestMapping("/api/v1/relationship-service/mutes")
 @RequiredArgsConstructor
 public class UserMuteController {
 
     private final IUserMuteService muteService;
 
-    @PostMapping("/{mutedId}")
+    @PostMapping("/{mid}")
     public ResponseEntity<APIResource<Void>> mute(
             @RequestHeader("X-User-Id") UUID muterId,
-            @PathVariable UUID mutedId,
+            @PathVariable("mid") UUID mutedId,
             @RequestParam(required = false) MuteScope scope,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime expiresAt
-    ) {
-        APIResource<Void> response = muteService.muteUser(muterId, mutedId, scope != null ? scope : MuteScope.ALL, expiresAt);
-        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value())).body(response);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime expiresAt) {
+        APIResource<Void> response = muteService.muteUser(muterId, mutedId, scope != null ? scope : MuteScope.ALL,
+                expiresAt);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
     }
 
-    @DeleteMapping("/{mutedId}")
+    @DeleteMapping("/{mid}")
     public ResponseEntity<APIResource<Void>> unmute(
             @RequestHeader("X-User-Id") UUID muterId,
-            @PathVariable UUID mutedId
-    ) {
+            @PathVariable("mid") UUID mutedId) {
         APIResource<Void> response = muteService.unmuteUser(muterId, mutedId);
-        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value())).body(response);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
     }
 }

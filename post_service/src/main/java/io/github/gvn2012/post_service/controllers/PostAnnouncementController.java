@@ -20,39 +20,39 @@ public class PostAnnouncementController {
 
     private final IPostAnnouncementService announcementService;
 
-    @PostMapping("/{postId}")
+    @PostMapping("/{pid}")
     public ResponseEntity<APIResource<PostAnnouncementResponse>> createAnnouncement(
-            @NonNull @PathVariable UUID postId,
+            @NonNull @PathVariable("pid") UUID postId,
             @RequestBody PostAnnouncementRequest announcement) {
         return ResponseEntity.ok(APIResource.ok("Announcement created",
                 announcementService.createAnnouncement(postId, announcement)));
     }
 
-    @GetMapping("/{postId}")
-    public ResponseEntity<APIResource<PostAnnouncementResponse>> getAnnouncement(@NonNull @PathVariable UUID postId) {
+    @GetMapping("/{pid}")
+    public ResponseEntity<APIResource<PostAnnouncementResponse>> getAnnouncement(@NonNull @PathVariable("pid") UUID postId) {
         return ResponseEntity.ok(APIResource.ok("Announcement retrieved",
                 announcementService.getAnnouncementByPostId(postId)));
     }
 
-    @PostMapping("/{announcementId}/read")
+    @PostMapping("/{annid}/read")
     public ResponseEntity<Void> markAsRead(
-            @NonNull @PathVariable UUID announcementId,
+            @NonNull @PathVariable("annid") UUID announcementId,
             @RequestHeader("X-User-ID") UUID userId) {
         announcementService.markAsRead(announcementId, userId);
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{announcementId}/pin")
+    @PatchMapping("/{annid}/pin")
     public ResponseEntity<Void> pinAnnouncement(
-            @NonNull @PathVariable UUID announcementId,
+            @NonNull @PathVariable("annid") UUID announcementId,
             @RequestHeader("X-User-ID") UUID userId) {
         announcementService.pinAnnouncement(announcementId, userId);
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{announcementId}/unpin")
+    @PatchMapping("/{annid}/unpin")
     public ResponseEntity<Void> unpinAnnouncement(
-            @NonNull @PathVariable UUID announcementId,
+            @NonNull @PathVariable("annid") UUID announcementId,
             @RequestHeader("X-User-ID") UUID userId) {
         announcementService.unpinAnnouncement(announcementId, userId);
         return ResponseEntity.noContent().build();

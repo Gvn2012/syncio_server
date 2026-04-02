@@ -33,29 +33,29 @@ public class OrganizationController {
                 .body(APIResource.ok("Organization created successfully", response));
     }
 
-    @GetMapping("/{orgId}")
+    @GetMapping("/{oid}")
     public ResponseEntity<APIResource<OrganizationDto>> getOrganization(
             @RequestHeader(value = "X-User-Id", required = false) UUID requestingUserId,
-            @PathVariable UUID orgId) {
+            @PathVariable("oid") UUID orgId) {
 
         OrganizationDto response = organizationService.getOrganization(orgId);
         return ResponseEntity.ok(APIResource.ok("Organization retrieved successfully", response));
     }
 
-    @PutMapping("/{orgId}")
+    @PutMapping("/{oid}")
     public ResponseEntity<APIResource<UpdateOrganizationResponse>> updateOrganization(
             @RequestHeader("X-User-Id") UUID requestingUserId,
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @Valid @RequestBody UpdateOrganizationRequest request) {
 
         UpdateOrganizationResponse response = organizationService.updateOrganization(orgId, requestingUserId, request);
         return ResponseEntity.ok(APIResource.ok("Organization updated successfully", response));
     }
 
-    @DeleteMapping("/{orgId}")
+    @DeleteMapping("/{oid}")
     public ResponseEntity<APIResource<Void>> deleteOrganization(
             @RequestHeader("X-User-Id") UUID requestingUserId,
-            @PathVariable UUID orgId) {
+            @PathVariable("oid") UUID orgId) {
 
         organizationService.deleteOrganization(orgId, requestingUserId);
         return ResponseEntity.ok(APIResource.ok("Organization deleted successfully", null));

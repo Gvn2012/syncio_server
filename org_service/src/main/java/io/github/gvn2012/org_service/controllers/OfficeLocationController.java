@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/organizations/{orgId}/office-locations")
+@RequestMapping("/api/v1/orgs/{oid}/office-locations")
 @RequiredArgsConstructor
 public class OfficeLocationController {
 
@@ -25,7 +25,7 @@ public class OfficeLocationController {
 
     @PostMapping
     public ResponseEntity<CreateOfficeLocationResponse> createOfficeLocation(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @Valid @RequestBody CreateOfficeLocationRequest request) {
         OfficeLocationDto dto = officeLocationService.createOfficeLocation(orgId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -36,10 +36,10 @@ public class OfficeLocationController {
         );
     }
 
-    @PutMapping("/{officeLocationId}")
+    @PutMapping("/{locid}")
     public ResponseEntity<UpdateOfficeLocationResponse> updateOfficeLocation(
-            @PathVariable UUID orgId,
-            @PathVariable UUID officeLocationId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("locid") UUID officeLocationId,
             @Valid @RequestBody UpdateOfficeLocationRequest request) {
         OfficeLocationDto dto = officeLocationService.updateOfficeLocation(orgId, officeLocationId, request);
         return ResponseEntity.ok(
@@ -50,16 +50,16 @@ public class OfficeLocationController {
         );
     }
 
-    @GetMapping("/{officeLocationId}")
+    @GetMapping("/{locid}")
     public ResponseEntity<OfficeLocationDto> getOfficeLocationById(
-            @PathVariable UUID orgId,
-            @PathVariable UUID officeLocationId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("locid") UUID officeLocationId) {
         return ResponseEntity.ok(officeLocationService.getOfficeLocationById(orgId, officeLocationId));
     }
 
     @GetMapping
     public ResponseEntity<List<OfficeLocationDto>> getOfficeLocationsByOrgId(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestParam(required = false) OfficeStatus status) {
         if (status != null) {
             return ResponseEntity.ok(officeLocationService.getOfficeLocationsByOrgIdAndStatus(orgId, status));
@@ -69,14 +69,14 @@ public class OfficeLocationController {
 
     @GetMapping("/headquarters")
     public ResponseEntity<OfficeLocationDto> getHeadquartersByOrgId(
-            @PathVariable UUID orgId) {
+            @PathVariable("oid") UUID orgId) {
         return ResponseEntity.ok(officeLocationService.getHeadquartersByOrgId(orgId));
     }
 
-    @DeleteMapping("/{officeLocationId}")
+    @DeleteMapping("/{locid}")
     public ResponseEntity<Void> deleteOfficeLocation(
-            @PathVariable UUID orgId,
-            @PathVariable UUID officeLocationId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("locid") UUID officeLocationId) {
         officeLocationService.deleteOfficeLocation(orgId, officeLocationId);
         return ResponseEntity.noContent().build();
     }

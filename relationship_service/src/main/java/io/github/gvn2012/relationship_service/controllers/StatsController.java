@@ -10,25 +10,24 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/stats")
+@RequestMapping("/api/v1/relationship-service/stats")
 @RequiredArgsConstructor
 public class StatsController {
 
     private final IUserRelationshipStatsService statsService;
 
-    @GetMapping("/{userId}")
+    @GetMapping("/{uid}")
     public ResponseEntity<APIResource<UserRelationshipStats>> getStats(
-            @PathVariable UUID userId
-    ) {
+            @PathVariable("uid") UUID userId) {
         UserRelationshipStats stats = statsService.getStatsByUserId(userId);
         return ResponseEntity.ok(APIResource.ok("Stats retrieved", stats));
     }
 
-    @PostMapping("/{userId}/recalculate")
+    @PostMapping("/{uid}/recalculate")
     public ResponseEntity<APIResource<Void>> recalculate(
-            @PathVariable UUID userId
-    ) {
+            @PathVariable("uid") UUID userId) {
         statsService.recalculateStats(userId);
-        return ResponseEntity.ok(APIResource.message("Stats recalculation triggered", org.springframework.http.HttpStatus.OK));
+        return ResponseEntity
+                .ok(APIResource.message("Stats recalculation triggered", org.springframework.http.HttpStatus.OK));
     }
 }

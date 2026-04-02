@@ -12,6 +12,7 @@ import io.github.gvn2012.relationship_service.services.interfaces.IFriendRequest
 import io.github.gvn2012.relationship_service.services.kafka.RelationshipEventProducer;
 import io.github.gvn2012.shared.kafka_events.RelationshipChangedEvent;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,10 +32,12 @@ public class FriendRequestServiceImpl implements IFriendRequestService {
     @Transactional
     public APIResource<Void> sendFriendRequest(UUID senderId, UUID receiverId, String message) {
         if (senderId.equals(receiverId)) {
-            return APIResource.error("SELF_FRIEND", "Cannot send friend request to yourself", HttpStatus.BAD_REQUEST, null);
+            return APIResource.error("SELF_FRIEND", "Cannot send friend request to yourself", HttpStatus.BAD_REQUEST,
+                    null);
         }
 
-        if (friendRequestRepository.existsBySenderUserIdAndReceiverUserIdAndStatus(senderId, receiverId, FriendRequestStatus.PENDING)) {
+        if (friendRequestRepository.existsBySenderUserIdAndReceiverUserIdAndStatus(senderId, receiverId,
+                FriendRequestStatus.PENDING)) {
             return APIResource.error("ALREADY_PENDING", "Friend request already pending", HttpStatus.BAD_REQUEST, null);
         }
 
@@ -45,7 +48,8 @@ public class FriendRequestServiceImpl implements IFriendRequestService {
         request.setStatus(FriendRequestStatus.PENDING);
         friendRequestRepository.save(request);
 
-        eventProducer.publishEvent(new RelationshipChangedEvent(senderId, receiverId, RelationshipChangedEvent.ChangeType.FRIEND_REQUEST_SENT));
+        eventProducer.publishEvent(new RelationshipChangedEvent(senderId, receiverId,
+                RelationshipChangedEvent.ChangeType.FRIEND_REQUEST_SENT));
 
         return APIResource.message("Friend request sent successfully", HttpStatus.CREATED);
     }
@@ -57,6 +61,8 @@ public class FriendRequestServiceImpl implements IFriendRequestService {
         FriendRequest request = friendRequestRepository.findById(requestId)
                 .orElse(null);
 
+        System.out.println("Friend requestId: " + requestId);
+        System.out.println("Friend request found: " + request);
         if (request == null || request.getReceiverUserId() == null || !request.getReceiverUserId().equals(userId)) {
             return APIResource.error("NOT_FOUND", "Friend request not found", HttpStatus.NOT_FOUND, null);
         }
@@ -73,7 +79,8 @@ public class FriendRequestServiceImpl implements IFriendRequestService {
         createFriendRelationship(request.getReceiverUserId(), request.getSenderUserId());
 
         @SuppressWarnings("null")
-        RelationshipChangedEvent event = new RelationshipChangedEvent(request.getSenderUserId(), request.getReceiverUserId(), RelationshipChangedEvent.ChangeType.FRIEND_REQUEST_ACCEPTED);
+        RelationshipChangedEvent event = new RelationshipChangedEvent(request.getSenderUserId(),
+                request.getReceiverUserId(), RelationshipChangedEvent.ChangeType.FRIEND_REQUEST_ACCEPTED);
         eventProducer.publishEvent(event);
 
         return APIResource.message("Friend request accepted", HttpStatus.OK);

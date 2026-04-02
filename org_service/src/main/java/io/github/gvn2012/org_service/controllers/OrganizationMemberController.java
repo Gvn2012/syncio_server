@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/orgs/{orgId}/members")
+@RequestMapping("/api/v1/orgs/{oid}/members")
 @RequiredArgsConstructor
 public class OrganizationMemberController {
 
@@ -25,7 +25,7 @@ public class OrganizationMemberController {
 
     @PostMapping
     public ResponseEntity<APIResource<AddMemberResponse>> addMember(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestHeader("X-User-Id") UUID requestingUserId,
             @Valid @RequestBody AddMemberRequest request) {
 
@@ -34,20 +34,20 @@ public class OrganizationMemberController {
                 .body(APIResource.ok("Member added successfully", response));
     }
 
-    @GetMapping("/{memberId}")
+    @GetMapping("/{mid}")
     public ResponseEntity<APIResource<OrganizationMemberDto>> getMember(
-            @PathVariable UUID orgId,
-            @PathVariable UUID memberId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("mid") UUID memberId,
             @RequestHeader(value = "X-User-Id", required = false) UUID requestingUserId) {
 
         OrganizationMemberDto response = organizationMemberService.getMember(orgId, memberId, requestingUserId);
         return ResponseEntity.ok(APIResource.ok("Member retrieved successfully", response));
     }
 
-    @PutMapping("/{memberId}/role")
+    @PutMapping("/{mid}/role")
     public ResponseEntity<APIResource<UpdateMemberRoleResponse>> updateMemberRole(
-            @PathVariable UUID orgId,
-            @PathVariable UUID memberId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("mid") UUID memberId,
             @RequestHeader("X-User-Id") UUID requestingUserId,
             @Valid @RequestBody UpdateMemberRoleRequest request) {
 
@@ -55,10 +55,10 @@ public class OrganizationMemberController {
         return ResponseEntity.ok(APIResource.ok("Member role updated successfully", response));
     }
 
-    @DeleteMapping("/{memberId}")
+    @DeleteMapping("/{mid}")
     public ResponseEntity<APIResource<Void>> removeMember(
-            @PathVariable UUID orgId,
-            @PathVariable UUID memberId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("mid") UUID memberId,
             @RequestHeader("X-User-Id") UUID requestingUserId) {
 
         organizationMemberService.removeMember(orgId, memberId, requestingUserId);
@@ -67,7 +67,7 @@ public class OrganizationMemberController {
 
     @GetMapping
     public ResponseEntity<APIResource<List<OrganizationMemberDto>>> getMembers(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestHeader(value = "X-User-Id", required = false) UUID requestingUserId) {
 
         List<OrganizationMemberDto> response = organizationMemberService.getMembers(orgId, requestingUserId);

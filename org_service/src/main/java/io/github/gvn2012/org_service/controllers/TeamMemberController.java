@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/orgs/{orgId}/departments/{deptId}/teams/{teamId}/members")
+@RequestMapping("/api/v1/orgs/{oid}/departments/{did}/teams/{tid}/members")
 @RequiredArgsConstructor
 public class TeamMemberController {
 
@@ -25,9 +25,9 @@ public class TeamMemberController {
 
     @PostMapping
     public ResponseEntity<APIResource<AddTeamMemberResponse>> addTeamMember(
-            @PathVariable UUID orgId,
-            @PathVariable UUID deptId,
-            @PathVariable UUID teamId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("did") UUID deptId,
+            @PathVariable("tid") UUID teamId,
             @RequestHeader("X-User-Id") UUID requestingUserId,
             @Valid @RequestBody AddTeamMemberRequest request) {
 
@@ -36,24 +36,24 @@ public class TeamMemberController {
                 .body(APIResource.ok("Team member added successfully", response));
     }
 
-    @GetMapping("/{memberId}")
+    @GetMapping("/{mid}")
     public ResponseEntity<APIResource<TeamMemberDto>> getTeamMember(
-            @PathVariable UUID orgId,
-            @PathVariable UUID deptId,
-            @PathVariable UUID teamId,
-            @PathVariable UUID memberId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("did") UUID deptId,
+            @PathVariable("tid") UUID teamId,
+            @PathVariable("mid") UUID memberId,
             @RequestHeader(value = "X-User-Id", required = false) UUID requestingUserId) {
 
         TeamMemberDto response = teamMemberService.getTeamMember(orgId, deptId, teamId, memberId, requestingUserId);
         return ResponseEntity.ok(APIResource.ok("Team member retrieved successfully", response));
     }
 
-    @PutMapping("/{memberId}/role")
+    @PutMapping("/{mid}/role")
     public ResponseEntity<APIResource<UpdateTeamMemberRoleResponse>> updateTeamMemberRole(
-            @PathVariable UUID orgId,
-            @PathVariable UUID deptId,
-            @PathVariable UUID teamId,
-            @PathVariable UUID memberId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("did") UUID deptId,
+            @PathVariable("tid") UUID teamId,
+            @PathVariable("mid") UUID memberId,
             @RequestHeader("X-User-Id") UUID requestingUserId,
             @Valid @RequestBody UpdateTeamMemberRoleRequest request) {
 
@@ -61,12 +61,12 @@ public class TeamMemberController {
         return ResponseEntity.ok(APIResource.ok("Team member role updated successfully", response));
     }
 
-    @DeleteMapping("/{memberId}")
+    @DeleteMapping("/{mid}")
     public ResponseEntity<APIResource<Void>> removeTeamMember(
-            @PathVariable UUID orgId,
-            @PathVariable UUID deptId,
-            @PathVariable UUID teamId,
-            @PathVariable UUID memberId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("did") UUID deptId,
+            @PathVariable("tid") UUID teamId,
+            @PathVariable("mid") UUID memberId,
             @RequestHeader("X-User-Id") UUID requestingUserId) {
 
         teamMemberService.removeTeamMember(orgId, deptId, teamId, memberId, requestingUserId);
@@ -75,9 +75,9 @@ public class TeamMemberController {
 
     @GetMapping
     public ResponseEntity<APIResource<List<TeamMemberDto>>> getTeamMembers(
-            @PathVariable UUID orgId,
-            @PathVariable UUID deptId,
-            @PathVariable UUID teamId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("did") UUID deptId,
+            @PathVariable("tid") UUID teamId,
             @RequestHeader(value = "X-User-Id", required = false) UUID requestingUserId) {
 
         List<TeamMemberDto> response = teamMemberService.getTeamMembers(orgId, deptId, teamId, requestingUserId);

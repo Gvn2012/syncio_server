@@ -20,46 +20,46 @@ public class PostTaskController {
 
     private final IPostTaskService taskService;
 
-    @PostMapping("/{postId}")
+    @PostMapping("/{pid}")
     public ResponseEntity<APIResource<PostTaskResponse>> createTask(
-            @PathVariable UUID postId,
+            @PathVariable("pid") UUID postId,
             @RequestBody PostTaskRequest task) {
         return ResponseEntity.ok(APIResource.ok("Task created", taskService.createTask(postId, task)));
     }
 
-    @GetMapping("/{postId}")
-    public ResponseEntity<APIResource<PostTaskResponse>> getTask(@PathVariable UUID postId) {
+    @GetMapping("/{pid}")
+    public ResponseEntity<APIResource<PostTaskResponse>> getTask(@PathVariable("pid") UUID postId) {
         return ResponseEntity.ok(APIResource.ok("Task retrieved", taskService.getTaskByPostId(postId)));
     }
 
-    @PatchMapping("/{taskId}/status/{status}")
+    @PatchMapping("/{tkid}/status/{status}")
     public ResponseEntity<Void> updateTaskStatus(
-            @PathVariable UUID taskId,
+            @PathVariable("tkid") UUID taskId,
             @PathVariable String status,
             @RequestHeader("X-User-ID") UUID userId) {
         taskService.updateTaskStatus(taskId, userId, status);
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{taskId}/assign/{userId}")
+    @PostMapping("/{tkid}/assign/{uid}")
     public ResponseEntity<Void> assignUser(
-            @PathVariable UUID taskId,
-            @PathVariable UUID userId) {
+            @PathVariable("tkid") UUID taskId,
+            @PathVariable("uid") UUID userId) {
         taskService.assignUser(taskId, userId);
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/{taskId}/unassign/{userId}")
+    @DeleteMapping("/{tkid}/unassign/{uid}")
     public ResponseEntity<Void> unassignUser(
-            @PathVariable UUID taskId,
-            @PathVariable UUID userId) {
+            @PathVariable("tkid") UUID taskId,
+            @PathVariable("uid") UUID userId) {
         taskService.unassignUser(taskId, userId);
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/assignee/{userId}")
+    @GetMapping("/assignee/{uid}")
     public ResponseEntity<APIResource<List<PostTaskResponse>>> getTasksByAssignee(
-            @PathVariable UUID userId,
+            @PathVariable("uid") UUID userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(APIResource.ok("Tasks by assignee",

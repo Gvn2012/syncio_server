@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/organizations/{orgId}/announcements")
+@RequestMapping("/api/v1/orgs/{oid}/announcements")
 @RequiredArgsConstructor
 public class OrgAnnouncementController {
 
@@ -26,7 +26,7 @@ public class OrgAnnouncementController {
 
     @PostMapping
     public ResponseEntity<CreateOrgAnnouncementResponse> createAnnouncement(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestHeader("X-User-Id") UUID authorId,
             @Valid @RequestBody CreateOrgAnnouncementRequest request) {
         OrgAnnouncementDto dto = announcementService.createAnnouncement(orgId, authorId, request);
@@ -38,10 +38,10 @@ public class OrgAnnouncementController {
         );
     }
 
-    @PutMapping("/{announcementId}")
+    @PutMapping("/{annid}")
     public ResponseEntity<UpdateOrgAnnouncementResponse> updateAnnouncement(
-            @PathVariable UUID orgId,
-            @PathVariable UUID announcementId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("annid") UUID announcementId,
             @Valid @RequestBody UpdateOrgAnnouncementRequest request) {
         OrgAnnouncementDto dto = announcementService.updateAnnouncement(orgId, announcementId, request);
         return ResponseEntity.ok(
@@ -52,16 +52,16 @@ public class OrgAnnouncementController {
         );
     }
 
-    @GetMapping("/{announcementId}")
+    @GetMapping("/{annid}")
     public ResponseEntity<OrgAnnouncementDto> getAnnouncementById(
-            @PathVariable UUID orgId,
-            @PathVariable UUID announcementId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("annid") UUID announcementId) {
         return ResponseEntity.ok(announcementService.getAnnouncementById(orgId, announcementId));
     }
 
     @GetMapping
     public ResponseEntity<Page<OrgAnnouncementDto>> getAnnouncementsByOrgId(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestParam(required = false) UUID departmentId,
             @RequestParam(required = false, defaultValue = "false") boolean pinnedOnly,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -77,10 +77,10 @@ public class OrgAnnouncementController {
         return ResponseEntity.ok(announcementService.getAnnouncementsByOrgId(orgId, pageable));
     }
 
-    @DeleteMapping("/{announcementId}")
+    @DeleteMapping("/{annid}")
     public ResponseEntity<Void> deleteAnnouncement(
-            @PathVariable UUID orgId,
-            @PathVariable UUID announcementId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("annid") UUID announcementId) {
         announcementService.deleteAnnouncement(orgId, announcementId);
         return ResponseEntity.noContent().build();
     }

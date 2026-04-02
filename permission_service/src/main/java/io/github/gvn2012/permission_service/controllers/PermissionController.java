@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Slf4j // Added for logging warnings on unmapped routes
 @RestController
-@RequestMapping("api/v1/permissions/")
+@RequestMapping("/api/v1/permissions")
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
 public class PermissionController {
 

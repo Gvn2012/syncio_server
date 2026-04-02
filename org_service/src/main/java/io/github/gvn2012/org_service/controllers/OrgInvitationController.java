@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/organizations/{orgId}/invitations")
+@RequestMapping("/api/v1/orgs/{oid}/invitations")
 @RequiredArgsConstructor
 public class OrgInvitationController {
 
@@ -23,39 +23,39 @@ public class OrgInvitationController {
 
     @PostMapping
     public ResponseEntity<CreateOrgInvitationResponse> createInvitation(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestHeader("X-User-Id") UUID invitedByUserId,
             @Valid @RequestBody CreateOrgInvitationRequest request) {
         CreateOrgInvitationResponse response = invitationService.createInvitation(orgId, invitedByUserId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping("/{invitationId}")
+    @GetMapping("/{invid}")
     public ResponseEntity<OrgInvitationDto> getInvitationById(
-            @PathVariable UUID orgId,
-            @PathVariable UUID invitationId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("invid") UUID invitationId) {
         return ResponseEntity.ok(invitationService.getInvitationById(orgId, invitationId));
     }
 
     @GetMapping
     public ResponseEntity<List<OrgInvitationDto>> getInvitationsByOrgId(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestParam(required = false) InvitationStatus status) {
         return ResponseEntity.ok(invitationService.getInvitationsByOrgId(orgId, status));
     }
 
-    @PostMapping("/{invitationId}/cancel")
+    @PostMapping("/{invid}/cancel")
     public ResponseEntity<Void> cancelInvitation(
-            @PathVariable UUID orgId,
-            @PathVariable UUID invitationId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("invid") UUID invitationId) {
         invitationService.cancelInvitation(orgId, invitationId);
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{invitationId}/accept")
+    @PostMapping("/{invid}/accept")
     public ResponseEntity<Void> acceptInvitation(
-            @PathVariable UUID orgId,
-            @PathVariable UUID invitationId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("invid") UUID invitationId,
             @RequestHeader("X-User-Id") UUID acceptedByUserId,
             @RequestParam String token) {
         invitationService.acceptInvitation(orgId, invitationId, acceptedByUserId, token);

@@ -20,9 +20,9 @@ public class PostCommentController {
 
     private final IPostCommentService commentService;
 
-    @PostMapping("/{postId}/comments")
+    @PostMapping("/{pid}/comments")
     public ResponseEntity<APIResource<CommentResponse>> addComment(
-            @NonNull @PathVariable UUID postId,
+            @NonNull @PathVariable("pid") UUID postId,
             @RequestHeader("X-User-Id") UUID authorId,
             @RequestParam String content,
             @RequestParam(required = false) UUID parentId) {
@@ -30,43 +30,43 @@ public class PostCommentController {
                 .body(APIResource.success(commentService.addComment(postId, authorId, content, parentId)));
     }
 
-    @GetMapping("/comments/{commentId}")
-    public ResponseEntity<APIResource<CommentResponse>> getCommentById(@NonNull @PathVariable UUID commentId) {
+    @GetMapping("/comments/{cmid}")
+    public ResponseEntity<APIResource<CommentResponse>> getCommentById(@NonNull @PathVariable("cmid") UUID commentId) {
         return ResponseEntity.ok(APIResource.success(commentService.getCommentById(commentId)));
     }
 
-    @PutMapping("/comments/{commentId}")
+    @PutMapping("/comments/{cmid}")
     public ResponseEntity<APIResource<CommentResponse>> updateComment(
-            @NonNull @PathVariable UUID commentId,
+            @NonNull @PathVariable("cmid") UUID commentId,
             @RequestHeader("X-User-Id") UUID authorId,
             @RequestParam String content) {
         return ResponseEntity.ok(APIResource.success(commentService.updateComment(commentId, authorId, content)));
     }
 
-    @DeleteMapping("/comments/{commentId}")
+    @DeleteMapping("/comments/{cmid}")
     public ResponseEntity<APIResource<Void>> deleteComment(
-            @NonNull @PathVariable UUID commentId,
+            @NonNull @PathVariable("cmid") UUID commentId,
             @NonNull @RequestHeader("X-User-Id") UUID authorId) {
         commentService.deleteComment(commentId, authorId);
         return ResponseEntity.ok(APIResource.success(null));
     }
 
-    @GetMapping("/{postId}/comments")
+    @GetMapping("/{pid}/comments")
     public ResponseEntity<APIResource<List<CommentResponse>>> getCommentsByPost(
-            @NonNull @PathVariable UUID postId,
+            @NonNull @PathVariable("pid") UUID postId,
             Pageable pageable) {
         return ResponseEntity.ok(APIResource.success(commentService.getCommentsByPost(postId, pageable)));
     }
 
-    @GetMapping("/comments/{commentId}/replies")
+    @GetMapping("/comments/{cmid}/replies")
     public ResponseEntity<APIResource<List<CommentResponse>>> getReplies(
-            @NonNull @PathVariable UUID commentId,
+            @NonNull @PathVariable("cmid") UUID commentId,
             Pageable pageable) {
         return ResponseEntity.ok(APIResource.success(commentService.getReplies(commentId, pageable)));
     }
 
-    @PostMapping("/comments/{commentId}/pin")
-    public ResponseEntity<APIResource<Void>> pinComment(@NonNull @PathVariable UUID commentId) {
+    @PostMapping("/comments/{cmid}/pin")
+    public ResponseEntity<APIResource<Void>> pinComment(@NonNull @PathVariable("cmid") UUID commentId) {
         commentService.pinComment(commentId);
         return ResponseEntity.ok(APIResource.success(null));
     }

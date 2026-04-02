@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/organizations/{orgId}/job-levels")
+@RequestMapping("/api/v1/orgs/{oid}/job-levels")
 @RequiredArgsConstructor
 public class OrgJobLevelController {
 
@@ -24,7 +24,7 @@ public class OrgJobLevelController {
 
     @PostMapping
     public ResponseEntity<CreateOrgJobLevelResponse> createJobLevel(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @Valid @RequestBody CreateOrgJobLevelRequest request) {
         OrgJobLevelDto dto = jobLevelService.createJobLevel(orgId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -35,10 +35,10 @@ public class OrgJobLevelController {
         );
     }
 
-    @PutMapping("/{jobLevelId}")
+    @PutMapping("/{jlid}")
     public ResponseEntity<UpdateOrgJobLevelResponse> updateJobLevel(
-            @PathVariable UUID orgId,
-            @PathVariable UUID jobLevelId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("jlid") UUID jobLevelId,
             @Valid @RequestBody UpdateOrgJobLevelRequest request) {
         OrgJobLevelDto dto = jobLevelService.updateJobLevel(orgId, jobLevelId, request);
         return ResponseEntity.ok(
@@ -49,23 +49,23 @@ public class OrgJobLevelController {
         );
     }
 
-    @GetMapping("/{jobLevelId}")
+    @GetMapping("/{jlid}")
     public ResponseEntity<OrgJobLevelDto> getJobLevelById(
-            @PathVariable UUID orgId,
-            @PathVariable UUID jobLevelId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("jlid") UUID jobLevelId) {
         return ResponseEntity.ok(jobLevelService.getJobLevelById(orgId, jobLevelId));
     }
 
     @GetMapping
     public ResponseEntity<List<OrgJobLevelDto>> getJobLevelsByOrgId(
-            @PathVariable UUID orgId) {
+            @PathVariable("oid") UUID orgId) {
         return ResponseEntity.ok(jobLevelService.getJobLevelsByOrgId(orgId));
     }
 
-    @DeleteMapping("/{jobLevelId}")
+    @DeleteMapping("/{jlid}")
     public ResponseEntity<Void> deleteJobLevel(
-            @PathVariable UUID orgId,
-            @PathVariable UUID jobLevelId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("jlid") UUID jobLevelId) {
         jobLevelService.deleteJobLevel(orgId, jobLevelId);
         return ResponseEntity.noContent().build();
     }

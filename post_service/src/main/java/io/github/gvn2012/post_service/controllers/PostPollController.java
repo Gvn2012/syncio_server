@@ -12,8 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/v1/posts/polls")
@@ -22,48 +20,48 @@ public class PostPollController {
 
     private final IPostPollService pollService;
 
-    @PostMapping("/{postId}")
+    @PostMapping("/{pid}")
     public ResponseEntity<APIResource<PostPollResponse>> createPoll(
-            @PathVariable UUID postId,
+            @PathVariable("pid") UUID postId,
             @RequestBody PostPollRequest poll) {
         return ResponseEntity.ok(APIResource.ok("Poll created", pollService.createPoll(postId, poll)));
     }
 
-    @GetMapping("/{postId}")
-    public ResponseEntity<APIResource<PostPollResponse>> getPoll(@PathVariable UUID postId) {
+    @GetMapping("/{pid}")
+    public ResponseEntity<APIResource<PostPollResponse>> getPoll(@PathVariable("pid") UUID postId) {
         return ResponseEntity.ok(APIResource.ok("Poll retrieved", pollService.getPollByPostId(postId)));
     }
 
-    @PostMapping("/{pollId}/vote/{optionId}")
+    @PostMapping("/{plid}/vote/{optid}")
     public ResponseEntity<Void> voteOnPoll(
-            @PathVariable UUID pollId,
-            @PathVariable UUID optionId,
+            @PathVariable("plid") UUID pollId,
+            @PathVariable("optid") UUID optionId,
             @RequestHeader("X-User-ID") UUID userId) {
         pollService.voteOnPoll(pollId, optionId, userId);
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{pollId}/results")
-    public ResponseEntity<APIResource<PostPollResponse>> getPollResults(@PathVariable UUID pollId) {
+    @GetMapping("/{plid}/results")
+    public ResponseEntity<APIResource<PostPollResponse>> getPollResults(@PathVariable("plid") UUID pollId) {
         return ResponseEntity.ok(APIResource.ok("Poll results", pollService.getPollResults(pollId)));
     }
 
-    @PatchMapping("/{pollId}/close")
+    @PatchMapping("/{plid}/close")
     public ResponseEntity<Void> closePoll(
-            @PathVariable UUID pollId,
+            @PathVariable("plid") UUID pollId,
             @RequestHeader("X-User-ID") UUID userId) {
         pollService.closePoll(pollId, userId);
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{pollId}/add-option")
-    public ResponseEntity<Void> addPollOption(@PathVariable UUID pollId, @RequestBody PollOptionRequest entity) {
+    @PostMapping("/{plid}/add-option")
+    public ResponseEntity<Void> addPollOption(@PathVariable("plid") UUID pollId, @RequestBody PollOptionRequest entity) {
         pollService.addPollOption(pollId, entity);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    @DeleteMapping("/{pollId}/remove-option/{optionId}")
-    public ResponseEntity<Void> removePollOption(@PathVariable UUID pollId, @PathVariable UUID optionId) {
+    @DeleteMapping("/{plid}/remove-option/{optid}")
+    public ResponseEntity<Void> removePollOption(@PathVariable("plid") UUID pollId, @PathVariable("optid") UUID optionId) {
         pollService.removePollOption(pollId, optionId);
         return ResponseEntity.noContent().build();
     }

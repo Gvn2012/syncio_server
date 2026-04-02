@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/orgs/{orgId}/departments")
+@RequestMapping("/api/v1/orgs/{oid}/departments")
 @RequiredArgsConstructor
 public class DepartmentController {
 
@@ -25,7 +25,7 @@ public class DepartmentController {
 
     @PostMapping
     public ResponseEntity<APIResource<CreateDepartmentResponse>> createDepartment(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestHeader("X-User-Id") UUID requestingUserId,
             @Valid @RequestBody CreateDepartmentRequest request) {
 
@@ -34,20 +34,20 @@ public class DepartmentController {
                 .body(APIResource.ok("Department created successfully", response));
     }
 
-    @GetMapping("/{deptId}")
+    @GetMapping("/{did}")
     public ResponseEntity<APIResource<DepartmentDto>> getDepartment(
-            @PathVariable UUID orgId,
-            @PathVariable UUID deptId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("did") UUID deptId,
             @RequestHeader(value = "X-User-Id", required = false) UUID requestingUserId) {
 
         DepartmentDto response = departmentService.getDepartment(orgId, deptId, requestingUserId);
         return ResponseEntity.ok(APIResource.ok("Department retrieved successfully", response));
     }
 
-    @PutMapping("/{deptId}")
+    @PutMapping("/{did}")
     public ResponseEntity<APIResource<UpdateDepartmentResponse>> updateDepartment(
-            @PathVariable UUID orgId,
-            @PathVariable UUID deptId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("did") UUID deptId,
             @RequestHeader("X-User-Id") UUID requestingUserId,
             @Valid @RequestBody UpdateDepartmentRequest request) {
 
@@ -55,10 +55,10 @@ public class DepartmentController {
         return ResponseEntity.ok(APIResource.ok("Department updated successfully", response));
     }
 
-    @DeleteMapping("/{deptId}")
+    @DeleteMapping("/{did}")
     public ResponseEntity<APIResource<Void>> deleteDepartment(
-            @PathVariable UUID orgId,
-            @PathVariable UUID deptId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("did") UUID deptId,
             @RequestHeader("X-User-Id") UUID requestingUserId) {
 
         departmentService.deleteDepartment(orgId, deptId, requestingUserId);
@@ -67,7 +67,7 @@ public class DepartmentController {
 
     @GetMapping
     public ResponseEntity<APIResource<List<DepartmentDto>>> getDepartments(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestHeader(value = "X-User-Id", required = false) UUID requestingUserId) {
 
         List<DepartmentDto> response = departmentService.getDepartments(orgId, requestingUserId);

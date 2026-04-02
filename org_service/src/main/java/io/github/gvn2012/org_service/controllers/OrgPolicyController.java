@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/organizations/{orgId}/policies")
+@RequestMapping("/api/v1/orgs/{oid}/policies")
 @RequiredArgsConstructor
 public class OrgPolicyController {
 
@@ -27,7 +27,7 @@ public class OrgPolicyController {
 
     @PostMapping
     public ResponseEntity<CreateOrgPolicyResponse> createPolicy(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestHeader(value = "X-User-Id", required = false) UUID approvedById,
             @Valid @RequestBody CreateOrgPolicyRequest request) {
         OrgPolicyDto dto = policyService.createPolicy(orgId, approvedById, request);
@@ -39,10 +39,10 @@ public class OrgPolicyController {
         );
     }
 
-    @PutMapping("/{policyId}")
+    @PutMapping("/{polid}")
     public ResponseEntity<UpdateOrgPolicyResponse> updatePolicy(
-            @PathVariable UUID orgId,
-            @PathVariable UUID policyId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("polid") UUID policyId,
             @Valid @RequestBody UpdateOrgPolicyRequest request) {
         OrgPolicyDto dto = policyService.updatePolicy(orgId, policyId, request);
         return ResponseEntity.ok(
@@ -53,16 +53,16 @@ public class OrgPolicyController {
         );
     }
 
-    @GetMapping("/{policyId}")
+    @GetMapping("/{polid}")
     public ResponseEntity<OrgPolicyDto> getPolicyById(
-            @PathVariable UUID orgId,
-            @PathVariable UUID policyId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("polid") UUID policyId) {
         return ResponseEntity.ok(policyService.getPolicyById(orgId, policyId));
     }
 
     @GetMapping
     public ResponseEntity<Page<OrgPolicyDto>> getPoliciesByOrgId(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestParam(required = false) PolicyCategory category,
             @RequestParam(required = false, defaultValue = "false") boolean activeOnly,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -78,10 +78,10 @@ public class OrgPolicyController {
         return ResponseEntity.ok(policyService.getPoliciesByOrgId(orgId, pageable));
     }
 
-    @DeleteMapping("/{policyId}")
+    @DeleteMapping("/{polid}")
     public ResponseEntity<Void> deletePolicy(
-            @PathVariable UUID orgId,
-            @PathVariable UUID policyId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("polid") UUID policyId) {
         policyService.deletePolicy(orgId, policyId);
         return ResponseEntity.noContent().build();
     }

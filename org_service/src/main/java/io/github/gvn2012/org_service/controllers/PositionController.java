@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/organizations/{orgId}/positions")
+@RequestMapping("/api/v1/orgs/{oid}/positions")
 @RequiredArgsConstructor
 public class PositionController {
 
@@ -24,7 +24,7 @@ public class PositionController {
 
     @PostMapping
     public ResponseEntity<CreatePositionResponse> createPosition(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @Valid @RequestBody CreatePositionRequest request) {
         PositionDto dto = positionService.createPosition(orgId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -35,10 +35,10 @@ public class PositionController {
         );
     }
 
-    @PutMapping("/{positionId}")
+    @PutMapping("/{posid}")
     public ResponseEntity<UpdatePositionResponse> updatePosition(
-            @PathVariable UUID orgId,
-            @PathVariable UUID positionId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("posid") UUID positionId,
             @Valid @RequestBody UpdatePositionRequest request) {
         PositionDto dto = positionService.updatePosition(orgId, positionId, request);
         return ResponseEntity.ok(
@@ -49,16 +49,16 @@ public class PositionController {
         );
     }
 
-    @GetMapping("/{positionId}")
+    @GetMapping("/{posid}")
     public ResponseEntity<PositionDto> getPositionById(
-            @PathVariable UUID orgId,
-            @PathVariable UUID positionId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("posid") UUID positionId) {
         return ResponseEntity.ok(positionService.getPositionById(orgId, positionId));
     }
 
     @GetMapping
     public ResponseEntity<List<PositionDto>> getPositionsByOrgId(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestParam(required = false) UUID departmentId) {
         if (departmentId != null) {
             return ResponseEntity.ok(positionService.getPositionsByOrgIdAndDepartmentId(orgId, departmentId));
@@ -66,10 +66,10 @@ public class PositionController {
         return ResponseEntity.ok(positionService.getPositionsByOrgId(orgId));
     }
 
-    @DeleteMapping("/{positionId}")
+    @DeleteMapping("/{posid}")
     public ResponseEntity<Void> deletePosition(
-            @PathVariable UUID orgId,
-            @PathVariable UUID positionId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("posid") UUID positionId) {
         positionService.deletePosition(orgId, positionId);
         return ResponseEntity.noContent().build();
     }

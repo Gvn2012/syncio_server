@@ -17,49 +17,42 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final IUserService userService;
+        private final IUserService userService;
 
-    @PostMapping("/login")
-    public ResponseEntity<APIResource<LoginResponse>> login(
-            @Valid @RequestBody LoginRequest request
-    ) {
-        APIResource<LoginResponse> response = userService.login(request);
-        return ResponseEntity
-                .status(response.getStatus())
-                .body(response);
-    }
+        @PostMapping("/login")
+        public ResponseEntity<APIResource<LoginResponse>> login(
+                        @Valid @RequestBody LoginRequest request) {
+                APIResource<LoginResponse> response = userService.login(request);
+                return ResponseEntity
+                                .status(response.getStatus())
+                                .body(response);
+        }
 
-    @PostMapping("/register")
-    public ResponseEntity<APIResource<UserRegisterResponse>> register(
-            @Valid @RequestBody UserRegisterRequest request
-            )
-    {
-        APIResource<UserRegisterResponse> response = userService.register(request);
-        return ResponseEntity
-                .status(response.getStatus())
-                .body(response);
-    }
+        @PostMapping("/register")
+        public ResponseEntity<APIResource<UserRegisterResponse>> register(
+                        @Valid @RequestBody UserRegisterRequest request) {
+                APIResource<UserRegisterResponse> response = userService.register(request);
+                return ResponseEntity
+                                .status(response.getStatus())
+                                .body(response);
+        }
 
-    @GetMapping("/{userId}")
-    public ResponseEntity<APIResource<GetUserDetailResponse>> getUserDetails(
-            @Valid @PathVariable String userId
-    )
-    {
-        APIResource<GetUserDetailResponse> response = userService.getUserDetail(userId);
-        return ResponseEntity
-                .status(response.getStatus())
-                .body(response);
-    }
+        @GetMapping("/{uid}")
+        public ResponseEntity<APIResource<GetUserDetailResponse>> getUserDetails(
+                        @Valid @PathVariable("uid") String userId) {
+                APIResource<GetUserDetailResponse> response = userService.getUserDetail(userId);
+                return ResponseEntity
+                                .status(response.getStatus())
+                                .body(response);
+        }
 
-    @GetMapping
-    public ResponseEntity<APIResource<GetUserDetailResponse>> getUserDetailsByQuery(
-            @RequestParam String id
-    ) {
-        APIResource<GetUserDetailResponse> response = userService.getUserDetail(id);
-        return ResponseEntity
-                .status(response.getStatus())
-                .body(response);
-    }
-
+        @GetMapping
+        public ResponseEntity<APIResource<GetUserDetailResponse>> getUserDetailsByQuery(
+                        @RequestParam String id) {
+                APIResource<GetUserDetailResponse> response = userService.getUserDetail(id);
+                return ResponseEntity
+                                .status(response.getStatus())
+                                .body(response);
+        }
 
 }

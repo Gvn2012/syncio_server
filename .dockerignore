@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+.DS_Store
+**/target
+**/node_modules
+**/*.log
+prometheus
+grafana_data
+docker-compose.yml
+eclipse-formatter.xml
+qodana.yaml
+*.md

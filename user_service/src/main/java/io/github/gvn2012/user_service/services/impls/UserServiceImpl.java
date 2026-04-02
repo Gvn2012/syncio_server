@@ -64,9 +64,9 @@ public class UserServiceImpl implements IUserService {
         ensureUserCanLogin(user);
 
         GenerateLoginTokenResponse tokenResponse = authClient.generateToken(
-                        new GenerateLoginTokenRequest(
-                                user.getUsername(),
-                                user.getId().toString()))
+                new GenerateLoginTokenRequest(
+                        user.getUsername(),
+                        user.getId().toString()))
                 .block(Duration.ofSeconds(3));
 
         if (tokenResponse == null) {

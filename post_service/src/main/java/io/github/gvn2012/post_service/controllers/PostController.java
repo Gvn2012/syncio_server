@@ -28,16 +28,16 @@ public class PostController {
         return ResponseEntity.ok(APIResource.ok("Post created", postService.createPost(request, authorId)));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{pid}")
     public ResponseEntity<APIResource<PostResponse>> getPost(
             @RequestHeader(value = "X-User-ID", required = false) UUID viewerId,
-            @PathVariable UUID id) {
+            @PathVariable("pid") UUID id) {
         return ResponseEntity.ok(APIResource.ok("Post retrieved", postService.getPostById(id, viewerId)));
     }
 
-    @GetMapping("/author/{authorId}")
+    @GetMapping("/author/{uid}")
     public ResponseEntity<APIResource<List<PostResponse>>> getPostsByAuthor(
-            @PathVariable UUID authorId,
+            @PathVariable("uid") UUID authorId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(APIResource.ok("Posts retrieved",
@@ -62,48 +62,48 @@ public class PostController {
                 postService.searchPosts(keyword, PageRequest.of(page, size))));
     }
 
-    @PatchMapping("/{id}/content")
+    @PatchMapping("/{pid}/content")
     public ResponseEntity<APIResource<PostResponse>> updatePostContent(
-            @PathVariable UUID id,
+            @PathVariable("pid") UUID id,
             @RequestHeader("X-User-ID") UUID editorId,
             @RequestBody PostUpdateRequest request) {
         return ResponseEntity.ok(APIResource.ok("Post updated",
                 postService.updatePostContent(id, editorId, request)));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{pid}")
     public ResponseEntity<Void> deletePost(
-            @PathVariable UUID id,
+            @PathVariable("pid") UUID id,
             @RequestHeader("X-User-ID") UUID userId) {
         postService.deletePost(id, userId);
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{id}/archive")
+    @PatchMapping("/{pid}/archive")
     public ResponseEntity<Void> archivePost(
-            @PathVariable UUID id,
+            @PathVariable("pid") UUID id,
             @RequestHeader("X-User-ID") UUID userId) {
         postService.archivePost(id, userId);
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{id}/pin")
+    @PatchMapping("/{pid}/pin")
     public ResponseEntity<APIResource<PostResponse>> pinPost(
-            @PathVariable UUID id,
+            @PathVariable("pid") UUID id,
             @RequestHeader("X-User-ID") UUID userId) {
         return ResponseEntity.ok(APIResource.ok("Post pinned", postService.pinPost(id, userId)));
     }
 
-    @PatchMapping("/{id}/unpin")
+    @PatchMapping("/{pid}/unpin")
     public ResponseEntity<APIResource<PostResponse>> unpinPost(
-            @PathVariable UUID id,
+            @PathVariable("pid") UUID id,
             @RequestHeader("X-User-ID") UUID userId) {
         return ResponseEntity.ok(APIResource.ok("Post unpinned", postService.unpinPost(id, userId)));
     }
 
-    @PostMapping("/{id}/share")
+    @PostMapping("/{pid}/share")
     public ResponseEntity<APIResource<PostResponse>> sharePost(
-            @PathVariable UUID id,
+            @PathVariable("pid") UUID id,
             @RequestHeader("X-User-ID") UUID sharerId,
             @RequestBody(required = false) String shareContent) {
         return ResponseEntity.ok(APIResource.ok("Post shared",

@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/friend-requests")
+@RequestMapping("/api/v1/relationship-service/friend-requests")
 @RequiredArgsConstructor
 public class FriendRequestController {
 
@@ -20,19 +20,19 @@ public class FriendRequestController {
     @PostMapping("/send")
     public ResponseEntity<APIResource<Void>> sendRequest(
             @RequestHeader("X-User-Id") UUID senderId,
-            @Valid @RequestBody SendFriendRequest request
-    ) {
+            @Valid @RequestBody SendFriendRequest request) {
         APIResource<Void> response = friendRequestService.sendFriendRequest(
                 senderId, request.getTargetUserId(), request.getMessage());
-        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value())).body(response);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
     }
 
-    @PostMapping("/accept/{requestId}")
+    @PostMapping("/accept/{reqid}")
     public ResponseEntity<APIResource<Void>> acceptRequest(
             @RequestHeader("X-User-Id") UUID userId,
-            @PathVariable UUID requestId
-    ) {
+            @PathVariable("reqid") UUID requestId) {
         APIResource<Void> response = friendRequestService.acceptFriendRequest(requestId, userId);
-        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value())).body(response);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
     }
 }

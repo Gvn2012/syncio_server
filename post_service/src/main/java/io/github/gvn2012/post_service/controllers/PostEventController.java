@@ -20,15 +20,15 @@ public class PostEventController {
 
     private final IPostEventService eventService;
 
-    @PostMapping("/{postId}")
+    @PostMapping("/{pid}")
     public ResponseEntity<APIResource<PostEventResponse>> createEvent(
-            @PathVariable UUID postId,
+            @PathVariable("pid") UUID postId,
             @RequestBody PostEventRequest event) {
         return ResponseEntity.ok(APIResource.ok("Event created", eventService.createEvent(postId, event)));
     }
 
-    @GetMapping("/{postId}")
-    public ResponseEntity<APIResource<PostEventResponse>> getEvent(@PathVariable UUID postId) {
+    @GetMapping("/{pid}")
+    public ResponseEntity<APIResource<PostEventResponse>> getEvent(@PathVariable("pid") UUID postId) {
         return ResponseEntity.ok(APIResource.ok("Event retrieved", eventService.getEventByPostId(postId)));
     }
 
@@ -40,25 +40,25 @@ public class PostEventController {
                 eventService.getUpcomingEvents(PageRequest.of(page, size))));
     }
 
-    @PostMapping("/{eventId}/respond/{status}")
+    @PostMapping("/{evid}/respond/{status}")
     public ResponseEntity<Void> respondToEvent(
-            @PathVariable UUID eventId,
+            @PathVariable("evid") UUID eventId,
             @PathVariable String status,
             @RequestHeader("X-User-ID") UUID userId) {
         eventService.respondToEvent(eventId, userId, status);
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/{eventId}/cancel")
+    @DeleteMapping("/{evid}/cancel")
     public ResponseEntity<Void> cancelEvent(
-            @PathVariable UUID eventId,
+            @PathVariable("evid") UUID eventId,
             @RequestHeader("X-User-ID") UUID userId) {
         eventService.cancelEvent(eventId, userId);
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{eventId}/participants")
-    public ResponseEntity<APIResource<List<PostEventParticipantResponse>>> getParticipants(@PathVariable UUID eventId) {
+    @GetMapping("/{evid}/participants")
+    public ResponseEntity<APIResource<List<PostEventParticipantResponse>>> getParticipants(@PathVariable("evid") UUID eventId) {
         return ResponseEntity.ok(APIResource.ok("Participants retrieved",
                 eventService.getParticipants(eventId)));
     }

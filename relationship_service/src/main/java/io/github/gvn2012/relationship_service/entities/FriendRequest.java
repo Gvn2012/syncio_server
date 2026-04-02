@@ -4,8 +4,11 @@ import io.github.gvn2012.relationship_service.entities.enums.FriendRequestStatus
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
+
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -28,14 +31,17 @@ public class FriendRequest extends AuditableEntity {
     @EqualsAndHashCode.Include
     @ToString.Include
     @UuidGenerator(style = UuidGenerator.Style.TIME)
+    @JdbcTypeCode(Types.BINARY)
     @Column(name = "id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
     private UUID id;
 
     @NotNull
+    @JdbcTypeCode(Types.BINARY)
     @Column(name = "sender_user_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
     private UUID senderUserId;
 
     @NotNull
+    @JdbcTypeCode(Types.BINARY)
     @Column(name = "receiver_user_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
     private UUID receiverUserId;
 

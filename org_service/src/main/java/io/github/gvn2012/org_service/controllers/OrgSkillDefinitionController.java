@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/organizations/{orgId}/skill-definitions")
+@RequestMapping("/api/v1/orgs/{oid}/skill-definitions")
 @RequiredArgsConstructor
 public class OrgSkillDefinitionController {
 
@@ -24,7 +24,7 @@ public class OrgSkillDefinitionController {
 
     @PostMapping
     public ResponseEntity<CreateOrgSkillDefinitionResponse> createSkillDefinition(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @Valid @RequestBody CreateOrgSkillDefinitionRequest request) {
         OrgSkillDefinitionDto dto = skillDefinitionService.createSkillDefinition(orgId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -35,10 +35,10 @@ public class OrgSkillDefinitionController {
         );
     }
 
-    @PutMapping("/{skillDefinitionId}")
+    @PutMapping("/{skid}")
     public ResponseEntity<UpdateOrgSkillDefinitionResponse> updateSkillDefinition(
-            @PathVariable UUID orgId,
-            @PathVariable UUID skillDefinitionId,
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("skid") UUID skillDefinitionId,
             @Valid @RequestBody UpdateOrgSkillDefinitionRequest request) {
         OrgSkillDefinitionDto dto = skillDefinitionService.updateSkillDefinition(orgId, skillDefinitionId, request);
         return ResponseEntity.ok(
@@ -49,16 +49,16 @@ public class OrgSkillDefinitionController {
         );
     }
 
-    @GetMapping("/{skillDefinitionId}")
+    @GetMapping("/{skid}")
     public ResponseEntity<OrgSkillDefinitionDto> getSkillDefinitionById(
-            @PathVariable UUID orgId,
-            @PathVariable UUID skillDefinitionId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("skid") UUID skillDefinitionId) {
         return ResponseEntity.ok(skillDefinitionService.getSkillDefinitionById(orgId, skillDefinitionId));
     }
 
     @GetMapping
     public ResponseEntity<List<OrgSkillDefinitionDto>> getSkillDefinitionsByOrgId(
-            @PathVariable UUID orgId,
+            @PathVariable("oid") UUID orgId,
             @RequestParam(required = false) String category) {
         if (category != null && !category.isBlank()) {
             return ResponseEntity.ok(skillDefinitionService.getSkillDefinitionsByOrgIdAndCategory(orgId, category));
@@ -66,10 +66,10 @@ public class OrgSkillDefinitionController {
         return ResponseEntity.ok(skillDefinitionService.getSkillDefinitionsByOrgId(orgId));
     }
 
-    @DeleteMapping("/{skillDefinitionId}")
+    @DeleteMapping("/{skid}")
     public ResponseEntity<Void> deleteSkillDefinition(
-            @PathVariable UUID orgId,
-            @PathVariable UUID skillDefinitionId) {
+            @PathVariable("oid") UUID orgId,
+            @PathVariable("skid") UUID skillDefinitionId) {
         skillDefinitionService.deleteSkillDefinition(orgId, skillDefinitionId);
         return ResponseEntity.noContent().build();
     }

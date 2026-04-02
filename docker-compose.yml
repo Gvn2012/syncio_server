@@ -1,12 +1,17 @@
 version: "3.9"
 
 services:
-
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
+      KAFKA_HEAP_OPTS: "-Xmx128m -Xms64m"
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
     networks:
       - syncio-network
 
@@ -26,6 +31,12 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms128m"
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "1.0"
     networks:
       - syncio-network
 
@@ -105,7 +116,6 @@ services:
   #     timeout: 5s
   #     retries: 10
 
-
   # notification-mongo:
   #   image: mongo:7.0
   #   container_name: notification-mongo
@@ -139,6 +149,7 @@ services:
     ports:
       - "8761:8761"
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -Xms128m"
       SPRING_APPLICATION_NAME: discovery-service
       SERVER_PORT: 8761
       EUREKA_INSTANCE_HOSTNAME: discovery-service
@@ -147,13 +158,18 @@ services:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+          cpus: "1.0"
     depends_on:
       zipkin:
         condition: service_started
     networks:
       - syncio-network
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -167,6 +183,7 @@ services:
     ports:
       - "8081:8081"
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -Xms128m"
       SPRING_APPLICATION_NAME: auth-service
       SERVER_PORT: 8081
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
@@ -178,6 +195,11 @@ services:
       SPRING_JPA_SHOW_SQL: "true"
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+          cpus: "1.0"
     depends_on:
       discovery-service:
         condition: service_healthy
@@ -195,6 +217,7 @@ services:
     ports:
       - "8082:8082"
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -Xms128m"
       SPRING_APPLICATION_NAME: user-service
       SERVER_PORT: 8082
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
@@ -206,6 +229,11 @@ services:
       SPRING_JPA_SHOW_SQL: "true"
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "1.0"
     depends_on:
       discovery-service:
         condition: service_healthy
@@ -225,6 +253,7 @@ services:
     ports:
       - "8087:8087"
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -Xms128m"
       SPRING_APPLICATION_NAME: relationship-service
       SERVER_PORT: 8087
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
@@ -237,6 +266,11 @@ services:
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+          cpus: "1.0"
     depends_on:
       discovery-service:
         condition: service_healthy
@@ -247,7 +281,6 @@ services:
     networks:
       - syncio-network
 
-
   post-service:
     image: vietpham18/post-service:latest
     build:
@@ -257,6 +290,7 @@ services:
     ports:
       - "8085:8085"
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -Xms128m"
       SPRING_APPLICATION_NAME: post-service
       SERVER_PORT: 8085
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
@@ -269,6 +303,11 @@ services:
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "1.0"
     depends_on:
       discovery-service:
         condition: service_healthy
@@ -288,6 +327,7 @@ services:
     ports:
       - "8088:8088"
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -Xms128m"
       SPRING_APPLICATION_NAME: permission-service
       SERVER_PORT: 8088
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
@@ -299,6 +339,11 @@ services:
       SPRING_JPA_SHOW_SQL: "true"
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+          cpus: "1.0"
     depends_on:
       discovery-service:
         condition: service_healthy
@@ -318,6 +363,7 @@ services:
     ports:
       - "8084:8084"
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -Xms128m"
       SPRING_APPLICATION_NAME: org-service
       SERVER_PORT: 8084
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
@@ -330,6 +376,11 @@ services:
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+          cpus: "1.0"
     depends_on:
       discovery-service:
         condition: service_healthy
@@ -349,6 +400,7 @@ services:
     ports:
       - "8083:8083"
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -Xms128m"
       SPRING_APPLICATION_NAME: notification-service
       SERVER_PORT: 8083
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
@@ -356,6 +408,11 @@ services:
       SPRING_DATA_MONGODB_URI: mongodb+srv://vietpt124010122002_db_user:TdgCjxj0PMJDG1Iy@synciocluster.mlgvysv.mongodb.net/?appName=SyncIOCluster
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+          cpus: "1.0"
     depends_on:
       discovery-service:
         condition: service_healthy
@@ -373,6 +430,7 @@ services:
     ports:
       - "8080:8080"
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -Xms128m"
       SPRING_APPLICATION_NAME: api_gateway
       SERVER_PORT: 8080
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
@@ -380,6 +438,11 @@ services:
       DISCOVERY_SERVICE_UI_URL: http://discovery-service:8761
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+          cpus: "1.0"
     depends_on:
       discovery-service:
         condition: service_healthy
