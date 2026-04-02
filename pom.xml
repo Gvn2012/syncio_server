@@ -27,7 +27,6 @@
     <modules>
         <module>api_gateway</module>
         <module>auth_service</module>
-        <module>discovery_service</module>
         <module>org_service</module>
         <module>user_service</module>
         <module>notification_service</module>

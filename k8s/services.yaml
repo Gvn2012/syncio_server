@@ -29,6 +29,10 @@ spec:
               value: syncio-kafka:9092
             - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
               value: http://syncio-zipkin:9411/api/v2/spans
+            - name: EUREKA_CLIENT_ENABLED
+              value: "false"
+            - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
+              value: "false"
 ---
 apiVersion: v1
 kind: Service
@@ -68,6 +72,10 @@ spec:
               value: gvn
             - name: SPRING_DATASOURCE_PASSWORD
               value: Gvn2012@Phmz
+            - name: EUREKA_CLIENT_ENABLED
+              value: "false"
+            - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
+              value: "false"
 ---
 apiVersion: v1
 kind: Service
@@ -103,6 +111,10 @@ spec:
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka:9092
+            - name: EUREKA_CLIENT_ENABLED
+              value: "false"
+            - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
+              value: "false"
 ---
 apiVersion: v1
 kind: Service
@@ -138,6 +150,10 @@ spec:
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka:9092
+            - name: EUREKA_CLIENT_ENABLED
+              value: "false"
+            - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
+              value: "false"
 ---
 apiVersion: v1
 kind: Service
@@ -170,6 +186,11 @@ spec:
           image: vietpham18/permission-service:latest
           ports:
             - containerPort: 8088
+          env:
+            - name: EUREKA_CLIENT_ENABLED
+              value: "false"
+            - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
+              value: "false"
 ---
 apiVersion: v1
 kind: Service
@@ -202,6 +223,11 @@ spec:
           image: vietpham18/org-service:latest
           ports:
             - containerPort: 8084
+          env:
+            - name: EUREKA_CLIENT_ENABLED
+              value: "false"
+            - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
+              value: "false"
 ---
 apiVersion: v1
 kind: Service
@@ -234,6 +260,11 @@ spec:
           image: vietpham18/notification-service:latest
           ports:
             - containerPort: 8083
+          env:
+            - name: EUREKA_CLIENT_ENABLED
+              value: "false"
+            - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
+              value: "false"
 ---
 apiVersion: v1
 kind: Service
