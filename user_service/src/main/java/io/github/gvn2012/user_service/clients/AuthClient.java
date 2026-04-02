@@ -12,23 +12,22 @@ import reactor.core.publisher.Mono;
 @Component
 public class AuthClient extends HttpClient {
 
-    public AuthClient(WebClient.Builder webClientBuilder){
-        super(webClientBuilder, "http://auth-service");
+    public AuthClient(WebClient.Builder webClientBuilder) {
+        super(webClientBuilder, "http://syncio-auth:8081");
     }
 
     public Mono<GenerateLoginTokenResponse> generateToken(GenerateLoginTokenRequest request) {
         return post(
                 "/api/v1/auth/generate-tokens",
                 request,
-                new ParameterizedTypeReference<APIResource<GenerateLoginTokenResponse>>() {}
-        )
+                new ParameterizedTypeReference<APIResource<GenerateLoginTokenResponse>>() {
+                })
                 .flatMap(response -> {
                     if (!response.isSuccess() || response.getData() == null) {
                         return Mono.error(new InternalServerErrorException(
                                 response.getError() != null
                                         ? response.getError().getMessage()
-                                        : "Auth service error"
-                        ));
+                                        : "Auth service error"));
                     }
                     return Mono.just(response.getData());
                 });

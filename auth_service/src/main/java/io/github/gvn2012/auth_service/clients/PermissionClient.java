@@ -2,7 +2,7 @@ package io.github.gvn2012.auth_service.clients;
 
 import io.github.gvn2012.auth_service.dtos.APIResource;
 import io.github.gvn2012.auth_service.dtos.responses.GetUserRoleResponse;
-import jakarta.ws.rs.InternalServerErrorException;
+import io.github.gvn2012.auth_service.exceptions.InternalServerErrorException;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -12,7 +12,7 @@ import reactor.core.publisher.Mono;
 public class PermissionClient extends HttpClient {
 
     public PermissionClient(WebClient.Builder webClientBuilder) {
-        super(webClientBuilder, "http://permission-service");
+        super(webClientBuilder, "http://syncio-permission:8088");
     }
 
     public Mono<GetUserRoleResponse> getUserRole(String userId) {

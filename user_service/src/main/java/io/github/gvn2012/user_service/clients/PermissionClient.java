@@ -13,23 +13,22 @@ import reactor.core.publisher.Mono;
 @Component
 public class PermissionClient extends HttpClient {
 
-    public PermissionClient(WebClient.Builder webClientBuilder){
-        super(webClientBuilder, "http://permission-service");
+    public PermissionClient(WebClient.Builder webClientBuilder) {
+        super(webClientBuilder, "http://syncio-permission:8088");
     }
 
     public Mono<GetUserRoleResponse> getUserRole(String userId) {
         return get(
                 "/api/v1/permissions/user/{userId}/role",
-                new ParameterizedTypeReference<APIResource<GetUserRoleResponse>>() {},
-                userId
-        )
+                new ParameterizedTypeReference<APIResource<GetUserRoleResponse>>() {
+                },
+                userId)
                 .flatMap(response -> {
                     if (!response.isSuccess() || response.getData() == null) {
                         return Mono.error(new InternalServerErrorException(
                                 response.getError() != null
                                         ? response.getError().getMessage()
-                                        : "Permission service error"
-                        ));
+                                        : "Permission service error"));
                     }
                     return Mono.just(response.getData());
                 });
