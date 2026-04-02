@@ -6,6 +6,7 @@ import io.github.gvn2012.post_service.dtos.UserStatusResponse;
 import io.github.gvn2012.post_service.exceptions.BadRequestException;
 import io.github.gvn2012.post_service.exceptions.ForbiddenException;
 import lombok.RequiredArgsConstructor;
+import io.github.gvn2012.post_service.entities.Post;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -55,7 +56,7 @@ public class UserValidationService {
         }
     }
 
-    public void validateCanView(io.github.gvn2012.post_service.entities.Post post, UUID viewerId) {
+    public void validateCanView(Post post, UUID viewerId) {
         if (post.getAuthorId().equals(viewerId)) {
             return;
         }
@@ -73,7 +74,8 @@ public class UserValidationService {
                     throw new ForbiddenException("You must follow the author to view this post");
                 }
             }
-            default -> {}
+            default -> {
+            }
         }
     }
 }

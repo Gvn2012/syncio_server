@@ -22,4 +22,10 @@ public interface UserRelationshipRepository extends JpaRepository<UserRelationsh
 
     boolean existsBySourceUserIdAndTargetUserIdAndRelationshipTypeAndStatus(
             UUID sourceUserId, UUID targetUserId, RelationshipType relationshipType, RelationshipStatus status);
+
+    long countBySourceUserIdAndRelationshipTypeAndStatus(
+            UUID sourceUserId, RelationshipType relationshipType, RelationshipStatus status);
+
+    long countByTargetUserIdAndRelationshipTypeAndStatus(
+            UUID targetUserId, RelationshipType relationshipType, RelationshipStatus status);
 }

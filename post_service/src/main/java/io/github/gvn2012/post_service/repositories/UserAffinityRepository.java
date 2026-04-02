@@ -16,4 +16,8 @@ public interface UserAffinityRepository extends JpaRepository<UserAffinity, UUID
     List<UserAffinity> findTopAffinities(@Param("userId") UUID userId, Pageable pageable);
 
     Optional<UserAffinity> findByUserIdAndAuthorId(UUID userId, UUID authorId);
+
+    List<UserAffinity> findByUserIdInAndAuthorId(List<UUID> userIds, UUID authorId);
+
+    List<UserAffinity> findByUserIdAndAuthorIdIn(UUID userId, List<UUID> authorIds);
 }

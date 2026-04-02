@@ -2,16 +2,13 @@ package io.github.gvn2012.post_service.services.impls;
 
 import io.github.gvn2012.post_service.entities.ContentRanking;
 import io.github.gvn2012.post_service.entities.Post;
-import io.github.gvn2012.post_service.entities.UserAffinity;
 import io.github.gvn2012.post_service.entities.enums.PostCategory;
 import io.github.gvn2012.post_service.entities.enums.PostModerationStatus;
-import io.github.gvn2012.post_service.repositories.UserAffinityRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -25,12 +22,10 @@ public class FeedRankingService {
     private static final double W_BUSINESS = 0.05;
     private static final double W_DEMOTE = 1.0;
 
-    private final UserAffinityRepository affinityRepository;
-
-    public double computeScore(Post post, UUID viewerId) {
+    public double computeScore(Post post, UUID viewerId, Double affinityScore) {
         double recency = computeRecencyScore(post);
         double engagement = computeEngagementScore(post);
-        double affinity = computeAffinityScore(post.getAuthorId(), viewerId, post.getOrgId());
+        double affinity = computeAffinityScore(post.getAuthorId(), viewerId, post.getOrgId(), affinityScore);
         double typeBoost = computeTypeBoost(post);
         double businessBoost = computeBusinessBoost(post);
         double demotion = computeDemotionPenalty(post);
@@ -43,10 +38,10 @@ public class FeedRankingService {
                 - W_DEMOTE * demotion;
     }
 
-    public double computeScoreFromRanking(ContentRanking ranking, UUID viewerId) {
+    public double computeScoreFromRanking(ContentRanking ranking, UUID viewerId, Double affinityScore) {
         Post post = ranking.getPost();
         double recency = computeRecencyScore(post);
-        double affinity = computeAffinityScore(post.getAuthorId(), viewerId, post.getOrgId());
+        double affinity = computeAffinityScore(post.getAuthorId(), viewerId, post.getOrgId(), affinityScore);
         double typeBoost = computeTypeBoost(post);
         double businessBoost = ranking.getBusinessBoost();
 
@@ -71,10 +66,9 @@ public class FeedRankingService {
                 + 0.15 * post.getViewCount().doubleValue();
     }
 
-    private double computeAffinityScore(UUID authorId, UUID viewerId, UUID orgId) {
+    private double computeAffinityScore(UUID authorId, UUID viewerId, UUID orgId, Double affinityScore) {
         if (authorId.equals(viewerId)) return 1.0;
-        Optional<UserAffinity> affinity = affinityRepository.findByUserIdAndAuthorId(viewerId, authorId);
-        return affinity.map(UserAffinity::getAffinityScore).orElse(0.0);
+        return affinityScore != null ? affinityScore : 0.0;
     }
 
     private double computeTypeBoost(Post post) {

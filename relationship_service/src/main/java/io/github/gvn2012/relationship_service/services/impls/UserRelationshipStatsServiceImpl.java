@@ -107,11 +107,11 @@ public class UserRelationshipStatsServiceImpl implements IUserRelationshipStatsS
         UserRelationshipStats stats = getStatsByUserId(userId);
         
         // Count followers (target_user_id = userId, type = FOLLOW)
-        stats.setFollowerCount((long) countActive(userId, RelationshipType.FOLLOW, false));
+        stats.setFollowerCount(countActive(userId, RelationshipType.FOLLOW, false));
         // Count following (source_user_id = userId, type = FOLLOW)
-        stats.setFollowingCount((long) countActive(userId, RelationshipType.FOLLOW, true));
+        stats.setFollowingCount(countActive(userId, RelationshipType.FOLLOW, true));
         // Count friends
-        stats.setFriendCount((long) countActive(userId, RelationshipType.FRIEND, true));
+        stats.setFriendCount(countActive(userId, RelationshipType.FRIEND, true));
         
         // Count blocks/mutes
         stats.setBlockedCount((long) blockRepository.countAllByBlockerId(userId));
@@ -122,15 +122,11 @@ public class UserRelationshipStatsServiceImpl implements IUserRelationshipStatsS
         statsRepository.save(stats);
     }
 
-    private int countActive(UUID userId, RelationshipType type, boolean isSource) {
+    private long countActive(UUID userId, RelationshipType type, boolean isSource) {
         if (isSource) {
-            return relationshipRepository.findAllBySourceUserIdAndStatus(userId, RelationshipStatus.ACTIVE).stream()
-                    .filter(r -> r.getRelationshipType() == type)
-                    .toList().size();
+            return relationshipRepository.countBySourceUserIdAndRelationshipTypeAndStatus(userId, type, RelationshipStatus.ACTIVE);
         } else {
-            return relationshipRepository.findAllByTargetUserIdAndStatus(userId, RelationshipStatus.ACTIVE).stream()
-                    .filter(r -> r.getRelationshipType() == type)
-                    .toList().size();
+            return relationshipRepository.countByTargetUserIdAndRelationshipTypeAndStatus(userId, type, RelationshipStatus.ACTIVE);
         }
     }
 

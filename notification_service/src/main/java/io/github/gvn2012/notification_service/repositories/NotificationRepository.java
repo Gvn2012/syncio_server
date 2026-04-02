@@ -8,9 +8,9 @@ import java.util.UUID;
 
 public interface NotificationRepository extends MongoRepository<Notification, String> {
 
-    List<Notification> findByUserId(UUID userId);
+    List<Notification> findByRecipientIdOrderByCreatedAtDesc(UUID recipientId);
 
-    List<Notification> findByEmailId(UUID emailId);
+    List<Notification> findByRecipientIdAndIsReadOrderByCreatedAtDesc(UUID recipientId, boolean isRead);
 
     List<Notification> findByStatus(String status);
 }

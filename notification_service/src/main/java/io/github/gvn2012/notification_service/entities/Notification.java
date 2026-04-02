@@ -1,5 +1,6 @@
 package io.github.gvn2012.notification_service.entities;
 
+import io.github.gvn2012.notification_service.entities.enums.NotificationType;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -18,16 +19,23 @@ public class Notification {
     @Id
     private String id;
 
-    private UUID userId;
-    private UUID emailId;
+    private UUID recipientId;
+    private UUID actorId;
+    private UUID targetId; // Reference to postId, commentId, etc.
 
-    private String email;
-
-    private String type;
+    private NotificationType type;
+    
+    private String title;
+    private String message;
+    
+    @Builder.Default
+    private boolean isRead = false;
 
     private String status;
-
     private String errorMessage;
 
-    private LocalDateTime createdAt;
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    private String email; // Legacy or for combined notifications
 }

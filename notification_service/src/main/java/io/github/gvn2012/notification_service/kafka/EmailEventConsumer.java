@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -33,12 +32,12 @@ public class EmailEventConsumer {
     }
 
     private void saveNotification(EmailVerificationEvent event, String status) {
-        Notification noti = new Notification();
-        noti.setUserId(event.getUserId());
-        noti.setEmail(event.getEmail());
-        noti.setType("EMAIL_VERIFICATION");
-        noti.setStatus(status);
-        noti.setCreatedAt(LocalDateTime.now());
+        Notification noti = Notification.builder()
+                .recipientId(event.getUserId())
+                .email(event.getEmail())
+                .type(io.github.gvn2012.notification_service.entities.enums.NotificationType.EMAIL_VERIFICATION)
+                .status(status)
+                .build();
 
         notificationRepository.save(noti);
     }

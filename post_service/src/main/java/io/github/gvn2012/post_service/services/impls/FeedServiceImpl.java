@@ -4,11 +4,13 @@ import io.github.gvn2012.post_service.clients.RelationshipClient;
 import io.github.gvn2012.post_service.entities.ContentRanking;
 import io.github.gvn2012.post_service.entities.FeedItem;
 import io.github.gvn2012.post_service.entities.Post;
+import io.github.gvn2012.post_service.entities.UserAffinity;
 import io.github.gvn2012.post_service.entities.enums.PostModerationStatus;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
 import io.github.gvn2012.post_service.repositories.ContentRankingRepository;
 import io.github.gvn2012.post_service.repositories.FeedItemRepository;
 import io.github.gvn2012.post_service.repositories.PostRepository;
+import io.github.gvn2012.post_service.repositories.UserAffinityRepository;
 import io.github.gvn2012.post_service.services.interfaces.IFeedService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -27,6 +29,7 @@ public class FeedServiceImpl implements IFeedService {
     private final PostRepository postRepository;
     private final FeedRankingService rankingService;
     private final RelationshipClient relationshipClient;
+    private final UserAffinityRepository userAffinityRepository;
 
     @Override
     public List<Post> getHybridFeed(UUID recipientId, LocalDateTime cursor, int limit) {
@@ -52,11 +55,23 @@ public class FeedServiceImpl implements IFeedService {
             deduped.putIfAbsent(post.getId(), post);
         }
 
+        List<UUID> authorIds = deduped.values().stream().map(Post::getAuthorId).distinct().toList();
+        Map<UUID, UserAffinity> affinities = userAffinityRepository.findByUserIdAndAuthorIdIn(recipientId, authorIds)
+                .stream()
+                .collect(Collectors.toMap(UserAffinity::getAuthorId, a -> a));
+
+        Map<UUID, Double> precomputedScores = new HashMap<>();
+        for (Post post : deduped.values()) {
+            UserAffinity aff = affinities.get(post.getAuthorId());
+            Double affinityScore = (aff != null) ? aff.getAffinityScore() : null;
+            precomputedScores.put(post.getId(), rankingService.computeScore(post, recipientId, affinityScore));
+        }
+
         return deduped.values().stream()
                 .filter(this::isVisible)
                 .sorted((a, b) -> {
-                    double scoreA = rankingService.computeScore(a, recipientId);
-                    double scoreB = rankingService.computeScore(b, recipientId);
+                    double scoreA = precomputedScores.getOrDefault(a.getId(), 0.0);
+                    double scoreB = precomputedScores.getOrDefault(b.getId(), 0.0);
                     return Double.compare(scoreB, scoreA);
                 })
                 .limit(limit)

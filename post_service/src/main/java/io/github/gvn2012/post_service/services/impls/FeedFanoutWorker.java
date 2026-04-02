@@ -13,7 +13,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -26,7 +28,8 @@ public class FeedFanoutWorker {
     private final UserAffinityRepository affinityRepository;
     private final RelationshipClient relationshipClient;
 
-    public record PostCreatedEvent(Post post) {}
+    public record PostCreatedEvent(Post post) {
+    }
 
     @Async
     @TransactionalEventListener
@@ -39,14 +42,18 @@ public class FeedFanoutWorker {
             return;
         }
 
+        Map<UUID, UserAffinity> affinities = affinityRepository.findByUserIdInAndAuthorId(followers, post.getAuthorId())
+                .stream()
+                .collect(Collectors.toMap(UserAffinity::getUserId, a -> a));
+
         List<FeedItem> feedItems = followers.stream()
-                .filter(followerId -> canViewPost(post, followerId))
+                .filter(followerId -> canViewPost(post, followerId, followers))
                 .map(followerId -> {
                     FeedItem item = new FeedItem();
                     item.setRecipientId(followerId);
                     item.setSourcePost(post);
                     item.setOrgId(post.getOrgId());
-                    item.setWeightScore(calculateInitialWeight(post, followerId));
+                    item.setWeightScore(calculateInitialWeight(post, affinities.get(followerId)));
                     item.setReasonCode("follower");
                     item.setIsRead(false);
                     item.setIsHidden(false);
@@ -71,15 +78,16 @@ public class FeedFanoutWorker {
         }
     }
 
-    private boolean canViewPost(Post post, UUID recipientId) {
-        if (post.getAuthorId().equals(recipientId)) return true;
-        
+    private boolean canViewPost(Post post, UUID recipientId, List<UUID> followers) {
+        if (post.getAuthorId().equals(recipientId))
+            return true;
+
         switch (post.getVisibility()) {
             case PUBLIC, COMPANY -> {
                 return true;
             }
             case FOLLOWER -> {
-                // If they are in the followers list, they can see it (implied by the loop)
+                // followers contains recipientId by definition here as we iterate over followers
                 return true;
             }
             case PRIVATE -> {
@@ -91,14 +99,10 @@ public class FeedFanoutWorker {
         }
     }
 
-    private double calculateInitialWeight(Post post, UUID recipientId) {
+    private double calculateInitialWeight(Post post, UserAffinity affinity) {
         double baseWeight = 1.0;
-        try {
-            baseWeight += affinityRepository.findByUserIdAndAuthorId(recipientId, post.getAuthorId())
-                    .map(UserAffinity::getAffinityScore)
-                    .orElse(0.0);
-        } catch (Exception e) {
-            log.debug("Affinity lookup failed for user {}: {}", recipientId, e.getMessage());
+        if (affinity != null && affinity.getAffinityScore() != null) {
+            baseWeight += affinity.getAffinityScore();
         }
         return baseWeight;
     }

@@ -43,17 +43,17 @@ public class PostServiceImpl implements IPostService {
     @Transactional
     public PostResponse createPost(PostCreateRequest request, UUID authorId) {
         userValidationService.validateUserCanInteract(authorId);
-        
+
         Post post = postMapper.toEntity(request);
         post.setAuthorId(authorId);
         post.setPublishedAt(LocalDateTime.now());
-        
+
         Post saved = postRepository.save(post);
-        
+
         processMentions(saved, request.getMentions());
         processTags(saved, request.getTags());
         processAttachments(saved, request.getAttachments());
-        
+
         contentVersionService.captureNewVersion(saved, saved.getAuthorId(), saved.getContent());
         postEventProducer.publishPostCreated(saved.getId(), saved.getAuthorId());
         eventPublisher.publishEvent(new FeedFanoutWorker.PostCreatedEvent(saved));
@@ -88,19 +88,25 @@ public class PostServiceImpl implements IPostService {
     @Transactional
     public PostResponse updatePostContent(UUID postId, UUID editorId, PostUpdateRequest request) {
         userValidationService.validateUserCanInteract(editorId);
-        
+
         Post post = fetchPostById(postId);
         validateOwnership(post, editorId);
-        
+
         contentVersionService.captureNewVersion(post, editorId, request.getContent());
-        
-        if (request.getContent() != null) post.setContent(request.getContent());
-        if (request.getContentHtml() != null) post.setContentHtml(request.getContentHtml());
-        if (request.getExcerpt() != null) post.setExcerpt(request.getExcerpt());
-        if (request.getLanguage() != null) post.setLanguage(request.getLanguage());
-        if (request.getVisibility() != null) post.setVisibility(request.getVisibility());
-        if (request.getMetadata() != null) post.setMetadata(request.getMetadata());
-        
+
+        if (request.getContent() != null)
+            post.setContent(request.getContent());
+        if (request.getContentHtml() != null)
+            post.setContentHtml(request.getContentHtml());
+        if (request.getExcerpt() != null)
+            post.setExcerpt(request.getExcerpt());
+        if (request.getLanguage() != null)
+            post.setLanguage(request.getLanguage());
+        if (request.getVisibility() != null)
+            post.setVisibility(request.getVisibility());
+        if (request.getMetadata() != null)
+            post.setMetadata(request.getMetadata());
+
         if (request.getMentions() != null) {
             mentionRepository.deleteByPostId(postId);
             processMentions(post, request.getMentions());
@@ -113,7 +119,7 @@ public class PostServiceImpl implements IPostService {
             attachmentRepository.deleteByPostId(postId);
             processAttachments(post, request.getAttachments());
         }
-        
+
         post.setEditCount(post.getEditCount() + 1);
         Post saved = postRepository.save(post);
         postEventProducer.publishPostUpdated(saved.getId(), saved.getAuthorId(), editorId);
@@ -122,33 +128,39 @@ public class PostServiceImpl implements IPostService {
 
     private void validateOwnership(Post post, UUID userId) {
         if (!post.getAuthorId().equals(userId)) {
-            // Ideally check for ADMIN role here too via a security context or client call
-            throw new io.github.gvn2012.post_service.exceptions.ForbiddenException("User is not the author of this post");
+            throw new io.github.gvn2012.post_service.exceptions.ForbiddenException(
+                    "User is not the author of this post");
         }
     }
 
     private void processMentions(Post post, List<UUID> userIds) {
-        if (userIds == null || userIds.isEmpty()) return;
+        if (userIds == null || userIds.isEmpty())
+            return;
         List<PostMention> mentions = userIds.stream()
-                .map(userId -> new PostMention(null, post, userId, io.github.gvn2012.post_service.entities.enums.MentionStatus.ACTIVE))
+                .map(userId -> new PostMention(null, post, userId,
+                        io.github.gvn2012.post_service.entities.enums.MentionStatus.ACTIVE))
                 .toList();
         mentionRepository.saveAll(mentions);
     }
 
     private void processTags(Post post, List<String> tagNames) {
-        if (tagNames == null || tagNames.isEmpty()) return;
+        if (tagNames == null || tagNames.isEmpty())
+            return;
         List<PostTag> postTags = tagNames.stream()
                 .map(name -> {
                     Tag tag = tagRepository.findByName(name)
-                            .orElseGet(() -> tagRepository.save(new Tag(null, name, name, 0L, 0L, false, false, null, null)));
-                    return new PostTag(new io.github.gvn2012.post_service.entities.composite_keys.PostTagId(post.getId(), tag.getId()), post, tag);
+                            .orElseGet(() -> tagRepository
+                                    .save(new Tag(null, name, name, 0L, 0L, false, false, null, null)));
+                    return new PostTag(new io.github.gvn2012.post_service.entities.composite_keys.PostTagId(
+                            post.getId(), tag.getId()), post, tag);
                 })
                 .toList();
         postTagRepository.saveAll(postTags);
     }
 
     private void processAttachments(Post post, List<MediaAttachmentRequest> requests) {
-        if (requests == null || requests.isEmpty()) return;
+        if (requests == null || requests.isEmpty())
+            return;
         List<PostMediaAttachment> attachments = requests.stream()
                 .map(req -> {
                     PostMediaAttachment attachment = mediaAttachmentMapper.toEntity(req);
@@ -206,7 +218,7 @@ public class PostServiceImpl implements IPostService {
         userValidationService.validateUserCanInteract(sharerId);
         Post original = fetchPostById(originalPostId);
         userValidationService.validateCanView(original, sharerId);
-        
+
         Post sharedPost = new Post();
         sharedPost.setAuthorId(sharerId);
         sharedPost.setContent(shareContent);
@@ -216,10 +228,10 @@ public class PostServiceImpl implements IPostService {
         sharedPost.setPostCategory(original.getPostCategory());
         sharedPost.setVisibility(original.getVisibility());
         sharedPost.setPublishedAt(LocalDateTime.now());
-        
+
         Post saved = postRepository.save(sharedPost);
         postRepository.incrementShareCount(originalPostId, 1);
-        
+
         postEventProducer.publishPostCreated(saved.getId(), sharerId);
         return postMapper.toResponse(saved);
     }
@@ -233,9 +245,13 @@ public class PostServiceImpl implements IPostService {
     @Override
     @Transactional
     public void updateEngagementMetrics(UUID postId, int viewInc, int reactionInc, int commentInc, int shareInc) {
-        if (viewInc != 0) postRepository.incrementViewCount(postId, viewInc);
-        if (reactionInc != 0) postRepository.incrementReactionCount(postId, reactionInc);
-        if (commentInc != 0) postRepository.incrementCommentCount(postId, commentInc);
-        if (shareInc != 0) postRepository.incrementShareCount(postId, shareInc);
+        if (viewInc != 0)
+            postRepository.incrementViewCount(postId, viewInc);
+        if (reactionInc != 0)
+            postRepository.incrementReactionCount(postId, reactionInc);
+        if (commentInc != 0)
+            postRepository.incrementCommentCount(postId, commentInc);
+        if (shareInc != 0)
+            postRepository.incrementShareCount(postId, shareInc);
     }
 }
