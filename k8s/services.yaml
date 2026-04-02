@@ -1,4 +1,4 @@
-# AUTH
+# ===================== AUTH =====================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -33,6 +33,13 @@ spec:
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
               value: "false"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
 ---
 apiVersion: v1
 kind: Service
@@ -44,8 +51,8 @@ spec:
   ports:
     - port: 8081
 
+# ===================== USER =====================
 ---
-# USER
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -76,6 +83,13 @@ spec:
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
               value: "false"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
 ---
 apiVersion: v1
 kind: Service
@@ -87,8 +101,8 @@ spec:
   ports:
     - port: 8082
 
+# ===================== RELATIONSHIP =====================
 ---
-# RELATIONSHIP
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -115,6 +129,13 @@ spec:
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
               value: "false"
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "384Mi"
+            limits:
+              cpu: "700m"
+              memory: "768Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -126,8 +147,8 @@ spec:
   ports:
     - port: 8087
 
+# ===================== POST =====================
 ---
-# POST
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -154,6 +175,13 @@ spec:
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
               value: "false"
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "384Mi"
+            limits:
+              cpu: "700m"
+              memory: "768Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -165,8 +193,8 @@ spec:
   ports:
     - port: 8085
 
+# ===================== PERMISSION =====================
 ---
-# PERMISSION
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -191,6 +219,13 @@ spec:
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
               value: "false"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -202,8 +237,8 @@ spec:
   ports:
     - port: 8088
 
+# ===================== ORG =====================
 ---
-# ORG
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -228,6 +263,13 @@ spec:
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
               value: "false"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -239,8 +281,8 @@ spec:
   ports:
     - port: 8084
 
+# ===================== NOTIFICATION =====================
 ---
-# NOTIFICATION
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -265,6 +307,13 @@ spec:
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
               value: "false"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
 ---
 apiVersion: v1
 kind: Service
