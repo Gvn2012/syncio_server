@@ -1,6 +1,7 @@
 package io.github.gvn2012.relationship_service.services.impls;
 
 import io.github.gvn2012.relationship_service.dtos.APIResource;
+import io.github.gvn2012.relationship_service.dtos.responses.CheckBlockStatusResponse;
 import io.github.gvn2012.relationship_service.entities.UserBlock;
 import io.github.gvn2012.relationship_service.entities.UserRelationship;
 import io.github.gvn2012.relationship_service.entities.enums.BlockReason;
@@ -50,7 +51,8 @@ public class UserBlockServiceImpl implements IUserBlockService {
         severRelationships(blockerId, blockedId);
         severRelationships(blockedId, blockerId);
 
-        eventProducer.publishEvent(new RelationshipChangedEvent(blockerId, blockedId, RelationshipChangedEvent.ChangeType.BLOCK));
+        eventProducer.publishEvent(
+                new RelationshipChangedEvent(blockerId, blockedId, RelationshipChangedEvent.ChangeType.BLOCK));
 
         return APIResource.message("User blocked successfully", HttpStatus.OK);
     }
@@ -64,18 +66,34 @@ public class UserBlockServiceImpl implements IUserBlockService {
         }
 
         blockRepository.delete(block);
-        eventProducer.publishEvent(new RelationshipChangedEvent(blockerId, blockedId, RelationshipChangedEvent.ChangeType.UNBLOCK));
+        eventProducer.publishEvent(
+                new RelationshipChangedEvent(blockerId, blockedId, RelationshipChangedEvent.ChangeType.UNBLOCK));
 
         return APIResource.message("User unblocked successfully", HttpStatus.OK);
     }
 
     private void severRelationships(UUID source, UUID target) {
-        List<UserRelationship> relationships = relationshipRepository.findAllBySourceUserIdAndStatus(source, RelationshipStatus.ACTIVE);
+        List<UserRelationship> relationships = relationshipRepository.findAllBySourceUserIdAndStatus(source,
+                RelationshipStatus.ACTIVE);
         for (UserRelationship rel : relationships) {
             if (rel.getTargetUserId().equals(target)) {
                 rel.setStatus(RelationshipStatus.REMOVED);
                 relationshipRepository.save(rel);
             }
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CheckBlockStatusResponse checkBlockStatus(UUID userIdF, UUID userIdS) {
+        boolean fDirection = blockRepository.existsByBlockerUserIdAndBlockedUserIdAndIsActiveTrue(userIdF, userIdS);
+        boolean sDirection = blockRepository.existsByBlockerUserIdAndBlockedUserIdAndIsActiveTrue(userIdS, userIdF);
+
+        return CheckBlockStatusResponse.builder()
+                .isBlocked(fDirection || sDirection)
+                .isBidirectionalBlocked(fDirection && sDirection)
+                .blockerId(
+                        (fDirection && sDirection) ? null : (fDirection ? userIdF : (sDirection ? userIdS : null)))
+                .build();
     }
 }

@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: syncio-gateway
+  template:
+    metadata:
+      labels:
+        app: syncio-gateway
+    spec:
+      containers:
+        - name: gateway
+          image: vietpham18/api-gateway:latest
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-gateway
+spec:
+  selector:
+    app: syncio-gateway
+  ports:
+    - port: 80
+      targetPort: 8080

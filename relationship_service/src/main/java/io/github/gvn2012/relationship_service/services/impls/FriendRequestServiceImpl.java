@@ -7,6 +7,7 @@ import io.github.gvn2012.relationship_service.entities.enums.FriendRequestStatus
 import io.github.gvn2012.relationship_service.entities.enums.RelationshipStatus;
 import io.github.gvn2012.relationship_service.entities.enums.RelationshipType;
 import io.github.gvn2012.relationship_service.repositories.FriendRequestRepository;
+import io.github.gvn2012.relationship_service.repositories.UserBlockRepository;
 import io.github.gvn2012.relationship_service.repositories.UserRelationshipRepository;
 import io.github.gvn2012.relationship_service.services.interfaces.IFriendRequestService;
 import io.github.gvn2012.relationship_service.services.kafka.RelationshipEventProducer;
@@ -26,6 +27,7 @@ public class FriendRequestServiceImpl implements IFriendRequestService {
 
     private final FriendRequestRepository friendRequestRepository;
     private final UserRelationshipRepository relationshipRepository;
+    private final UserBlockRepository blockRepository;
     private final RelationshipEventProducer eventProducer;
 
     @Override
@@ -36,9 +38,28 @@ public class FriendRequestServiceImpl implements IFriendRequestService {
                     null);
         }
 
+        if (relationshipRepository.existsBySourceUserIdAndTargetUserIdAndRelationshipTypeAndStatus(
+                senderId, receiverId, RelationshipType.FRIEND, RelationshipStatus.ACTIVE)) {
+            return APIResource.error("ALREADY_FRIEND", "You are already friends with this user", HttpStatus.BAD_REQUEST,
+                    null);
+        }
+
+        if (blockRepository.existsByBlockerUserIdAndBlockedUserId(senderId, receiverId) ||
+                blockRepository.existsByBlockerUserIdAndBlockedUserId(receiverId, senderId)) {
+            return APIResource.error("BLOCKED", "Cannot send friend request due to blocking relationship",
+                    HttpStatus.BAD_REQUEST, null);
+        }
+
         if (friendRequestRepository.existsBySenderUserIdAndReceiverUserIdAndStatus(senderId, receiverId,
                 FriendRequestStatus.PENDING)) {
-            return APIResource.error("ALREADY_PENDING", "Friend request already pending", HttpStatus.BAD_REQUEST, null);
+            return APIResource.error("ALREADY_PENDING", "Friend request already pending from you",
+                    HttpStatus.BAD_REQUEST, null);
+        }
+
+        if (friendRequestRepository.existsBySenderUserIdAndReceiverUserIdAndStatus(receiverId, senderId,
+                FriendRequestStatus.PENDING)) {
+            return APIResource.error("REVERSE_PENDING", "This user has already sent you a friend request",
+                    HttpStatus.BAD_REQUEST, null);
         }
 
         FriendRequest request = new FriendRequest();

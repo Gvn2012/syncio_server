@@ -1,0 +1,246 @@
+# AUTH
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-auth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: syncio-auth
+  template:
+    metadata:
+      labels:
+        app: syncio-auth
+    spec:
+      containers:
+        - name: auth
+          image: vietpham18/auth-service:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://34.21.187.164:3306/syncio
+            - name: SPRING_DATASOURCE_USERNAME
+              value: gvn
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: Gvn2012@Phmz
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: syncio-kafka:9092
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: http://syncio-zipkin:9411/api/v2/spans
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-auth
+spec:
+  selector:
+    app: syncio-auth
+  ports:
+    - port: 8081
+
+---
+# USER
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-user
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: syncio-user
+  template:
+    metadata:
+      labels:
+        app: syncio-user
+    spec:
+      containers:
+        - name: user
+          image: vietpham18/user-service:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://34.21.187.164:3306/syncio
+            - name: SPRING_DATASOURCE_USERNAME
+              value: gvn
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: Gvn2012@Phmz
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-user
+spec:
+  selector:
+    app: syncio-user
+  ports:
+    - port: 8082
+
+---
+# RELATIONSHIP
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-relationship
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: syncio-relationship
+  template:
+    metadata:
+      labels:
+        app: syncio-relationship
+    spec:
+      containers:
+        - name: relationship
+          image: vietpham18/relationship-service:latest
+          ports:
+            - containerPort: 8087
+          env:
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: syncio-kafka:9092
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-relationship
+spec:
+  selector:
+    app: syncio-relationship
+  ports:
+    - port: 8087
+
+---
+# POST
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-post
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: syncio-post
+  template:
+    metadata:
+      labels:
+        app: syncio-post
+    spec:
+      containers:
+        - name: post
+          image: vietpham18/post-service:latest
+          ports:
+            - containerPort: 8085
+          env:
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: syncio-kafka:9092
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-post
+spec:
+  selector:
+    app: syncio-post
+  ports:
+    - port: 8085
+
+---
+# PERMISSION
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-permission
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: syncio-permission
+  template:
+    metadata:
+      labels:
+        app: syncio-permission
+    spec:
+      containers:
+        - name: permission
+          image: vietpham18/permission-service:latest
+          ports:
+            - containerPort: 8088
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-permission
+spec:
+  selector:
+    app: syncio-permission
+  ports:
+    - port: 8088
+
+---
+# ORG
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-org
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: syncio-org
+  template:
+    metadata:
+      labels:
+        app: syncio-org
+    spec:
+      containers:
+        - name: org
+          image: vietpham18/org-service:latest
+          ports:
+            - containerPort: 8084
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-org
+spec:
+  selector:
+    app: syncio-org
+  ports:
+    - port: 8084
+
+---
+# NOTIFICATION
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-notification
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: syncio-notification
+  template:
+    metadata:
+      labels:
+        app: syncio-notification
+    spec:
+      containers:
+        - name: notification
+          image: vietpham18/notification-service:latest
+          ports:
+            - containerPort: 8083
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-notification
+spec:
+  selector:
+    app: syncio-notification
+  ports:
+    - port: 8083

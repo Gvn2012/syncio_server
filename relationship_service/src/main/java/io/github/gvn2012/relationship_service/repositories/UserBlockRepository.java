@@ -16,4 +16,6 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, UUID> {
     long countAllByBlockerUserId(UUID blockerId);
 
     long countAllByBlockedUserId(UUID blockedId);
+
+    boolean existsByBlockerUserIdAndBlockedUserIdAndIsActiveTrue(UUID userIdF, UUID userIdS);
 }
