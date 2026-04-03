@@ -6,7 +6,7 @@ metadata:
   namespace: syncio
 spec:
   serviceName: "syncio-zookeeper"
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: syncio-zookeeper
@@ -82,7 +82,7 @@ metadata:
   namespace: syncio
 spec:
   serviceName: "syncio-kafka"
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: syncio-kafka
