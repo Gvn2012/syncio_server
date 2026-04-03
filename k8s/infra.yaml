@@ -116,11 +116,10 @@ spec:
               value: "30000"
             - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
               value: "true"
-            - name: KAFKA_LOG_DIRS
-              value: /var/lib/kafka/data/kafka-logs
           volumeMounts:
             - name: kafka-data
               mountPath: /var/lib/kafka/data
+              subPath: kafka-data
           resources:
             requests:
               cpu: "500m"
@@ -156,7 +155,7 @@ metadata:
   name: syncio-zipkin
   namespace: syncio
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: syncio-zipkin
