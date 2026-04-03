@@ -63,11 +63,18 @@ public class UserServiceImpl implements IUserService {
 
         ensureUserCanLogin(user);
 
-        GenerateLoginTokenResponse tokenResponse = authClient.generateToken(
-                new GenerateLoginTokenRequest(
-                        user.getUsername(),
-                        user.getId().toString()))
-                .block(Duration.ofSeconds(3));
+        GenerateLoginTokenResponse tokenResponse = null;
+
+        try {
+            tokenResponse = authClient.generateToken(
+                    new GenerateLoginTokenRequest(
+                            user.getUsername(),
+                            user.getId().toString()))
+                    .block(Duration.ofSeconds(3));
+        } catch (Exception e) {
+            log.error("Failed to generate token", e);
+            throw new BadRequestException("Failed to generate token");
+        }
 
         if (tokenResponse == null) {
             throw new BadRequestException("Failed to generate token");
