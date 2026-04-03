@@ -79,6 +79,10 @@ spec:
               value: gvn
             - name: SPRING_DATASOURCE_PASSWORD
               value: Gvn2012@Phmz
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: syncio-kafka:9092
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
@@ -125,6 +129,8 @@ spec:
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka:9092
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
@@ -171,6 +177,8 @@ spec:
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka:9092
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
@@ -215,6 +223,10 @@ spec:
           ports:
             - containerPort: 8088
           env:
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: syncio-kafka:9092
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
@@ -259,6 +271,10 @@ spec:
           ports:
             - containerPort: 8084
           env:
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: syncio-kafka:9092
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
@@ -305,6 +321,8 @@ spec:
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka:9092
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED

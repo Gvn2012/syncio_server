@@ -31,6 +31,8 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           set -e
+          IMAGE_TAG=${{ github.sha }}
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
 
           ALL_CHANGED=false
           if grep -Eq '^(pom.xml|common/|shared/)' changed_files.txt; then
@@ -44,9 +46,18 @@ jobs:
             local image_name="$4"
 
             if [ "$ALL_CHANGED" = true ] || grep -q "^${service_dir}/" changed_files.txt || grep -q "^${dockerfile}$" changed_files.txt; then
-              echo "Building and pushing ${service_name}..."
-              docker build -t "${DOCKER_USERNAME}/${image_name}:latest" -f "${dockerfile}" .
-              docker push "${DOCKER_USERNAME}/${image_name}:latest"
+              echo "Building and pushing ${service_name} with tag ${IMAGE_TAG}..."
+              docker build -t "${DOCKER_USERNAME}/${image_name}:${IMAGE_TAG}" -f "${dockerfile}" .
+              docker push "${DOCKER_USERNAME}/${image_name}:${IMAGE_TAG}"
+              
+              # Update manifests
+              echo "Updating manifest for ${service_name}..."
+              if [ -f k8s/services.yaml ]; then
+                sed -i "s|image: ${DOCKER_USERNAME}/${image_name}:.*|image: ${DOCKER_USERNAME}/${image_name}:${IMAGE_TAG}|g" k8s/services.yaml
+              fi
+              if [ -f k8s/gateway.yaml ]; then
+                sed -i "s|image: ${DOCKER_USERNAME}/${image_name}:.*|image: ${DOCKER_USERNAME}/${image_name}:${IMAGE_TAG}|g" k8s/gateway.yaml
+              fi
             else
               echo "Skipping ${service_name} (no changes)"
             fi
@@ -61,3 +72,15 @@ jobs:
           build_if_needed "api-gateway" "api_gateway" "api_gateway/Dockerfile" "api-gateway"
           build_if_needed "org-service" "org_service" "org_service/Dockerfile" "org-service"
           build_if_needed "permission-service" "permission_service" "permission_service/Dockerfile" "permission-service"
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/*.yaml
+          if git diff --staged --quiet; then
+            echo "No changes in manifests to commit"
+          else
+            git commit -m "chore: update image tags to ${{ github.sha }} [skip ci]"
+            git push
+          fi
