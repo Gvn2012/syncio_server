@@ -68,6 +68,7 @@ metadata:
   name: syncio-zookeeper
   namespace: syncio
 spec:
+  clusterIP: None
   selector:
     app: syncio-zookeeper
   ports:
@@ -146,6 +147,7 @@ metadata:
   name: syncio-kafka
   namespace: syncio
 spec:
+  clusterIP: None
   selector:
     app: syncio-kafka
   ports:
