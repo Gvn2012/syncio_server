@@ -63,6 +63,8 @@ public class UserServiceImpl implements IUserService {
 
         ensureUserCanLogin(user);
 
+        // Test service deployment
+
         GenerateLoginTokenResponse tokenResponse = null;
 
         try {
