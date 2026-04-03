@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: syncio-gateway
+  namespace: syncio
 spec:
   replicas: 2
   selector:
@@ -39,6 +40,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: syncio-gateway
+  namespace: syncio
   annotations:
     cloud.google.com/backend-config: '{"default": "syncio-backend-config"}'
     cloud.google.com/neg: '{"ingress": true}'
@@ -53,6 +55,7 @@ apiVersion: cloud.google.com/v1
 kind: BackendConfig
 metadata:
   name: syncio-backend-config
+  namespace: syncio
 spec:
   healthCheck:
     checkIntervalSec: 15

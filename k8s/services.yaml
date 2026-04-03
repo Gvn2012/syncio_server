@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: syncio-auth
+  namespace: syncio
 spec:
   replicas: 2
   selector:
@@ -45,6 +46,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: syncio-auth
+  namespace: syncio
 spec:
   selector:
     app: syncio-auth
@@ -57,6 +59,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: syncio-user
+  namespace: syncio
 spec:
   replicas: 2
   selector:
@@ -99,6 +102,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: syncio-user
+  namespace: syncio
 spec:
   selector:
     app: syncio-user
@@ -111,6 +115,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: syncio-relationship
+  namespace: syncio
 spec:
   replicas: 2
   selector:
@@ -147,6 +152,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: syncio-relationship
+  namespace: syncio
 spec:
   selector:
     app: syncio-relationship
@@ -159,6 +165,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: syncio-post
+  namespace: syncio
 spec:
   replicas: 2
   selector:
@@ -195,6 +202,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: syncio-post
+  namespace: syncio
 spec:
   selector:
     app: syncio-post
@@ -207,6 +215,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: syncio-permission
+  namespace: syncio
 spec:
   replicas: 2
   selector:
@@ -243,6 +252,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: syncio-permission
+  namespace: syncio
 spec:
   selector:
     app: syncio-permission
@@ -255,6 +265,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: syncio-org
+  namespace: syncio
 spec:
   replicas: 2
   selector:
@@ -291,6 +302,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: syncio-org
+  namespace: syncio
 spec:
   selector:
     app: syncio-org
@@ -303,6 +315,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: syncio-notification
+  namespace: syncio
 spec:
   replicas: 2
   selector:
@@ -339,6 +352,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: syncio-notification
+  namespace: syncio
 spec:
   selector:
     app: syncio-notification
