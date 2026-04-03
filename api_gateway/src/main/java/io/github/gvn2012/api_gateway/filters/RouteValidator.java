@@ -15,8 +15,7 @@ public class RouteValidator {
             "/api/v1/users/login",
             "/api/v1/users/register",
             "/api/v1/users/emails/verify",
-            "/api/v1/auth/**",
-            "/**" // Bypass all routes for testing and dev env
+            "/api/v1/auth/**"
     );
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();

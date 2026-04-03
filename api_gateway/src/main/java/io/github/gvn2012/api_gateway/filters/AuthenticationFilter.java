@@ -50,7 +50,7 @@ public class AuthenticationFilter implements GlobalFilter {
 
                 return webClientBuilder.build()
                                 .get()
-                                .uri("lb://auth-service/api/v1/auth/validate")
+                                .uri("http://syncio-auth:8081/api/v1/auth/validate")
                                 .header(HttpHeaders.AUTHORIZATION, authHeader)
                                 .retrieve()
                                 .bodyToMono(new ParameterizedTypeReference<APIResource<ValidateResponse>>() {
@@ -71,7 +71,7 @@ public class AuthenticationFilter implements GlobalFilter {
 
                                         return webClientBuilder.build()
                                                         .post()
-                                                        .uri("lb://permission-service/api/v1/permissions/authorize")
+                                                        .uri("http://syncio-permission:8088/api/v1/permissions/authorize")
                                                         .bodyValue(permissionRequest)
                                                         .retrieve()
                                                         .toBodilessEntity()
