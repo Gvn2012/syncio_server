@@ -1,0 +1,109 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: syncio-gateway-pdb
+  namespace: syncio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: syncio-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: syncio-auth-pdb
+  namespace: syncio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: syncio-auth
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: syncio-user-pdb
+  namespace: syncio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: syncio-user
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: syncio-relationship-pdb
+  namespace: syncio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: syncio-relationship
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: syncio-post-pdb
+  namespace: syncio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: syncio-post
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: syncio-permission-pdb
+  namespace: syncio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: syncio-permission
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: syncio-org-pdb
+  namespace: syncio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: syncio-org
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: syncio-notification-pdb
+  namespace: syncio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: syncio-notification
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: syncio-kafka-pdb
+  namespace: syncio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: syncio-kafka
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: syncio-zookeeper-pdb
+  namespace: syncio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: syncio-zookeeper
