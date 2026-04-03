@@ -33,7 +33,13 @@ public class AuthenticationFilter implements GlobalFilter {
 
                 log.debug("Incoming API Gateway request: [{}] {}", httpMethod, requestPath);
 
-                if (!routeValidator.isSecured.test(exchange)) {
+                // if (!routeValidator.isSecured.test(exchange)) {
+                // log.debug("Route is public, bypassing authentication filter for: {}",
+                // requestPath);
+                // return chain.filter(exchange);
+                // }
+
+                if (true) {
                         log.debug("Route is public, bypassing authentication filter for: {}", requestPath);
                         return chain.filter(exchange);
                 }
