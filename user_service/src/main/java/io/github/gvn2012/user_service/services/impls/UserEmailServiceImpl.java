@@ -281,7 +281,7 @@ public class UserEmailServiceImpl implements IUserEmailService {
     }
 
     private String buildVerificationLink(UUID userId, UUID emailId, String rawToken) {
-        return "http://localhost:8080/api/v1/users/emails/verify"
+        return "http://34.87.46.116/api/v1/users/emails/verify"
                 + "?emailId=" + emailId
                 + "&userId=" + userId
                 + "&token=" + rawToken;

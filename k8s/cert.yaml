@@ -1,0 +1,8 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: syncio-cert
+  namespace: syncio
+spec:
+  domains:
+    - syncio.site

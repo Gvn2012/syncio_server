@@ -3,10 +3,14 @@ kind: Ingress
 metadata:
   name: syncio-ingress
   namespace: syncio
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: syncio-ip
+    networking.gke.io/managed-certificates: syncio-cert
 spec:
-  ingressClassName: nginx
   rules:
-    - http:
+    - host: syncio.site
+      http:
         paths:
           - path: /
             pathType: Prefix
