@@ -26,4 +26,6 @@ public interface IUserEmailService {
     APIResource<Void> resendVerificationEmail(UUID userId, UUID emailId);
 
     void validateEmailNotUsed(String email);
+
+    Boolean isEmailAvailable(String email);
 }

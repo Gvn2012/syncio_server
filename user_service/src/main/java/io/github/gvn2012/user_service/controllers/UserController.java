@@ -3,6 +3,7 @@ package io.github.gvn2012.user_service.controllers;
 import io.github.gvn2012.user_service.dtos.APIResource;
 import io.github.gvn2012.user_service.dtos.requests.LoginRequest;
 import io.github.gvn2012.user_service.dtos.requests.UserRegisterRequest;
+import io.github.gvn2012.user_service.dtos.responses.CheckAvailableEmailAndUsernameWhenRegisterResponse;
 import io.github.gvn2012.user_service.dtos.responses.GetUserDetailResponse;
 import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
 import io.github.gvn2012.user_service.dtos.responses.UserRegisterResponse;
@@ -11,6 +12,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -50,6 +53,16 @@ public class UserController {
         public ResponseEntity<APIResource<GetUserDetailResponse>> getUserDetailsByQuery(
                         @RequestParam String id) {
                 APIResource<GetUserDetailResponse> response = userService.getUserDetail(id);
+                return ResponseEntity
+                                .status(response.getStatus())
+                                .body(response);
+        }
+
+        @GetMapping("/check-username-email-availability")
+        public ResponseEntity<APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse>> checkUsernameEmailAvailability(
+                        @RequestParam String email, @RequestParam String username) {
+                APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse> response = userService
+                                .checkAvailableEmailAndUsernameWhenRegister(email, username);
                 return ResponseEntity
                                 .status(response.getStatus())
                                 .body(response);

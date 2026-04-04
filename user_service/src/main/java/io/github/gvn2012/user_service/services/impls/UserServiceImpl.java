@@ -6,6 +6,7 @@ import io.github.gvn2012.user_service.dtos.mappers.UserDetailMapper;
 import io.github.gvn2012.user_service.dtos.requests.GenerateLoginTokenRequest;
 import io.github.gvn2012.user_service.dtos.requests.LoginRequest;
 import io.github.gvn2012.user_service.dtos.requests.UserRegisterRequest;
+import io.github.gvn2012.user_service.dtos.responses.CheckAvailableEmailAndUsernameWhenRegisterResponse;
 import io.github.gvn2012.user_service.dtos.responses.GenerateLoginTokenResponse;
 import io.github.gvn2012.user_service.dtos.responses.GetUserDetailResponse;
 import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
@@ -215,6 +216,16 @@ public class UserServiceImpl implements IUserService {
         profile.getPictures().add(picture);
 
         return user;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse> checkAvailableEmailAndUsernameWhenRegister(
+            String email, String username) {
+        Boolean isEmailAvailable = userEmailService.isEmailAvailable(email);
+        Boolean isUsernameAvailable = userRepository.existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse(username);
+        return APIResource.ok("Check available email and username when register successfully",
+                new CheckAvailableEmailAndUsernameWhenRegisterResponse(isEmailAvailable, isUsernameAvailable));
     }
 
 }

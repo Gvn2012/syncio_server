@@ -305,4 +305,11 @@ public class UserEmailServiceImpl implements IUserEmailService {
         }
         return email.trim().toLowerCase();
     }
+
+    public Boolean isEmailAvailable(String email) {
+        String normalizedEmail = normalizeEmail(email);
+        return !userEmailRepository.existsByEmailAndStatusNot(
+                normalizedEmail,
+                EmailStatus.REMOVED);
+    }
 }
