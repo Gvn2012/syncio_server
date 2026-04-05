@@ -5,6 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     notifications.argoproj.io/subscribe.on-deployed-telegram.telegram: ""
+    notifications.argoproj.io/subscribe.on-health-degraded-telegram.telegram: ""
     notifications.argoproj.io/subscribe.on-sync-failed-telegram.telegram: ""
     notifications.argoproj.io/subscribe.on-sync-running-telegram.telegram: ""
 spec:
