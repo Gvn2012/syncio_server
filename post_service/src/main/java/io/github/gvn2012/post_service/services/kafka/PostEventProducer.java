@@ -15,7 +15,7 @@ import java.util.UUID;
 public class PostEventProducer {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    private static final String TOPIC = "post-events";
+    private static final String TOPIC = "post-events-v2";
 
     public void publishPostCreated(UUID postId, UUID authorId) {
         publish(postId, authorId, authorId, ActivityType.CREATED, null);

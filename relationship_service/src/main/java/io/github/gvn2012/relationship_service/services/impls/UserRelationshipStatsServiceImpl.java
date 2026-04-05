@@ -35,7 +35,7 @@ public class UserRelationshipStatsServiceImpl implements IUserRelationshipStatsS
     private final ProcessedEventRepository processedEventRepository;
 
     @Override
-    @KafkaListener(topics = "relationship-events", groupId = "relationship-stats-group")
+    @KafkaListener(topics = "relationship-events-v2", groupId = "relationship-stats-group")
     @Transactional
     public void handleRelationshipChange(RelationshipChangedEvent event) {
         if (event.getEventId() != null) {

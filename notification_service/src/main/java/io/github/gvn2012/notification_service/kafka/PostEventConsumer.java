@@ -16,7 +16,7 @@ public class PostEventConsumer {
 
     private final NotificationRepository notificationRepository;
 
-    @KafkaListener(topics = "post-events", groupId = "notification-post-group")
+    @KafkaListener(topics = "post-events-v2", groupId = "notification-post-group")
     public void handlePostActivity(PostActivityEvent event) {
         if (event == null || event.getActorId() == null || event.getAuthorId() == null)
             return;

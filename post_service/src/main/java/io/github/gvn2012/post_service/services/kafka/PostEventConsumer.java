@@ -23,7 +23,7 @@ public class PostEventConsumer {
     private static final double COMMENT_WEIGHT = 0.3;
     private static final double SHARE_WEIGHT = 0.5;
 
-    @KafkaListener(topics = "post-events", groupId = "post-service-affinity")
+    @KafkaListener(topics = "post-events-v2", groupId = "post-service-affinity")
     @Transactional
     public void handlePostActivity(PostActivityEvent event) {
         if (event == null || event.getActorId() == null || event.getAuthorId() == null) return;

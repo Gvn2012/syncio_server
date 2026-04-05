@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 public class RelationshipEventProducer {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    private static final String TOPIC = "relationship-events";
+    private static final String TOPIC = "relationship-events-v2";
 
     @SuppressWarnings("null")
     public void publishEvent(RelationshipChangedEvent event) {
