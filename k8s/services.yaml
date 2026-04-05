@@ -128,7 +128,7 @@ spec:
     spec:
       containers:
         - name: relationship
-          image: vietpham18/relationship-service:dbc5ffffd8d2de3911f3a4832b286b223413bb78
+          image: vietpham18/relationship-service:ea2cb0af246848e7658c4fcf0b0e7d08070f6341
           ports:
             - containerPort: 8087
           env:
@@ -178,7 +178,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:dbc5ffffd8d2de3911f3a4832b286b223413bb78
+          image: vietpham18/post-service:ea2cb0af246848e7658c4fcf0b0e7d08070f6341
           ports:
             - containerPort: 8085
           env:
@@ -328,7 +328,7 @@ spec:
     spec:
       containers:
         - name: notification
-          image: vietpham18/notification-service:ce9ca82f6ca0a4b2ac19b489c33665e1224426e5
+          image: vietpham18/notification-service:ea2cb0af246848e7658c4fcf0b0e7d08070f6341
           ports:
             - containerPort: 8083
           env:
