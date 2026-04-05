@@ -3,12 +3,17 @@ package io.github.gvn2012.shared.kafka_events;
 import java.util.UUID;
 
 public class EmailVerificationEvent {
+    private UUID eventId = UUID.randomUUID();
     private UUID userId;
     private UUID emailId;
 
     private String email;
     private String verificationLink;
     private String verificationCode;
+
+    public UUID getEventId() {
+        return eventId;
+    }
 
     public UUID getUserId() {
         return userId;
@@ -28,6 +33,10 @@ public class EmailVerificationEvent {
 
     public String getVerificationCode() {
         return verificationCode;
+    }
+
+    public void setEventId(UUID eventId) {
+        this.eventId = eventId;
     }
 
     public void setUserId(UUID userId) {
