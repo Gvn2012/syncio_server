@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -21,6 +20,7 @@ public class EmailEventConsumer {
 
     @KafkaListener(topics = "email-verification-v2")
     public void consume(EmailVerificationEvent event) {
+        log.info("Event get {}", event);
         if (event == null || event.getEmail() == null || event.getEmail().isBlank()) {
             return;
         }
@@ -34,8 +34,7 @@ public class EmailEventConsumer {
             emailSenderService.sendVerificationEmail(
                     event.getEmail(),
                     event.getVerificationLink(),
-                    event.getVerificationCode()
-            );
+                    event.getVerificationCode());
             saveNotification(event, "SENT");
 
         } catch (Exception e) {

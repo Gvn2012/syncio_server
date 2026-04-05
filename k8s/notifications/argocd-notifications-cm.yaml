@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+data:
+  # Telegram Service Configuration
+  service.telegram: |
+    token: $telegram-token
+
+  # Notification Templates
+  template.sync-succeeded: |
+    message: |
+      ✅ *ArgoCD: Sync Succeeded*
+      *Application:* `{{.app.metadata.name}}`
+      *Status:* `{{.app.status.health.status}}`
+      *Revision:* `{{.app.status.sync.revision}}`
+      *Message:* `{{(index .app.status.conditions 0).message}}`
+  
+  template.sync-failed: |
+    message: |
+      ❌ *ArgoCD: Sync Failed*
+      *Application:* `{{.app.metadata.name}}`
+      *Status:* `{{.app.status.health.status}}`
+      *Reason:* `{{(index .app.status.conditions 0).message}}`
+
+  template.sync-running: |
+    message: |
+      🔄 *ArgoCD: Sync Started*
+      *Application:* `{{.app.metadata.name}}`
+      *Revision:* `{{.app.status.sync.revision}}`
+
+  # Notification Triggers
+  trigger.on-sync-succeeded: |
+    - when: app.status.sync.status == 'Synced' and app.status.health.status == 'Healthy'
+      send: [sync-succeeded]
+  
+  trigger.on-sync-failed: |
+    - when: app.status.sync.status == 'Failed'
+      send: [sync-failed]
+
+  trigger.on-sync-running: |
+    - when: app.status.sync.status == 'Syncing'
+      send: [sync-running]

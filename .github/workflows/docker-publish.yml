@@ -14,6 +14,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Send start notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            🚀 *CI/CD Pipeline Started*
+            
+            *Repository:* `${{ github.repository }}`
+            *Branch:* `${{ github.ref_name }}`
+            *Commit:* `${{ github.sha }}`
+            *Author:* `${{ github.actor }}`
+            
+            Building and pushing updated images...
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -84,3 +99,17 @@ jobs:
             git commit -m "chore: update image tags to ${{ github.sha }} [skip ci]"
             git push
           fi
+
+      - name: Send result notification
+        if: always()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ✅ *CI/CD Pipeline Completed*
+            
+            *Status:* `${{ job.status == 'success' && 'Success' || 'Failure' }}`
+            *Commit:* `${{ github.sha }}`
+            
+            ${{ job.status == 'success' && 'Images built and manifests updated successfully. Deployment sync triggered.' || 'Pipeline failed! Check GitHub Actions logs.' }}

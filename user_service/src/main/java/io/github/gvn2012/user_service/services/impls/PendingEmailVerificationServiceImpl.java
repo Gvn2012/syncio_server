@@ -15,6 +15,8 @@ import io.github.gvn2012.user_service.services.interfaces.IUserEmailService;
 import io.github.gvn2012.user_service.services.interfaces.IPendingEmailVerificationService;
 import io.github.gvn2012.user_service.services.kafka.EmailEventProducer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +28,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PendingEmailVerificationServiceImpl implements IPendingEmailVerificationService {
 
     private static final int VERIFICATION_CODE_LENGTH = 6;
@@ -58,6 +61,7 @@ public class PendingEmailVerificationServiceImpl implements IPendingEmailVerific
         verification.setConsumedAt(null);
 
         pendingEmailVerificationRepository.save(verification);
+        log.info("Saved to DB");
         sendOtpEmail(verification, rawCode);
 
         return APIResource.ok(
@@ -187,6 +191,7 @@ public class PendingEmailVerificationServiceImpl implements IPendingEmailVerific
         event.setVerificationCode(rawCode);
         event.setVerificationLink(null);
         emailEventProducer.send(event);
+        log.info("Kafka produce {}", event);
     }
 
     private String normalizeEmail(String email) {
