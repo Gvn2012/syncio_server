@@ -72,7 +72,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:058bc2ca836ccd4937cdc783a74fa6677db09509
+          image: vietpham18/user-service:ce9ca82f6ca0a4b2ac19b489c33665e1224426e5
           ports:
             - containerPort: 8082
           env:
@@ -328,7 +328,7 @@ spec:
     spec:
       containers:
         - name: notification
-          image: vietpham18/notification-service:dbc5ffffd8d2de3911f3a4832b286b223413bb78
+          image: vietpham18/notification-service:ce9ca82f6ca0a4b2ac19b489c33665e1224426e5
           ports:
             - containerPort: 8083
           env:
