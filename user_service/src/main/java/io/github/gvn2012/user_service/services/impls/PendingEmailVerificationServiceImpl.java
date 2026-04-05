@@ -43,7 +43,7 @@ public class PendingEmailVerificationServiceImpl implements IPendingEmailVerific
     @Transactional
     public APIResource<StartEmailVerificationResponse> start(StartEmailVerificationRequest request) {
         String normalizedEmail = normalizeEmail(request.getEmail());
-        userEmailService.validateEmailNotUsed(normalizedEmail);
+        // userEmailService.validateEmailNotUsed(normalizedEmail);
 
         String rawCode = generateVerificationCode();
 
