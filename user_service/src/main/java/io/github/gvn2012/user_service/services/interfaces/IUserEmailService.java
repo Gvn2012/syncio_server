@@ -17,7 +17,7 @@ public interface IUserEmailService {
 
     APIResource<UpdateEmailResponse> updateEmail(UUID userId, UUID emailId, UpdateEmailRequest request);
 
-    APIResource<VerifyEmailResponse> verifyEmail(UUID emailId, UUID userId, String token, VerifyEmailRequest request);
+    APIResource<VerifyEmailResponse> verifyEmail(UUID emailId, UUID userId, String token, String code);
 
     APIResource<DeleteEmailResponse> deleteEmail(UUID userId, UUID emailId, DeleteEmailRequest request);
 

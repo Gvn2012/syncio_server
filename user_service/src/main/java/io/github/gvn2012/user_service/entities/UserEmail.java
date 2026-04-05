@@ -1,6 +1,7 @@
 package io.github.gvn2012.user_service.entities;
 
 import io.github.gvn2012.user_service.entities.enums.EmailStatus;
+import io.github.gvn2012.user_service.entities.enums.EmailVerificationMethod;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -53,6 +54,16 @@ public class UserEmail extends AuditableEntity {
 
         @Column(name = "verification_token_hash_expires_at")
         private LocalDateTime verificationTokenHashExpiresAt;
+
+        @Enumerated(EnumType.STRING)
+        @Column(name = "verification_method", length = 16)
+        private EmailVerificationMethod verificationMethod;
+
+        @Column(name = "verification_code_hash", length = 256)
+        private String verificationCodeHash;
+
+        @Column(name = "verification_code_hash_expires_at")
+        private LocalDateTime verificationCodeHashExpiresAt;
 
         @Enumerated(EnumType.STRING)
         @Column(name = "status", length = 32)

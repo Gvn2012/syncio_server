@@ -5,11 +5,11 @@ import io.github.gvn2012.user_service.dtos.APIResource;
 import io.github.gvn2012.user_service.dtos.requests.AddNewEmailRequest;
 import io.github.gvn2012.user_service.dtos.requests.DeleteEmailRequest;
 import io.github.gvn2012.user_service.dtos.requests.UpdateEmailRequest;
-import io.github.gvn2012.user_service.dtos.requests.VerifyEmailRequest;
 import io.github.gvn2012.user_service.dtos.responses.*;
 import io.github.gvn2012.user_service.entities.User;
 import io.github.gvn2012.user_service.entities.UserEmail;
 import io.github.gvn2012.user_service.entities.enums.EmailStatus;
+import io.github.gvn2012.user_service.entities.enums.EmailVerificationMethod;
 import io.github.gvn2012.user_service.exceptions.BadRequestException;
 import io.github.gvn2012.user_service.exceptions.NotFoundException;
 import io.github.gvn2012.user_service.repositories.UserEmailRepository;
@@ -22,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -33,13 +34,16 @@ import java.util.stream.Collectors;
 public class UserEmailServiceImpl implements IUserEmailService {
 
     private static final int VERIFICATION_TOKEN_TTL_MINUTES = 15;
+    private static final int VERIFICATION_CODE_TTL_MINUTES = 10;
+    private static final int VERIFICATION_CODE_LENGTH = 6;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final ITokenService tokenService;
     private final UserEmailRepository userEmailRepository;
     private final UserRepository userRepository;
     private final EmailEventProducer emailEventProducer;
 
-    private record PendingEmail(UserEmail email, String rawToken) {
+    private record PendingEmail(UserEmail email, String rawSecret) {
     }
 
     @Override
@@ -69,10 +73,10 @@ public class UserEmailServiceImpl implements IUserEmailService {
 
         validateEmailNotUsed(request.getEmail());
 
-        PendingEmail pending = createPendingEmail(user, request.getEmail());
+        PendingEmail pending = createPendingEmail(user, request.getEmail(), false, EmailVerificationMethod.TOKEN);
         userEmailRepository.save(pending.email());
 
-        sendVerificationEmail(pending.email(), pending.rawToken());
+        sendVerificationEmail(pending.email(), pending.rawSecret());
 
         return APIResource.ok(
                 "Added email successfully. Verification email sent.",
@@ -98,10 +102,10 @@ public class UserEmailServiceImpl implements IUserEmailService {
 
         validateEmailNotUsed(newEmail);
 
-        PendingEmail pending = createPendingEmail(currentUser, newEmail);
+        PendingEmail pending = createPendingEmail(currentUser, newEmail, false, EmailVerificationMethod.TOKEN);
         userEmailRepository.save(pending.email());
 
-        sendVerificationEmail(pending.email(), pending.rawToken());
+        sendVerificationEmail(pending.email(), pending.rawSecret());
 
         UpdateEmailResponse response = new UpdateEmailResponse();
         response.setOldEmail(currentEmail.getEmail());
@@ -120,7 +124,7 @@ public class UserEmailServiceImpl implements IUserEmailService {
             UUID emailId,
             UUID userId,
             String token,
-            VerifyEmailRequest request) {
+            String code) {
         UserEmail email = userEmailRepository
                 .findByIdAndUser_IdAndStatus(emailId, userId, EmailStatus.UNVERIFIED)
                 .orElseThrow(() -> new NotFoundException("Email not found"));
@@ -129,24 +133,21 @@ public class UserEmailServiceImpl implements IUserEmailService {
             throw new BadRequestException("Email already verified");
         }
 
-        if (email.getVerificationTokenHash() == null) {
-            throw new BadRequestException("No verification in progress");
-        }
-
-        if (email.getVerificationTokenHashExpiresAt() != null
-                && email.getVerificationTokenHashExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new BadRequestException("Token expired");
-        }
-
-        if (!tokenService.matches(token, email.getVerificationTokenHash())) {
-            throw new BadRequestException("Invalid token");
+        EmailVerificationMethod verificationMethod = resolveVerificationMethod(email);
+        if (verificationMethod == EmailVerificationMethod.OTP) {
+            verifyByCode(email, code);
+        } else {
+            verifyByToken(email, token);
         }
 
         email.setVerified(true);
         email.setVerifiedAt(LocalDateTime.now());
         email.setStatus(EmailStatus.ACTIVE);
+        email.setVerificationMethod(null);
         email.setVerificationTokenHash(null);
         email.setVerificationTokenHashExpiresAt(null);
+        email.setVerificationCodeHash(null);
+        email.setVerificationCodeHashExpiresAt(null);
 
         userEmailRepository.save(email);
 
@@ -177,8 +178,11 @@ public class UserEmailServiceImpl implements IUserEmailService {
         email.setVerified(false);
         email.setPrimary(false);
         email.setVerifiedAt(null);
+        email.setVerificationMethod(null);
         email.setVerificationTokenHash(null);
         email.setVerificationTokenHashExpiresAt(null);
+        email.setVerificationCodeHash(null);
+        email.setVerificationCodeHashExpiresAt(null);
 
         userEmailRepository.save(email);
 
@@ -228,16 +232,11 @@ public class UserEmailServiceImpl implements IUserEmailService {
                 .findByIdAndUser_IdAndStatus(emailId, userId, EmailStatus.UNVERIFIED)
                 .orElseThrow(() -> new NotFoundException("Email not found"));
 
-        String rawToken = tokenService.generateToken();
-        String hashedToken = tokenService.hashToken(rawToken);
-
-        email.setVerificationTokenHash(hashedToken);
-        email.setVerificationTokenHashExpiresAt(
-                LocalDateTime.now().plusMinutes(VERIFICATION_TOKEN_TTL_MINUTES));
+        PendingEmail pending = refreshVerification(email);
 
         userEmailRepository.save(email);
 
-        sendVerificationEmail(email, rawToken);
+        sendVerificationEmail(email, pending.rawSecret());
 
         return APIResource.ok(
                 "Verification email resent successfully",
@@ -245,37 +244,125 @@ public class UserEmailServiceImpl implements IUserEmailService {
                 HttpStatus.OK);
     }
 
-    private PendingEmail createPendingEmail(User user, String email) {
+    private PendingEmail createPendingEmail(
+            User user,
+            String email,
+            boolean primary,
+            EmailVerificationMethod verificationMethod) {
         String normalizedEmail = normalizeEmail(email);
-        String rawToken = tokenService.generateToken();
-        String hashedToken = tokenService.hashToken(rawToken);
 
         UserEmail userEmail = new UserEmail();
         userEmail.setUser(user);
         userEmail.setEmail(normalizedEmail);
-        userEmail.setPrimary(false);
+        userEmail.setPrimary(primary);
         userEmail.setVerified(false);
         userEmail.setVerifiedAt(null);
         userEmail.setStatus(EmailStatus.UNVERIFIED);
-        userEmail.setVerificationTokenHash(hashedToken);
-        userEmail.setVerificationTokenHashExpiresAt(
-                LocalDateTime.now().plusMinutes(VERIFICATION_TOKEN_TTL_MINUTES));
+        userEmail.setVerificationMethod(verificationMethod);
 
-        return new PendingEmail(userEmail, rawToken);
+        return refreshVerification(userEmail);
     }
 
-    private void sendVerificationEmail(UserEmail email, String rawToken) {
+    public UserEmail createRegistrationEmail(User user, String email) {
+        return createPendingEmail(user, email, true, EmailVerificationMethod.OTP).email();
+    }
 
-        String link = buildVerificationLink(
-                email.getUser().getId(),
-                email.getId(),
-                rawToken);
+    public void sendRegistrationVerification(UserEmail email) {
+        PendingEmail pending = refreshVerification(email);
+        userEmailRepository.save(email);
+        sendVerificationEmail(email, pending.rawSecret());
+    }
+
+    private PendingEmail refreshVerification(UserEmail email) {
+        EmailVerificationMethod verificationMethod = resolveVerificationMethod(email);
+        if (verificationMethod == EmailVerificationMethod.OTP) {
+            String rawCode = generateVerificationCode();
+            email.setVerificationMethod(EmailVerificationMethod.OTP);
+            email.setVerificationCodeHash(tokenService.hashToken(rawCode));
+            email.setVerificationCodeHashExpiresAt(
+                    LocalDateTime.now().plusMinutes(VERIFICATION_CODE_TTL_MINUTES));
+            email.setVerificationTokenHash(null);
+            email.setVerificationTokenHashExpiresAt(null);
+            return new PendingEmail(email, rawCode);
+        }
+
+        String rawToken = tokenService.generateToken();
+        email.setVerificationMethod(EmailVerificationMethod.TOKEN);
+        email.setVerificationTokenHash(tokenService.hashToken(rawToken));
+        email.setVerificationTokenHashExpiresAt(
+                LocalDateTime.now().plusMinutes(VERIFICATION_TOKEN_TTL_MINUTES));
+        email.setVerificationCodeHash(null);
+        email.setVerificationCodeHashExpiresAt(null);
+
+        return new PendingEmail(email, rawToken);
+    }
+
+    private void verifyByToken(UserEmail email, String token) {
+        if (token == null || token.isBlank()) {
+            throw new BadRequestException("Token is required");
+        }
+        if (email.getVerificationTokenHash() == null) {
+            throw new BadRequestException("No token verification in progress");
+        }
+        if (email.getVerificationTokenHashExpiresAt() != null
+                && email.getVerificationTokenHashExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException("Token expired");
+        }
+        if (!tokenService.matches(token, email.getVerificationTokenHash())) {
+            throw new BadRequestException("Invalid token");
+        }
+    }
+
+    private void verifyByCode(UserEmail email, String code) {
+        if (code == null || code.isBlank()) {
+            throw new BadRequestException("Verification code is required");
+        }
+        if (email.getVerificationCodeHash() == null) {
+            throw new BadRequestException("No code verification in progress");
+        }
+        if (email.getVerificationCodeHashExpiresAt() != null
+                && email.getVerificationCodeHashExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException("Verification code expired");
+        }
+        if (!tokenService.matches(code, email.getVerificationCodeHash())) {
+            throw new BadRequestException("Invalid verification code");
+        }
+    }
+
+    private EmailVerificationMethod resolveVerificationMethod(UserEmail email) {
+        if (email.getVerificationMethod() != null) {
+            return email.getVerificationMethod();
+        }
+        if (email.getVerificationCodeHash() != null) {
+            return EmailVerificationMethod.OTP;
+        }
+        return EmailVerificationMethod.TOKEN;
+    }
+
+    private String generateVerificationCode() {
+        StringBuilder builder = new StringBuilder(VERIFICATION_CODE_LENGTH);
+        for (int i = 0; i < VERIFICATION_CODE_LENGTH; i++) {
+            builder.append(SECURE_RANDOM.nextInt(10));
+        }
+        return builder.toString();
+    }
+
+    private void sendVerificationEmail(UserEmail email, String rawSecret) {
 
         EmailVerificationEvent event = new EmailVerificationEvent();
         event.setUserId(email.getUser().getId());
         event.setEmailId(email.getId());
         event.setEmail(email.getEmail());
-        event.setVerificationLink(link);
+        if (resolveVerificationMethod(email) == EmailVerificationMethod.OTP) {
+            event.setVerificationCode(rawSecret);
+            event.setVerificationLink(null);
+        } else {
+            event.setVerificationLink(buildVerificationLink(
+                    email.getUser().getId(),
+                    email.getId(),
+                    rawSecret));
+            event.setVerificationCode(null);
+        }
 
         emailEventProducer.send(event);
     }

@@ -12,7 +12,7 @@ public class EmailSenderService {
 
     private final JavaMailSender mailSender;
 
-    public void sendVerificationEmail(String toEmail, String verificationLink) {
+    public void sendVerificationEmail(String toEmail, String verificationLink, String verificationCode) {
 
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
@@ -22,7 +22,9 @@ public class EmailSenderService {
             helper.setFrom("SyncIO ");
             helper.setSubject("Verify your email");
 
-            String htmlContent = buildHtmlEmail(verificationLink);
+            String htmlContent = verificationCode != null && !verificationCode.isBlank()
+                    ? buildOtpEmail(verificationCode)
+                    : buildLinkEmail(verificationLink);
 
             helper.setText(htmlContent, true);
 
@@ -33,7 +35,7 @@ public class EmailSenderService {
         }
     }
 
-    private String buildHtmlEmail(String verificationLink) {
+    private String buildLinkEmail(String verificationLink) {
 
         return """
                 <div style="background:#f4f6f8;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
@@ -95,5 +97,44 @@ public class EmailSenderService {
                     </div>
                 </div>
                 """.formatted(verificationLink, verificationLink, verificationLink);
+    }
+
+    private String buildOtpEmail(String verificationCode) {
+        return """
+                <div style="background:#f4f6f8;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
+
+                    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+
+                        <div style="background:#4CAF50;padding:25px 30px;text-align:center;">
+                            <h1 style="color:#ffffff;margin:0;font-size:22px;">Syncio</h1>
+                        </div>
+
+                        <div style="padding:40px 30px;text-align:center;">
+                            <h2 style="color:#333;margin-bottom:10px;">Verify your email</h2>
+                            <p style="color:#666;font-size:15px;line-height:1.6;margin-bottom:30px;">
+                                Enter this 6-digit code to complete your registration.
+                            </p>
+                            <div style="margin:30px auto;padding:16px 24px;max-width:220px;border-radius:10px;background:#f3f7f4;border:1px solid #d7e7da;font-size:32px;letter-spacing:8px;font-weight:bold;color:#1f3b26;">
+                                %s
+                            </div>
+                            <div style="margin-top:25px;padding-top:15px;border-top:1px solid #eee;">
+                                <p style="font-size:13px;color:#999;">
+                                    ⏳ This code will expire in <b>10 minutes</b>.
+                                </p>
+                                <p style="font-size:12px;color:#bbb;">
+                                    If you didn’t request this email, you can safely ignore it.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div style="background:#fafafa;text-align:center;padding:15px;">
+                            <p style="font-size:12px;color:#aaa;margin:0;">
+                                © 2026 Syncio. All rights reserved.
+                            </p>
+                        </div>
+
+                    </div>
+                </div>
+                """.formatted(verificationCode);
     }
 }

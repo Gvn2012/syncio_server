@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Data
 @AllArgsConstructor
@@ -21,6 +22,9 @@ public class UserRegisterRequest {
     @NotBlank(message = "Email must not be blank")
     @Email(message = "Invalid email format")
     private String email;
+
+    @NotNull(message = "Email verification id must not be null")
+    private UUID emailVerificationId;
 
     @NotBlank(message = "Phone number must not be blank")
     @Pattern(

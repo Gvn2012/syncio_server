@@ -11,6 +11,7 @@ import io.github.gvn2012.user_service.dtos.responses.GenerateLoginTokenResponse;
 import io.github.gvn2012.user_service.dtos.responses.GetUserDetailResponse;
 import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
 import io.github.gvn2012.user_service.dtos.responses.UserRegisterResponse;
+import io.github.gvn2012.user_service.entities.PendingEmailVerification;
 import io.github.gvn2012.user_service.entities.User;
 import io.github.gvn2012.user_service.entities.UserEmail;
 import io.github.gvn2012.user_service.entities.UserPhone;
@@ -22,6 +23,7 @@ import io.github.gvn2012.user_service.exceptions.DataIntegrityViolationException
 import io.github.gvn2012.user_service.exceptions.NotFoundException;
 import io.github.gvn2012.user_service.repositories.UserPhoneRepository;
 import io.github.gvn2012.user_service.repositories.UserRepository;
+import io.github.gvn2012.user_service.services.interfaces.IPendingEmailVerificationService;
 import io.github.gvn2012.user_service.services.interfaces.IUserEmailService;
 import io.github.gvn2012.user_service.services.interfaces.IUserService;
 import lombok.NonNull;
@@ -49,6 +51,7 @@ public class UserServiceImpl implements IUserService {
     private final AuthClient authClient;
 
     private final IUserEmailService userEmailService;
+    private final IPendingEmailVerificationService pendingEmailVerificationService;
 
     private final UserDetailMapper userDetailMapper;
 
@@ -110,6 +113,8 @@ public class UserServiceImpl implements IUserService {
     @Transactional(rollbackFor = Exception.class)
     public APIResource<UserRegisterResponse> register(UserRegisterRequest request) {
         validateRegisterRequest(request);
+        PendingEmailVerification verification = pendingEmailVerificationService
+                .requireVerifiedForRegistration(request.getEmailVerificationId(), request.getEmail());
 
         String hashedPassword = passwordEncoder.encode(request.getPassword());
 
@@ -122,6 +127,8 @@ public class UserServiceImpl implements IUserService {
             throw new DataIntegrityViolationException("Username, email, or phone already exists");
         }
 
+        pendingEmailVerificationService.markConsumed(verification);
+
         return APIResource.ok(
                 "User created successfully",
                 new UserRegisterResponse(user.getId().toString()),
@@ -132,8 +139,6 @@ public class UserServiceImpl implements IUserService {
         if (userRepository.existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse(request.getUsername())) {
             throw new BadRequestException("The username already exists");
         }
-
-        userEmailService.validateEmailNotUsed(request.getEmail());
 
         if (userPhoneRepository.existsUserPhoneByPhoneNumber(request.getPhoneNumber())) {
             throw new BadRequestException("Phone already exists");

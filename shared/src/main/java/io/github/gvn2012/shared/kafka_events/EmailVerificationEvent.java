@@ -8,6 +8,7 @@ public class EmailVerificationEvent {
 
     private String email;
     private String verificationLink;
+    private String verificationCode;
 
     public UUID getUserId() {
         return userId;
@@ -25,6 +26,10 @@ public class EmailVerificationEvent {
         return verificationLink;
     }
 
+    public String getVerificationCode() {
+        return verificationCode;
+    }
+
     public void setUserId(UUID userId) {
         this.userId = userId;
     }
@@ -39,5 +44,9 @@ public class EmailVerificationEvent {
 
     public void setVerificationLink(String verificationLink) {
         this.verificationLink = verificationLink;
+    }
+
+    public void setVerificationCode(String verificationCode) {
+        this.verificationCode = verificationCode;
     }
 }

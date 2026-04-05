@@ -58,14 +58,17 @@ public class UserEmailController {
                                 .body(response);
         }
 
-        @GetMapping("/emails/verify")
+        @RequestMapping(value = "/emails/verify", method = { RequestMethod.GET, RequestMethod.POST })
         public ResponseEntity<APIResource<VerifyEmailResponse>> verifyEmail(
                         @RequestParam UUID emailId,
                         @RequestParam UUID userId,
-                        @RequestParam String token,
-                        @RequestBody VerifyEmailRequest request) {
-                APIResource<VerifyEmailResponse> response = userEmailService.verifyEmail(emailId, userId, token,
-                                request);
+                        @RequestParam(required = false) String token,
+                        @Valid @RequestBody(required = false) VerifyEmailRequest request) {
+                APIResource<VerifyEmailResponse> response = userEmailService.verifyEmail(
+                                emailId,
+                                userId,
+                                token,
+                                request != null ? request.getCode() : null);
 
                 return ResponseEntity
                                 .status(response.getStatus())

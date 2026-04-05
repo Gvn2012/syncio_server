@@ -22,7 +22,8 @@ public class EmailEventConsumer {
         try {
             emailSenderService.sendVerificationEmail(
                     event.getEmail(),
-                    event.getVerificationLink()
+                    event.getVerificationLink(),
+                    event.getVerificationCode()
             );
             saveNotification(event, "SENT");
 
