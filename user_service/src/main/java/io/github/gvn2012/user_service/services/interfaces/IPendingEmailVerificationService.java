@@ -20,4 +20,6 @@ public interface IPendingEmailVerificationService {
     PendingEmailVerification requireVerifiedForRegistration(UUID verificationId, String email);
 
     void markConsumed(PendingEmailVerification verification);
+
+    // Test
 }
