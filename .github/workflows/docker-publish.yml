@@ -133,6 +133,7 @@ jobs:
       - name: Get Pod Status
         if: always()
         run: |
+          echo "FINISHED_TIME=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_ENV
           echo "POD_STATUS<<EOF" >> $GITHUB_ENV
           kubectl get pods -n syncio --no-headers=false || echo "Node unreachable" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
@@ -148,7 +149,7 @@ jobs:
             🏁 *CI/CD Pipeline Completed*
             
             *Status:* `${{ job.status == 'success' && 'Success' || 'Failure' }}`
-            *Finished:* `$(date -u +'%Y-%m-%d %H:%M:%S UTC')`
+            *Finished:* `${{ env.FINISHED_TIME }}`
             
             *Images Rebuilt:*
             ${{ env.REBUILT_LIST || 'None' }}
