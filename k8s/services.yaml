@@ -600,7 +600,7 @@ spec:
       serviceAccountName: syncio-telegram-bot
       containers:
         - name: telegram-bot
-          image: vietpham18/telegram-bot:69959f614003bd0f8fe3ff05d47ac94c7bd4156c
+          image: vietpham18/telegram-bot:40ea1bd5875f68d1363b4621a8e96d22f927cde0
           envFrom:
             - secretRef:
                 name: syncio-telegram-bot-secret
