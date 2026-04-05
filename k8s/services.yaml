@@ -128,7 +128,7 @@ spec:
     spec:
       containers:
         - name: relationship
-          image: vietpham18/relationship-service:ea2cb0af246848e7658c4fcf0b0e7d08070f6341
+          image: vietpham18/relationship-service:c22e152ebd2992db3a5f160d396626c988534fd9
           ports:
             - containerPort: 8087
           env:
