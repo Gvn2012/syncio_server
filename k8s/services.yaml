@@ -72,7 +72,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:ea2cb0af246848e7658c4fcf0b0e7d08070f6341
+          image: vietpham18/user-service:ce9ca82f6ca0a4b2ac19b489c33665e1224426e5
           ports:
             - containerPort: 8082
           env:
