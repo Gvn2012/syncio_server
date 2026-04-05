@@ -12,27 +12,15 @@ data:
   service.telegram: |
     token: $telegram-token
 
-  # Notification Templates
+  # Minimalist Templates for Troubleshooting
   template.sync-succeeded: |
-    message: |
-      ✅ *ArgoCD: Sync Succeeded*
-      *Application:* `{{.app.metadata.name}}`
-      *Status:* `{{.app.status.health.status}}`
-      *Revision:* `{{.app.status.sync.revision}}`
-      {{if .app.status.conditions}}*Message:* `{{(index .app.status.conditions 0).message}}`{{end}}
+    message: "✅ ArgoCD: {{.app.metadata.name}} Synced"
   
   template.sync-failed: |
-    message: |
-      ❌ *ArgoCD: Sync Failed*
-      *Application:* `{{.app.metadata.name}}`
-      {{if .app.status.health}}*Status:* `{{.app.status.health.status}}`{{end}}
-      {{if .app.status.conditions}}*Reason:* `{{(index .app.status.conditions 0).message}}`{{else}}*Reason:* Sync failed with unknown error.{{end}}
+    message: "❌ ArgoCD: {{.app.metadata.name}} Failed"
 
   template.sync-running: |
-    message: |
-      🔄 *ArgoCD: Sync Started*
-      *Application:* `{{.app.metadata.name}}`
-      *Revision:* `{{.app.status.sync.revision}}`
+    message: "🔄 ArgoCD: {{.app.metadata.name}} Syncing"
 
   # Notification Triggers
   trigger.on-sync-succeeded: |
