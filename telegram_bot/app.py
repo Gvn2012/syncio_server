@@ -42,6 +42,81 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 POLL_TIMEOUT_SECONDS = int(os.getenv("POLL_TIMEOUT_SECONDS", "30"))
 API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
+REGISTERED_COMMANDS = [
+    ("version", "Show current bot version"),
+    ("pods", "List pods in syncio"),
+    ("pods_pending", "List only pending pods"),
+    ("describe_pod", "Show pod details"),
+    ("describe_deploy", "Show deployment details"),
+    ("describe_service", "Show service details"),
+    ("logs", "Tail pod logs"),
+    ("rollout", "Show rollout status"),
+    ("image", "Show deployment images"),
+    ("endpoints", "Show service endpoints"),
+    ("restart", "Restart an allowed deployment"),
+    ("delete_pod", "Delete a syncio pod"),
+    ("events", "Show recent namespace events"),
+    ("restarts", "Show pods with restart counts"),
+    ("app", "Show Argo CD application status"),
+    ("argocd_resources", "List Argo CD resource states"),
+    ("argocd_history", "Show Argo CD deploy history"),
+    ("argocd_sync", "Trigger Argo CD sync"),
+    ("deployments", "List deployments"),
+    ("services", "List services"),
+    ("cluster", "Show cluster statistics"),
+    ("top_pods", "Live CPU/RAM usage for pods"),
+    ("top_nodes", "Live CPU/RAM usage for nodes"),
+    ("graph_pods", "RAM usage chart for pods"),
+    ("graph_pods_cpu", "CPU usage chart for pods"),
+    ("graph_nodes", "RAM usage chart for nodes"),
+    ("graph_nodes_cpu", "CPU usage chart for nodes"),
+    ("graph_storage", "PVC storage chart"),
+    ("graph_storage_classes", "Storage split by class"),
+    ("graph_restarts", "Restart count chart"),
+    ("graph_pod_phases", "Pod phase distribution"),
+    ("graph_deployments", "Ready vs desired replicas"),
+    ("graph_cpu_requests", "CPU requests vs limits"),
+    ("graph_ram_requests", "RAM requests vs limits"),
+    ("graph_pods_scatter", "CPU vs RAM scatter plot"),
+    ("summary_pods", "Top pod metrics table"),
+    ("scale", "Scale an allowed deployment"),
+    ("github_repo", "GitHub repository summary"),
+    ("github_latest", "Latest commit"),
+    ("github_workflows", "Recent workflow runs"),
+    ("storage", "PVC storage requests"),
+    ("resources", "CPU/RAM requests and limits"),
+    ("help", "Show help"),
+]
+COMMAND_ALIASES = {
+    "/pods pending": "/pods_pending",
+    "/describe pod": "/describe_pod",
+    "/describe deploy": "/describe_deploy",
+    "/describe service": "/describe_service",
+    "/delete pod": "/delete_pod",
+    "/argocd resources": "/argocd_resources",
+    "/argocd history": "/argocd_history",
+    "/argocd sync": "/argocd_sync",
+    "/top pods": "/top_pods",
+    "/top nodes": "/top_nodes",
+    "/graph pods": "/graph_pods",
+    "/graph pods ram": "/graph_pods",
+    "/graph pods cpu": "/graph_pods_cpu",
+    "/graph nodes": "/graph_nodes",
+    "/graph nodes ram": "/graph_nodes",
+    "/graph nodes cpu": "/graph_nodes_cpu",
+    "/graph storage": "/graph_storage",
+    "/graph storage classes": "/graph_storage_classes",
+    "/graph restarts": "/graph_restarts",
+    "/graph pod-phases": "/graph_pod_phases",
+    "/graph deployments": "/graph_deployments",
+    "/graph cpu requests": "/graph_cpu_requests",
+    "/graph ram requests": "/graph_ram_requests",
+    "/graph pods scatter": "/graph_pods_scatter",
+    "/summary pods": "/summary_pods",
+    "/github repo": "/github_repo",
+    "/github latest": "/github_latest",
+    "/github workflows": "/github_workflows",
+}
 
 
 def load_kubernetes() -> client.CoreV1Api:
@@ -92,6 +167,18 @@ def send_photo(chat_id: str, image: io.BytesIO, caption: str) -> None:
         raise RuntimeError(f"Telegram API error: {data}")
 
 
+def register_bot_commands() -> None:
+    telegram_api(
+        "setMyCommands",
+        {
+            "commands": [
+                {"command": command, "description": description}
+                for command, description in REGISTERED_COMMANDS
+            ]
+        },
+    )
+
+
 def escape(value: str | None) -> str:
     return html.escape(value or "Unknown")
 
@@ -114,6 +201,15 @@ def github_api(path: str, params: dict | None = None) -> dict:
     )
     response.raise_for_status()
     return response.json()
+
+
+def normalize_command(text: str) -> str:
+    for alias, canonical in sorted(COMMAND_ALIASES.items(), key=lambda item: len(item[0]), reverse=True):
+        if text == alias:
+            return canonical
+        if text.startswith(f"{alias} "):
+            return f"{canonical}{text[len(alias):]}"
+    return text
 
 
 def format_pods(pods: Iterable[client.V1Pod]) -> str:
@@ -1541,46 +1637,44 @@ def help_text() -> str:
         "<b>Syncio bot commands</b>\n\n"
         "<code>/version</code> - show current bot version\n"
         "<code>/pods</code> - list pods in the syncio namespace\n"
-        "<code>/pods pending</code> - list only pending pods\n"
-        "<code>/describe pod &lt;name&gt;</code> - show pod details\n"
-        "<code>/describe deploy &lt;name&gt;</code> - show deployment details\n"
-        "<code>/describe service &lt;name&gt;</code> - show service details\n"
+        "<code>/pods_pending</code> - list only pending pods\n"
+        "<code>/describe_pod &lt;name&gt;</code> - show pod details\n"
+        "<code>/describe_deploy &lt;name&gt;</code> - show deployment details\n"
+        "<code>/describe_service &lt;name&gt;</code> - show service details\n"
         "<code>/logs &lt;pod&gt;</code> - tail pod logs\n"
         "<code>/rollout &lt;deployment&gt;</code> - rollout status\n"
         "<code>/image &lt;deployment&gt;</code> - show deployment images\n"
         "<code>/endpoints &lt;service&gt;</code> - show service endpoints\n"
         "<code>/restart &lt;deployment&gt;</code> - rollout restart an allowed deployment\n"
-        "<code>/delete pod &lt;name&gt;</code> - delete a syncio pod\n"
+        "<code>/delete_pod &lt;name&gt;</code> - delete a syncio pod\n"
         "<code>/events</code> - show recent namespace events\n"
         "<code>/restarts</code> - show pods with restart counts\n"
         "<code>/app</code> - show Argo CD application status\n"
-        "<code>/argocd resources</code> - list Argo CD resource states\n"
-        "<code>/argocd history</code> - recent Argo CD deploy history\n"
-        "<code>/argocd sync</code> - trigger Argo CD sync\n"
+        "<code>/argocd_resources</code> - list Argo CD resource states\n"
+        "<code>/argocd_history</code> - recent Argo CD deploy history\n"
+        "<code>/argocd_sync</code> - trigger Argo CD sync\n"
         "<code>/deployments</code> - list deployments and ready counts\n"
         "<code>/services</code> - list services in the syncio namespace\n"
         "<code>/cluster</code> - show cluster statistics for syncio\n"
-        "<code>/top pods</code> - live CPU/RAM usage for pods\n"
-        "<code>/top nodes</code> - live CPU/RAM usage for nodes\n"
-        "<code>/graph pods</code> - RAM usage chart for pods\n"
-        "<code>/graph pods cpu</code> - CPU usage chart for pods\n"
-        "<code>/graph pods ram</code> - RAM usage chart for pods\n"
-        "<code>/graph nodes</code> - RAM usage chart for nodes\n"
-        "<code>/graph nodes cpu</code> - CPU usage chart for nodes\n"
-        "<code>/graph nodes ram</code> - RAM usage chart for nodes\n"
-        "<code>/graph storage</code> - PVC storage chart\n"
-        "<code>/graph storage classes</code> - storage split by class\n"
-        "<code>/graph restarts</code> - restart count chart\n"
-        "<code>/graph pod-phases</code> - pod phase distribution\n"
-        "<code>/graph deployments</code> - ready vs desired replicas\n"
-        "<code>/graph cpu requests</code> - CPU requests vs limits\n"
-        "<code>/graph ram requests</code> - RAM requests vs limits\n"
-        "<code>/graph pods scatter</code> - CPU vs RAM scatter plot\n"
-        "<code>/summary pods</code> - top pod metrics table\n"
+        "<code>/top_pods</code> - live CPU/RAM usage for pods\n"
+        "<code>/top_nodes</code> - live CPU/RAM usage for nodes\n"
+        "<code>/graph_pods</code> - RAM usage chart for pods\n"
+        "<code>/graph_pods_cpu</code> - CPU usage chart for pods\n"
+        "<code>/graph_nodes</code> - RAM usage chart for nodes\n"
+        "<code>/graph_nodes_cpu</code> - CPU usage chart for nodes\n"
+        "<code>/graph_storage</code> - PVC storage chart\n"
+        "<code>/graph_storage_classes</code> - storage split by class\n"
+        "<code>/graph_restarts</code> - restart count chart\n"
+        "<code>/graph_pod_phases</code> - pod phase distribution\n"
+        "<code>/graph_deployments</code> - ready vs desired replicas\n"
+        "<code>/graph_cpu_requests</code> - CPU requests vs limits\n"
+        "<code>/graph_ram_requests</code> - RAM requests vs limits\n"
+        "<code>/graph_pods_scatter</code> - CPU vs RAM scatter plot\n"
+        "<code>/summary_pods</code> - top pod metrics table\n"
         "<code>/scale &lt;deployment&gt; &lt;replicas&gt;</code> - scale an allowed deployment\n"
-        "<code>/github repo</code> - GitHub repository summary\n"
-        "<code>/github latest</code> - latest commit on configured branch\n"
-        "<code>/github workflows</code> - recent GitHub workflow runs\n"
+        "<code>/github_repo</code> - GitHub repository summary\n"
+        "<code>/github_latest</code> - latest commit on configured branch\n"
+        "<code>/github_workflows</code> - recent GitHub workflow runs\n"
         "<code>/storage</code> - PVC storage requests in syncio\n"
         "<code>/resources</code> - CPU/RAM requests and limits summary\n"
         "<code>/help</code> - show this help"
@@ -1593,7 +1687,7 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
         LOGGER.warning("Ignoring unauthorized chat_id=%s", chat_id)
         return
 
-    text = (message.get("text") or "").strip()
+    text = normalize_command((message.get("text") or "").strip())
     if not text:
         return
 
@@ -1607,21 +1701,21 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
         parts = text.split()
         restart_deployment(chat_id, parts[1] if len(parts) > 1 else "")
         return
-    if text == "/delete pod" or text.startswith("/delete pod "):
+    if text == "/delete_pod" or text.startswith("/delete_pod "):
         parts = text.split(maxsplit=2)
-        delete_pod(chat_id, core_api, parts[2] if len(parts) > 2 else "")
+        delete_pod(chat_id, core_api, parts[1] if len(parts) > 1 else "")
         return
-    if text == "/describe pod" or text.startswith("/describe pod "):
+    if text == "/describe_pod" or text.startswith("/describe_pod "):
         parts = text.split(maxsplit=2)
-        send_message(chat_id, describe_pod(core_api, parts[2] if len(parts) > 2 else ""))
+        send_message(chat_id, describe_pod(core_api, parts[1] if len(parts) > 1 else ""))
         return
-    if text == "/describe deploy" or text.startswith("/describe deploy "):
+    if text == "/describe_deploy" or text.startswith("/describe_deploy "):
         parts = text.split(maxsplit=2)
-        send_message(chat_id, describe_deployment(parts[2] if len(parts) > 2 else ""))
+        send_message(chat_id, describe_deployment(parts[1] if len(parts) > 1 else ""))
         return
-    if text == "/describe service" or text.startswith("/describe service "):
+    if text == "/describe_service" or text.startswith("/describe_service "):
         parts = text.split(maxsplit=2)
-        send_message(chat_id, describe_service(core_api, parts[2] if len(parts) > 2 else ""))
+        send_message(chat_id, describe_service(core_api, parts[1] if len(parts) > 1 else ""))
         return
     if text == "/logs" or text.startswith("/logs "):
         parts = text.split(maxsplit=1)
@@ -1646,7 +1740,7 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
     if text == "/pods":
         send_message(chat_id, get_pods(core_api))
         return
-    if text == "/pods pending":
+    if text == "/pods_pending":
         send_message(chat_id, get_pods(core_api, pending_only=True))
         return
     if text == "/events":
@@ -1658,13 +1752,13 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
     if text == "/app":
         send_message(chat_id, get_app_status())
         return
-    if text == "/argocd resources":
+    if text == "/argocd_resources":
         send_message(chat_id, get_app_resources())
         return
-    if text == "/argocd history":
+    if text == "/argocd_history":
         send_message(chat_id, get_app_history())
         return
-    if text == "/argocd sync":
+    if text == "/argocd_sync":
         sync_argocd_app(chat_id)
         return
     if text == "/deployments":
@@ -1676,64 +1770,58 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
     if text == "/cluster":
         send_message(chat_id, get_cluster_stats(core_api))
         return
-    if text == "/top pods":
+    if text == "/top_pods":
         send_message(chat_id, get_top_pods())
         return
-    if text == "/top nodes":
+    if text == "/top_nodes":
         send_message(chat_id, get_top_nodes())
         return
-    if text == "/graph pods":
+    if text == "/graph_pods":
         send_pod_metrics_chart(chat_id)
         return
-    if text == "/graph pods ram":
-        send_pod_metrics_chart(chat_id)
-        return
-    if text == "/graph pods cpu":
+    if text == "/graph_pods_cpu":
         send_pod_cpu_chart(chat_id)
         return
-    if text == "/graph nodes":
+    if text == "/graph_nodes":
         send_node_metrics_chart(chat_id)
         return
-    if text == "/graph nodes ram":
-        send_node_metrics_chart(chat_id)
-        return
-    if text == "/graph nodes cpu":
+    if text == "/graph_nodes_cpu":
         send_node_cpu_chart(chat_id)
         return
-    if text == "/graph storage":
+    if text == "/graph_storage":
         send_storage_chart(core_api, chat_id)
         return
-    if text == "/graph storage classes":
+    if text == "/graph_storage_classes":
         send_storage_class_chart(core_api, chat_id)
         return
-    if text == "/graph restarts":
+    if text == "/graph_restarts":
         send_restart_chart(core_api, chat_id)
         return
-    if text == "/graph pod-phases":
+    if text == "/graph_pod_phases":
         send_pod_phase_chart(core_api, chat_id)
         return
-    if text == "/graph deployments":
+    if text == "/graph_deployments":
         send_deployment_chart(chat_id)
         return
-    if text == "/graph cpu requests":
+    if text == "/graph_cpu_requests":
         send_cpu_request_chart(core_api, chat_id)
         return
-    if text == "/graph ram requests":
+    if text == "/graph_ram_requests":
         send_ram_request_chart(core_api, chat_id)
         return
-    if text == "/graph pods scatter":
+    if text == "/graph_pods_scatter":
         send_cpu_vs_ram_scatter(chat_id)
         return
-    if text == "/summary pods":
+    if text == "/summary_pods":
         send_top_summary_table(core_api, chat_id)
         return
-    if text == "/github repo":
+    if text == "/github_repo":
         send_message(chat_id, get_github_repo_summary())
         return
-    if text == "/github latest":
+    if text == "/github_latest":
         send_message(chat_id, get_github_latest_commit())
         return
-    if text == "/github workflows":
+    if text == "/github_workflows":
         send_message(chat_id, get_github_workflows())
         return
     if text == "/storage":
@@ -1755,6 +1843,10 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
 def main() -> None:
     core_api = load_kubernetes()
     offset = None
+    try:
+        register_bot_commands()
+    except Exception:
+        LOGGER.exception("Failed to register Telegram bot commands")
 
     while True:
         try:
