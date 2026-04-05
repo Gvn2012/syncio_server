@@ -8,49 +8,57 @@ metadata:
     app.kubernetes.io/name: argocd-notifications-controller
     app.kubernetes.io/part-of: argocd
 data:
-  # Telegram via generic webhook to avoid native telegram notifier issues
-  service.webhook.telegramapi: |
-    url: https://api.telegram.org/bot$telegram-token
+  service.webhook.telegram: |
+    url: https://api.telegram.org/bot$telegram-bot-token/sendMessage
     headers:
       - name: Content-Type
-        value: application/x-www-form-urlencoded
+        value: application/json
 
-  template.sync-succeeded: |
+  template.telegram-sync-succeeded: |
     webhook:
-      telegramapi:
+      telegram:
         method: POST
-        path: /sendMessage
         body: |
-          chat_id=7537927055&text=✅+ArgoCD+sync+succeeded:+{{.app.metadata.name}}
+          {
+            "chat_id": "7537927055",
+            "parse_mode": "HTML",
+            "text": "<b>Deployment Successful</b>\n\n<b>App:</b> {{ .app.metadata.name }}\n<b>Project:</b> {{ .app.spec.project }}\n<b>Revision:</b> <code>{{ .app.status.sync.revision }}</code>\n<b>Namespace:</b> {{ .app.spec.destination.namespace }}\n<b>Health:</b> {{ .app.status.health.status }}"
+          }
   
-  template.sync-failed: |
+  template.telegram-sync-failed: |
     webhook:
-      telegramapi:
+      telegram:
         method: POST
-        path: /sendMessage
         body: |
-          chat_id=7537927055&text=❌+ArgoCD+sync+failed:+{{.app.metadata.name}}
+          {
+            "chat_id": "7537927055",
+            "parse_mode": "HTML",
+            "disable_web_page_preview": true,
+            "text": "SYNC FAILED\n\n<b>Application:</b> {{ .app.metadata.name }}\n<b>Project:</b> {{ .app.spec.project }}\n<b>Revision:</b> <code>{{ .app.status.sync.revision }}</code>\n<b>Namespace:</b> {{ .app.spec.destination.namespace }}\n\n<b>Error:</b>\n<pre>{{ .app.status.operationState.message }}</pre>"
+          }
 
-  template.sync-running: |
+  template.telegram-sync-running: |
     webhook:
-      telegramapi:
+      telegram:
         method: POST
-        path: /sendMessage
         body: |
-          chat_id=7537927055&text=🔄+ArgoCD+sync+started:+{{.app.metadata.name}}
+          {
+            "chat_id": "7537927055",
+            "parse_mode": "HTML",
+            "text": "SYNC RUNNING\n\n<b>Application:</b> {{ .app.metadata.name }}\n<b>Project:</b> {{ .app.spec.project }}\n<b>Namespace:</b> {{ .app.spec.destination.namespace }}"
+          }
 
   # Notification Triggers
-  trigger.on-sync-succeeded: |
+  trigger.on-deployed-telegram: |
     - when: app.status != nil and app.status.operationState != nil and app.status.operationState.phase in ['Succeeded'] and app.status.sync.status == 'Synced'
       oncePer: app.status.sync.revision
-      send: [sync-succeeded]
+      send: [telegram-sync-succeeded]
   
-  trigger.on-sync-failed: |
+  trigger.on-sync-failed-telegram: |
     - when: app.status != nil and app.status.operationState != nil and app.status.operationState.phase in ['Error', 'Failed']
-      oncePer: app.status.sync.revision
-      send: [sync-failed]
+      send: [telegram-sync-failed]
 
-  trigger.on-sync-running: |
+  trigger.on-sync-running-telegram: |
     - when: app.status != nil and app.status.operationState != nil and app.status.operationState.phase in ['Running']
       oncePer: app.status.sync.revision
-      send: [sync-running]
+      send: [telegram-sync-running]
