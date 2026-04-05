@@ -13,6 +13,8 @@ spec:
     repoURL: git@github.com:Gvn2012/syncio_server.git
     targetRevision: main
     path: k8s
+    directory:
+      recurse: true
   destination:
     server: https://kubernetes.default.svc
     namespace: syncio

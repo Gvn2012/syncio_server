@@ -8,29 +8,46 @@ metadata:
     app.kubernetes.io/name: argocd-notifications-controller
     app.kubernetes.io/part-of: argocd
 data:
-  # Telegram Service Configuration (HARDCODED FOR TROUBLESHOOTING)
+  # Telegram Service Configuration
   service.telegram: |
-    token: 8771671083:AAGj_8MG9Pwuq0oeHD5uwlSLWjI14FrpBh8
+    token: $telegram-token
 
-  # Minimalist Templates for Troubleshooting
+  # HTML Templates (Much more reliable than Markdown for Telegram)
   template.sync-succeeded: |
-    message: "✅ ArgoCD: {{.app.metadata.name}} Synced"
+    telegram:
+      message: |
+        ✅ <b>ArgoCD: Sync Succeeded</b>
+        <b>Application:</b> <code>{{.app.metadata.name}}</code>
+        <b>Status:</b> <code>{{or .app.status.operationState.phase "Unknown"}}</code>
+        <b>Revision:</b> <code>{{or .app.status.sync.revision "Unknown"}}</code>
   
   template.sync-failed: |
-    message: "❌ ArgoCD: {{.app.metadata.name}} Failed"
+    telegram:
+      message: |
+        ❌ <b>ArgoCD: Sync Failed</b>
+        <b>Application:</b> <code>{{.app.metadata.name}}</code>
+        <b>Status:</b> <code>{{or .app.status.operationState.phase "Unknown"}}</code>
+        <b>Revision:</b> <code>{{or .app.status.sync.revision "Unknown"}}</code>
 
   template.sync-running: |
-    message: "🔄 ArgoCD: {{.app.metadata.name}} Syncing"
+    telegram:
+      message: |
+        🔄 <b>ArgoCD: Sync Started</b>
+        <b>Application:</b> <code>{{.app.metadata.name}}</code>
+        <b>Revision:</b> <code>{{or .app.status.sync.revision "Unknown"}}</code>
 
-  # Notification Triggers (SIMPLIFIED)
+  # Notification Triggers
   trigger.on-sync-succeeded: |
-    - when: app.status.sync.status == 'Synced'
+    - when: app.status?.operationState.phase in ['Succeeded'] and app.status.sync.status == 'Synced'
+      oncePer: app.status.sync.revision
       send: [sync-succeeded]
   
   trigger.on-sync-failed: |
-    - when: app.status.sync.status == 'Failed'
+    - when: app.status?.operationState.phase in ['Error', 'Failed']
+      oncePer: app.status.sync.revision
       send: [sync-failed]
 
   trigger.on-sync-running: |
-    - when: app.status.sync.status == 'Syncing'
+    - when: app.status?.operationState.phase in ['Running']
+      oncePer: app.status.sync.revision
       send: [sync-running]
