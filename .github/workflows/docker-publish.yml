@@ -135,7 +135,13 @@ jobs:
         run: |
           echo "FINISHED_TIME=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_ENV
           echo "POD_STATUS<<EOF" >> $GITHUB_ENV
-          (kubectl get pods -n syncio --no-headers=false || echo "Node unreachable") >> $GITHUB_ENV
+          echo "*Summary by Status:*"
+          kubectl get pods -n syncio --no-headers | awk '{print $3}' | sort | uniq -c | awk '{print "• "$2": "$1}' || echo "No pods found."
+          echo ""
+          if kubectl get pods -n syncio --no-headers | grep -vE "Running|Completed" > /dev/null; then
+            echo "*Unhealthy/Pending Pods:*"
+            kubectl get pods -n syncio --no-headers | grep -vE "Running|Completed" | awk '{print "• "$1 " (" $3 ")"}'
+          fi
           echo "EOF" >> $GITHUB_ENV
 
       - name: Send result notification
