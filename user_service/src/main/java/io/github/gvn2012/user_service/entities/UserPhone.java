@@ -24,6 +24,8 @@ import java.util.UUID;
                 @Index(name = "ix_user_phones_user_verified", columnList = "user_id, is_verified")
         }
 )
+
+//user
 public class UserPhone extends AuditableEntity {
 
     @Id
