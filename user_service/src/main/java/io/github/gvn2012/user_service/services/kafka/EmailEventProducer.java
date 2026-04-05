@@ -13,7 +13,7 @@ public class EmailEventProducer {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    private static final String TOPIC = "email-verification";
+    private static final String TOPIC = "email-verification-v2";
 
     public void send(EmailVerificationEvent event) {
         kafkaTemplate.send(TOPIC, event.getEmail(), event)

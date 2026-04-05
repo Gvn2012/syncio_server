@@ -19,7 +19,7 @@ public class EmailEventConsumer {
     private final EmailSenderService emailSenderService;
     private final NotificationRepository notificationRepository;
 
-    @KafkaListener(topics = "email-verification")
+    @KafkaListener(topics = "email-verification-v2")
     public void consume(EmailVerificationEvent event) {
         if (event == null || event.getEmail() == null || event.getEmail().isBlank()) {
             return;
