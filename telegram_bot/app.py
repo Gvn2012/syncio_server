@@ -1,13 +1,18 @@
 import html
+import io
 import logging
 import os
 import time
 from collections import Counter
 from typing import Iterable
 
+import matplotlib
 import requests
 from kubernetes import client, config
 from kubernetes.client import ApiException
+
+matplotlib.use("Agg")
+from matplotlib import pyplot as plt
 
 
 logging.basicConfig(
@@ -57,6 +62,24 @@ def send_message(chat_id: str, text: str) -> None:
             "disable_web_page_preview": True,
         },
     )
+
+
+def send_photo(chat_id: str, image: io.BytesIO, caption: str) -> None:
+    image.seek(0)
+    response = requests.post(
+        f"{API_BASE}/sendPhoto",
+        data={
+            "chat_id": chat_id,
+            "caption": caption,
+            "parse_mode": "HTML",
+        },
+        files={"photo": ("metrics.png", image.getvalue(), "image/png")},
+        timeout=60,
+    )
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("ok"):
+        raise RuntimeError(f"Telegram API error: {data}")
 
 
 def escape(value: str | None) -> str:
@@ -228,6 +251,107 @@ def get_custom_objects_api() -> client.CustomObjectsApi:
     return client.CustomObjectsApi()
 
 
+def collect_top_pod_metrics() -> tuple[list[tuple[str, int, int]] | None, str | None]:
+    custom_api = get_custom_objects_api()
+    try:
+        data = custom_api.list_namespaced_custom_object(
+            group="metrics.k8s.io",
+            version="v1beta1",
+            namespace=TARGET_NAMESPACE,
+            plural="pods",
+        )
+    except ApiException as exc:
+        LOGGER.exception("Failed to get pod metrics")
+        return None, str(exc)
+
+    items = []
+    for item in data.get("items", []):
+        total_cpu = 0
+        total_memory = 0
+        for container in item.get("containers", []):
+            usage = container.get("usage", {})
+            total_cpu += parse_cpu_millicores(usage.get("cpu"))
+            total_memory += parse_memory_bytes(usage.get("memory"))
+        items.append((item["metadata"]["name"], total_cpu, total_memory))
+    items.sort(key=lambda row: (row[2], row[1]), reverse=True)
+    return items, None
+
+
+def collect_top_node_metrics() -> tuple[list[tuple[str, int, int]] | None, str | None]:
+    custom_api = get_custom_objects_api()
+    try:
+        data = custom_api.list_cluster_custom_object(
+            group="metrics.k8s.io",
+            version="v1beta1",
+            plural="nodes",
+        )
+    except ApiException as exc:
+        LOGGER.exception("Failed to get node metrics")
+        return None, str(exc)
+
+    items = []
+    for item in data.get("items", []):
+        usage = item.get("usage", {})
+        items.append(
+            (
+                item["metadata"]["name"],
+                parse_cpu_millicores(usage.get("cpu")),
+                parse_memory_bytes(usage.get("memory")),
+            )
+        )
+    items.sort(key=lambda row: (row[2], row[1]), reverse=True)
+    return items, None
+
+
+def collect_storage_metrics(
+    core_api: client.CoreV1Api,
+) -> tuple[list[tuple[str, str | None, int]] | None, str | None]:
+    try:
+        pvcs = core_api.list_namespaced_persistent_volume_claim(TARGET_NAMESPACE).items
+    except ApiException as exc:
+        LOGGER.exception("Failed to list PVCs")
+        return None, str(exc)
+
+    items = []
+    for pvc in pvcs:
+        requested = (pvc.spec.resources.requests or {}).get("storage", "0")
+        items.append(
+            (
+                pvc.metadata.name,
+                pvc.spec.storage_class_name,
+                parse_memory_bytes(requested) if requested else 0,
+            )
+        )
+    items.sort(key=lambda row: row[2], reverse=True)
+    return items, None
+
+
+def build_bar_chart(
+    labels: list[str],
+    values: list[float],
+    title: str,
+    x_label: str,
+    color: str,
+) -> io.BytesIO:
+    figure_height = max(4, len(labels) * 0.45)
+    fig, ax = plt.subplots(figsize=(11, figure_height))
+    positions = list(range(len(labels)))
+    ax.barh(positions, values, color=color)
+    ax.set_yticks(positions)
+    ax.set_yticklabels(labels, fontsize=9)
+    ax.invert_yaxis()
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.grid(axis="x", linestyle="--", alpha=0.3)
+    fig.tight_layout()
+
+    image = io.BytesIO()
+    fig.savefig(image, format="png", dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    image.seek(0)
+    return image
+
+
 def format_timestamp(value: object) -> str:
     if value is None:
         return "Unknown"
@@ -369,29 +493,9 @@ def get_app_status() -> str:
 
 
 def get_top_pods() -> str:
-    custom_api = get_custom_objects_api()
-    try:
-        data = custom_api.list_namespaced_custom_object(
-            group="metrics.k8s.io",
-            version="v1beta1",
-            namespace=TARGET_NAMESPACE,
-            plural="pods",
-        )
-    except ApiException as exc:
-        LOGGER.exception("Failed to get pod metrics")
-        return "<b>Failed to get pod metrics</b>\n" f"<code>{escape(str(exc))}</code>"
-
-    items = []
-    for item in data.get("items", []):
-        total_cpu = 0
-        total_memory = 0
-        for container in item.get("containers", []):
-            usage = container.get("usage", {})
-            total_cpu += parse_cpu_millicores(usage.get("cpu"))
-            total_memory += parse_memory_bytes(usage.get("memory"))
-        items.append((item["metadata"]["name"], total_cpu, total_memory))
-
-    items.sort(key=lambda row: (row[2], row[1]), reverse=True)
+    items, error = collect_top_pod_metrics()
+    if items is None:
+        return "<b>Failed to get pod metrics</b>\n" f"<code>{escape(error)}</code>"
     lines = [f"<b>Top pods in namespace:</b> <code>{TARGET_NAMESPACE}</code>", ""]
     for name, cpu_m, mem_b in items[:15]:
         lines.append(
@@ -403,29 +507,9 @@ def get_top_pods() -> str:
 
 
 def get_top_nodes() -> str:
-    custom_api = get_custom_objects_api()
-    try:
-        data = custom_api.list_cluster_custom_object(
-            group="metrics.k8s.io",
-            version="v1beta1",
-            plural="nodes",
-        )
-    except ApiException as exc:
-        LOGGER.exception("Failed to get node metrics")
-        return "<b>Failed to get node metrics</b>\n" f"<code>{escape(str(exc))}</code>"
-
-    items = []
-    for item in data.get("items", []):
-        usage = item.get("usage", {})
-        items.append(
-            (
-                item["metadata"]["name"],
-                parse_cpu_millicores(usage.get("cpu")),
-                parse_memory_bytes(usage.get("memory")),
-            )
-        )
-
-    items.sort(key=lambda row: (row[2], row[1]), reverse=True)
+    items, error = collect_top_node_metrics()
+    if items is None:
+        return "<b>Failed to get node metrics</b>\n" f"<code>{escape(error)}</code>"
     lines = ["<b>Top nodes</b>", ""]
     for name, cpu_m, mem_b in items:
         lines.append(
@@ -437,25 +521,80 @@ def get_top_nodes() -> str:
 
 
 def get_storage(core_api: client.CoreV1Api) -> str:
-    try:
-        pvcs = core_api.list_namespaced_persistent_volume_claim(TARGET_NAMESPACE).items
-    except ApiException as exc:
-        LOGGER.exception("Failed to list PVCs")
-        return "<b>Failed to list PVCs</b>\n" f"<code>{escape(str(exc))}</code>"
+    items, error = collect_storage_metrics(core_api)
+    if items is None:
+        return "<b>Failed to list PVCs</b>\n" f"<code>{escape(error)}</code>"
 
     lines = [f"<b>Storage in namespace:</b> <code>{TARGET_NAMESPACE}</code>", ""]
     total_requested = 0
-    for pvc in pvcs:
-        requested = (pvc.spec.resources.requests or {}).get("storage", "0")
-        total_requested += parse_memory_bytes(requested) if requested else 0
+    for name, storage_class, requested_bytes in items:
+        total_requested += requested_bytes
         lines.append(
-            f"<code>{escape(pvc.metadata.name)}</code> - class <b>{escape(pvc.spec.storage_class_name)}</b>, requested <b>{escape(requested)}</b>"
+            f"<code>{escape(name)}</code> - class <b>{escape(storage_class)}</b>, requested <b>{format_bytes(requested_bytes)}</b>"
         )
-    if pvcs:
+    if items:
         lines.extend(["", f"<b>Total requested storage:</b> <b>{format_bytes(total_requested)}</b>"])
     else:
         lines.append("No persistent volume claims found.")
     return "\n".join(lines)
+
+
+def send_pod_metrics_chart(chat_id: str) -> None:
+    items, error = collect_top_pod_metrics()
+    if items is None:
+        send_message(chat_id, "<b>Failed to get pod metrics</b>\n" f"<code>{escape(error)}</code>")
+        return
+    if not items:
+        send_message(chat_id, "No pod metrics found.")
+        return
+
+    top_items = items[:10]
+    labels = [name[:36] for name, _, _ in top_items]
+    memory_values = [round(mem_b / (1024**2), 1) for _, _, mem_b in top_items]
+    image = build_bar_chart(
+        labels,
+        memory_values,
+        f"Pod RAM Usage - {TARGET_NAMESPACE}",
+        "MiB",
+        "#2D6A4F",
+    )
+    send_photo(chat_id, image, f"<b>Pod RAM usage snapshot</b>\n<code>{TARGET_NAMESPACE}</code>")
+
+
+def send_node_metrics_chart(chat_id: str) -> None:
+    items, error = collect_top_node_metrics()
+    if items is None:
+        send_message(chat_id, "<b>Failed to get node metrics</b>\n" f"<code>{escape(error)}</code>")
+        return
+    if not items:
+        send_message(chat_id, "No node metrics found.")
+        return
+
+    labels = [name for name, _, _ in items]
+    memory_values = [round(mem_b / (1024**3), 2) for _, _, mem_b in items]
+    image = build_bar_chart(labels, memory_values, "Node RAM Usage", "GiB", "#BC6C25")
+    send_photo(chat_id, image, "<b>Node RAM usage snapshot</b>")
+
+
+def send_storage_chart(core_api: client.CoreV1Api, chat_id: str) -> None:
+    items, error = collect_storage_metrics(core_api)
+    if items is None:
+        send_message(chat_id, "<b>Failed to list PVCs</b>\n" f"<code>{escape(error)}</code>")
+        return
+    if not items:
+        send_message(chat_id, "No persistent volume claims found.")
+        return
+
+    labels = [name for name, _, _ in items[:10]]
+    values = [round(size / (1024**3), 2) for _, _, size in items[:10]]
+    image = build_bar_chart(
+        labels,
+        values,
+        f"PVC Requested Storage - {TARGET_NAMESPACE}",
+        "GiB",
+        "#6C757D",
+    )
+    send_photo(chat_id, image, f"<b>PVC storage snapshot</b>\n<code>{TARGET_NAMESPACE}</code>")
 
 
 def get_resource_requests(core_api: client.CoreV1Api) -> str:
@@ -497,6 +636,9 @@ def help_text() -> str:
         "<code>/cluster</code> - show cluster statistics for syncio\n"
         "<code>/top pods</code> - live CPU/RAM usage for pods\n"
         "<code>/top nodes</code> - live CPU/RAM usage for nodes\n"
+        "<code>/graph pods</code> - RAM usage chart for pods\n"
+        "<code>/graph nodes</code> - RAM usage chart for nodes\n"
+        "<code>/graph storage</code> - PVC storage chart\n"
         "<code>/storage</code> - PVC storage requests in syncio\n"
         "<code>/resources</code> - CPU/RAM requests and limits summary\n"
         "<code>/help</code> - show this help"
@@ -544,6 +686,15 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
         return
     if text == "/top nodes":
         send_message(chat_id, get_top_nodes())
+        return
+    if text == "/graph pods":
+        send_pod_metrics_chart(chat_id)
+        return
+    if text == "/graph nodes":
+        send_node_metrics_chart(chat_id)
+        return
+    if text == "/graph storage":
+        send_storage_chart(core_api, chat_id)
         return
     if text == "/storage":
         send_message(chat_id, get_storage(core_api))
