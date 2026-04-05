@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: auth
-          image: vietpham18/auth-service:latest
+          image: vietpham18/auth-service:774aa3a144baf1afc913d26d09ec54e9f2e56a1a
           ports:
             - containerPort: 8081
           env:
@@ -72,7 +72,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:5cc8af8c28b8cf8554bef12c2dc6e9f36239e01c
+          image: vietpham18/user-service:774aa3a144baf1afc913d26d09ec54e9f2e56a1a
           ports:
             - containerPort: 8082
           env:
@@ -128,7 +128,7 @@ spec:
     spec:
       containers:
         - name: relationship
-          image: vietpham18/relationship-service:latest
+          image: vietpham18/relationship-service:774aa3a144baf1afc913d26d09ec54e9f2e56a1a
           ports:
             - containerPort: 8087
           env:
@@ -178,7 +178,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:latest
+          image: vietpham18/post-service:774aa3a144baf1afc913d26d09ec54e9f2e56a1a
           ports:
             - containerPort: 8085
           env:
@@ -228,7 +228,7 @@ spec:
     spec:
       containers:
         - name: permission
-          image: vietpham18/permission-service:latest
+          image: vietpham18/permission-service:774aa3a144baf1afc913d26d09ec54e9f2e56a1a
           ports:
             - containerPort: 8088
           env:
@@ -278,7 +278,7 @@ spec:
     spec:
       containers:
         - name: org
-          image: vietpham18/org-service:latest
+          image: vietpham18/org-service:774aa3a144baf1afc913d26d09ec54e9f2e56a1a
           ports:
             - containerPort: 8084
           env:
@@ -328,7 +328,7 @@ spec:
     spec:
       containers:
         - name: notification
-          image: vietpham18/notification-service:latest
+          image: vietpham18/notification-service:774aa3a144baf1afc913d26d09ec54e9f2e56a1a
           ports:
             - containerPort: 8083
           env:
