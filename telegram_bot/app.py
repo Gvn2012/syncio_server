@@ -23,6 +23,8 @@ ALLOWED_CHAT_IDS = {
     if chat_id.strip()
 }
 TARGET_NAMESPACE = os.getenv("TARGET_NAMESPACE", "syncio")
+ARGOCD_APP_NAMESPACE = os.getenv("ARGOCD_APP_NAMESPACE", "argocd")
+ARGOCD_APP_NAME = os.getenv("ARGOCD_APP_NAME", "syncio-app")
 POLL_TIMEOUT_SECONDS = int(os.getenv("POLL_TIMEOUT_SECONDS", "30"))
 API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
@@ -226,6 +228,146 @@ def get_custom_objects_api() -> client.CustomObjectsApi:
     return client.CustomObjectsApi()
 
 
+def format_timestamp(value: object) -> str:
+    if value is None:
+        return "Unknown"
+    timestamp = getattr(value, "strftime", None)
+    if timestamp is not None:
+        return value.strftime("%Y-%m-%d %H:%M:%S UTC")
+    return escape(str(value))
+
+
+def get_events(core_api: client.CoreV1Api) -> str:
+    try:
+        events = core_api.list_namespaced_event(TARGET_NAMESPACE).items
+    except ApiException as exc:
+        LOGGER.exception("Failed to list events")
+        return "<b>Failed to list events</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    def event_sort_key(event: client.CoreV1Event) -> str:
+        return str(
+            event.last_timestamp
+            or event.event_time
+            or event.first_timestamp
+            or event.metadata.creation_timestamp
+            or ""
+        )
+
+    warnings = [event for event in events if (event.type or "") == "Warning"]
+    selected = sorted(warnings or events, key=event_sort_key, reverse=True)[:10]
+
+    lines = [f"<b>Recent events in namespace:</b> <code>{TARGET_NAMESPACE}</code>", ""]
+    if warnings:
+        lines.append("<b>Showing warning events first</b>")
+        lines.append("")
+
+    for event in selected:
+        involved = event.involved_object
+        object_ref = f"{involved.kind}/{involved.name}" if involved else "Unknown"
+        lines.append(
+            f"<b>{escape(event.type or 'Normal')}</b> <code>{escape(event.reason or 'Unknown')}</code>"
+        )
+        lines.append(f"<code>{escape(object_ref)}</code>")
+        lines.append(escape(event.message or "No message"))
+        lines.append(f"<i>{format_timestamp(event.last_timestamp or event.event_time or event.first_timestamp or event.metadata.creation_timestamp)}</i>")
+        lines.append("")
+
+    if len(lines) == 2:
+        lines.append("No events found.")
+    return "\n".join(lines).rstrip()
+
+
+def get_restarts(core_api: client.CoreV1Api) -> str:
+    pods, error = list_pods(core_api)
+    if pods is None:
+        return "<b>Failed to inspect restarts</b>\n" f"<code>{escape(error)}</code>"
+
+    items = []
+    for pod in pods:
+        statuses = pod.status.container_statuses or []
+        restart_count = sum(status.restart_count or 0 for status in statuses)
+        waiting_reason = next(
+            (
+                status.state.waiting.reason
+                for status in statuses
+                if status.state and status.state.waiting and status.state.waiting.reason
+            ),
+            "",
+        )
+        items.append((pod.metadata.name, restart_count, pod.status.phase or "Unknown", waiting_reason))
+
+    items = [item for item in items if item[1] > 0]
+    items.sort(key=lambda row: row[1], reverse=True)
+
+    lines = [f"<b>Pod restarts in namespace:</b> <code>{TARGET_NAMESPACE}</code>", ""]
+    if not items:
+        lines.append("No pod restarts detected.")
+        return "\n".join(lines)
+
+    for name, restart_count, phase, waiting_reason in items[:15]:
+        suffix = f", reason <b>{escape(waiting_reason)}</b>" if waiting_reason else ""
+        lines.append(
+            f"<code>{escape(name)}</code> - restarts <b>{restart_count}</b>, phase <b>{escape(phase)}</b>{suffix}"
+        )
+    return "\n".join(lines)
+
+
+def get_app_status() -> str:
+    custom_api = get_custom_objects_api()
+    try:
+        app = custom_api.get_namespaced_custom_object(
+            group="argoproj.io",
+            version="v1alpha1",
+            namespace=ARGOCD_APP_NAMESPACE,
+            plural="applications",
+            name=ARGOCD_APP_NAME,
+        )
+    except ApiException as exc:
+        LOGGER.exception("Failed to get Argo CD application")
+        return "<b>Failed to get Argo CD application</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    spec = app.get("spec", {})
+    status = app.get("status", {})
+    source = spec.get("source") or (spec.get("sources") or [{}])[0]
+    sync = status.get("sync", {})
+    health = status.get("health", {})
+    operation = status.get("operationState", {})
+    summary = status.get("summary", {})
+    resources = summary.get("externalURLs", [])
+
+    lines = [
+        "<b>Argo CD application</b>",
+        "",
+        f"<b>Name:</b> <code>{escape(app.get('metadata', {}).get('name'))}</code>",
+        f"<b>Namespace:</b> <code>{escape(ARGOCD_APP_NAMESPACE)}</code>",
+        f"<b>Project:</b> <code>{escape(spec.get('project'))}</code>",
+        f"<b>Sync:</b> <b>{escape(sync.get('status'))}</b>",
+        f"<b>Health:</b> <b>{escape(health.get('status'))}</b>",
+        f"<b>Revision:</b> <code>{escape(sync.get('revision'))}</code>",
+        f"<b>Target revision:</b> <code>{escape(source.get('targetRevision'))}</code>",
+        f"<b>Operation phase:</b> <b>{escape(operation.get('phase'))}</b>",
+        f"<b>Repo:</b> <code>{escape(source.get('repoURL'))}</code>",
+        f"<b>Path:</b> <code>{escape(source.get('path'))}</code>",
+        f"<b>Cluster:</b> <code>{escape(spec.get('destination', {}).get('server'))}</code>",
+        f"<b>Destination namespace:</b> <code>{escape(spec.get('destination', {}).get('namespace'))}</code>",
+    ]
+
+    if resources:
+        lines.extend(["", "<b>External URLs:</b>"])
+        for url in resources[:5]:
+            lines.append(f"<code>{escape(url)}</code>")
+
+    conditions = status.get("conditions") or []
+    if conditions:
+        lines.extend(["", "<b>Conditions:</b>"])
+        for condition in conditions[:5]:
+            lines.append(
+                f"<code>{escape(condition.get('type'))}</code> - {escape(condition.get('message'))}"
+            )
+
+    return "\n".join(lines)
+
+
 def get_top_pods() -> str:
     custom_api = get_custom_objects_api()
     try:
@@ -347,6 +489,9 @@ def help_text() -> str:
         "<b>Syncio bot commands</b>\n\n"
         "<code>/pods</code> - list pods in the syncio namespace\n"
         "<code>/pods pending</code> - list only pending pods\n"
+        "<code>/events</code> - show recent namespace events\n"
+        "<code>/restarts</code> - show pods with restart counts\n"
+        "<code>/app</code> - show Argo CD application status\n"
         "<code>/deployments</code> - list deployments and ready counts\n"
         "<code>/services</code> - list services in the syncio namespace\n"
         "<code>/cluster</code> - show cluster statistics for syncio\n"
@@ -375,6 +520,15 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
         return
     if text == "/pods pending":
         send_message(chat_id, get_pods(core_api, pending_only=True))
+        return
+    if text == "/events":
+        send_message(chat_id, get_events(core_api))
+        return
+    if text == "/restarts":
+        send_message(chat_id, get_restarts(core_api))
+        return
+    if text == "/app":
+        send_message(chat_id, get_app_status())
         return
     if text == "/deployments":
         send_message(chat_id, get_deployments())
