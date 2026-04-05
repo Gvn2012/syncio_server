@@ -10,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:Gvn2012/syncio_server.git
+    repoURL: https://github.com/Gvn2012/syncio_server.git
     targetRevision: main
     path: k8s
     directory:

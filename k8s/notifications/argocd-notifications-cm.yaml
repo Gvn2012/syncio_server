@@ -14,40 +14,26 @@ data:
 
   # HTML Templates (Much more reliable than Markdown for Telegram)
   template.sync-succeeded: |
-    telegram:
-      message: |
-        ✅ <b>ArgoCD: Sync Succeeded</b>
-        <b>Application:</b> <code>{{.app.metadata.name}}</code>
-        <b>Status:</b> <code>{{or .app.status.operationState.phase "Unknown"}}</code>
-        <b>Revision:</b> <code>{{or .app.status.sync.revision "Unknown"}}</code>
+    message: "✅ ArgoCD sync succeeded: {{.app.metadata.name}}"
   
   template.sync-failed: |
-    telegram:
-      message: |
-        ❌ <b>ArgoCD: Sync Failed</b>
-        <b>Application:</b> <code>{{.app.metadata.name}}</code>
-        <b>Status:</b> <code>{{or .app.status.operationState.phase "Unknown"}}</code>
-        <b>Revision:</b> <code>{{or .app.status.sync.revision "Unknown"}}</code>
+    message: "❌ ArgoCD sync failed: {{.app.metadata.name}}"
 
   template.sync-running: |
-    telegram:
-      message: |
-        🔄 <b>ArgoCD: Sync Started</b>
-        <b>Application:</b> <code>{{.app.metadata.name}}</code>
-        <b>Revision:</b> <code>{{or .app.status.sync.revision "Unknown"}}</code>
+    message: "🔄 ArgoCD sync started: {{.app.metadata.name}}"
 
   # Notification Triggers
   trigger.on-sync-succeeded: |
-    - when: app.status?.operationState.phase in ['Succeeded'] and app.status.sync.status == 'Synced'
+    - when: app.status != nil and app.status.operationState != nil and app.status.operationState.phase in ['Succeeded'] and app.status.sync.status == 'Synced'
       oncePer: app.status.sync.revision
       send: [sync-succeeded]
   
   trigger.on-sync-failed: |
-    - when: app.status?.operationState.phase in ['Error', 'Failed']
+    - when: app.status != nil and app.status.operationState != nil and app.status.operationState.phase in ['Error', 'Failed']
       oncePer: app.status.sync.revision
       send: [sync-failed]
 
   trigger.on-sync-running: |
-    - when: app.status?.operationState.phase in ['Running']
+    - when: app.status != nil and app.status.operationState != nil and app.status.operationState.phase in ['Running']
       oncePer: app.status.sync.revision
       send: [sync-running]
