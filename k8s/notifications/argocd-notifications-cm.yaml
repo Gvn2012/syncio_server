@@ -62,6 +62,30 @@ data:
             "text": "🚨 <b>ArgoCD Health Degraded</b>\n\n<b>Application:</b> {{ .app.metadata.name }}\n<b>Project:</b> {{ .app.spec.project }}\n<b>Sync Status:</b> {{ .app.status.sync.status }}\n<b>Operation:</b> {{ if .app.status.operationState }}{{ .app.status.operationState.phase }}{{ else }}Unknown{{ end }}\n<b>Health:</b> {{ .app.status.health.status }}\n<b>Revision:</b> <code>{{ .app.status.sync.revision }}</code>\n<b>Repo:</b> <code>{{ .app.spec.source.repoURL }}</code>\n<b>Path:</b> <code>{{ .app.spec.source.path }}</code>\n<b>Namespace:</b> <code>{{ .app.spec.destination.namespace }}</code>\n\n<a href=\"https://argocd.example.com/applications/{{ .app.metadata.name }}\">Investigate in ArgoCD</a>"
           }
 
+  template.telegram-health-progressing: |
+    webhook:
+      telegram:
+        method: POST
+        body: |
+          {
+            "chat_id": "7537927055",
+            "parse_mode": "HTML",
+            "disable_web_page_preview": true,
+            "text": "⏳ <b>ArgoCD Health Progressing</b>\n\n<b>Application:</b> {{ .app.metadata.name }}\n<b>Project:</b> {{ .app.spec.project }}\n<b>Sync Status:</b> {{ .app.status.sync.status }}\n<b>Operation:</b> {{ if .app.status.operationState }}{{ .app.status.operationState.phase }}{{ else }}Unknown{{ end }}\n<b>Health:</b> {{ .app.status.health.status }}\n<b>Revision:</b> <code>{{ .app.status.sync.revision }}</code>\n<b>Repo:</b> <code>{{ .app.spec.source.repoURL }}</code>\n<b>Path:</b> <code>{{ .app.spec.source.path }}</code>\n<b>Namespace:</b> <code>{{ .app.spec.destination.namespace }}</code>\n\n<a href=\"https://argocd.example.com/applications/{{ .app.metadata.name }}\">Open in ArgoCD</a>"
+          }
+
+  template.telegram-health-healthy: |
+    webhook:
+      telegram:
+        method: POST
+        body: |
+          {
+            "chat_id": "7537927055",
+            "parse_mode": "HTML",
+            "disable_web_page_preview": true,
+            "text": "✅ <b>ArgoCD Health Healthy</b>\n\n<b>Application:</b> {{ .app.metadata.name }}\n<b>Project:</b> {{ .app.spec.project }}\n<b>Sync Status:</b> {{ .app.status.sync.status }}\n<b>Operation:</b> {{ if .app.status.operationState }}{{ .app.status.operationState.phase }}{{ else }}Unknown{{ end }}\n<b>Health:</b> {{ .app.status.health.status }}\n<b>Revision:</b> <code>{{ .app.status.sync.revision }}</code>\n<b>Repo:</b> <code>{{ .app.spec.source.repoURL }}</code>\n<b>Path:</b> <code>{{ .app.spec.source.path }}</code>\n<b>Namespace:</b> <code>{{ .app.spec.destination.namespace }}</code>\n\n<a href=\"https://argocd.example.com/applications/{{ .app.metadata.name }}\">Open in ArgoCD</a>"
+          }
+
   # Notification Triggers
   trigger.on-deployed-telegram: |
     - when: app.status != nil and app.status.operationState != nil and app.status.operationState.phase in ['Succeeded'] and app.status.sync.status == 'Synced'
@@ -79,5 +103,15 @@ data:
 
   trigger.on-health-degraded-telegram: |
     - when: app.status != nil and app.status.health != nil and app.status.health.status in ['Degraded']
-      oncePer: app.status.sync.revision
+      oncePer: app.status.sync.revision + '-' + app.status.health.status
       send: [telegram-health-degraded]
+
+  trigger.on-health-progressing-telegram: |
+    - when: app.status != nil and app.status.health != nil and app.status.health.status in ['Progressing']
+      oncePer: app.status.sync.revision + '-' + app.status.health.status
+      send: [telegram-health-progressing]
+
+  trigger.on-health-healthy-telegram: |
+    - when: app.status != nil and app.status.health != nil and app.status.health.status in ['Healthy']
+      oncePer: app.status.sync.revision + '-' + app.status.health.status
+      send: [telegram-health-healthy]
