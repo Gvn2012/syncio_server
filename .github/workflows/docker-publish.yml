@@ -158,6 +158,6 @@ jobs:
             ${{ env.POD_STATUS }}
             ```
             
-            ${{ job.status == 'success' && '✅ *All steps passedport-forward svc/argocd-server -n argocd 8080:443' || format('❌ *Failed at step:* `{0}`', (steps.login.outcome == 'failure' && 'Login') || (steps.build.outcome == 'failure' && 'Build/Push') || (steps.commit.outcome == 'failure' && 'Git Push') || (steps.auth.outcome == 'failure' && 'GCP Auth') || 'Unknown') }}
+            ${{ job.status == 'success' && '✅ *All steps passed!*' || format('❌ *Failed at step:* `{0}`', (steps.login.outcome == 'failure' && 'Login') || (steps.build.outcome == 'failure' && 'Build/Push') || (steps.commit.outcome == 'failure' && 'Git Push') || (steps.auth.outcome == 'failure' && 'GCP Auth') || 'Unknown') }}
             
             ${{ job.status == 'success' && 'Deployment sync triggered. Check ArgoCD for final health status.' || 'Please check GitHub Actions logs for details.' }}
