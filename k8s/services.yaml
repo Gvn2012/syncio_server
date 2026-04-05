@@ -6,6 +6,12 @@ metadata:
   namespace: syncio
 spec:
   replicas: 2
+  minReadySeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: syncio-auth
@@ -19,6 +25,18 @@ spec:
           image: vietpham18/auth-service:dbc5ffffd8d2de3911f3a4832b286b223413bb78
           ports:
             - containerPort: 8081
+          startupProbe:
+            tcpSocket:
+              port: 8081
+            periodSeconds: 10
+            failureThreshold: 18
+            timeoutSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: 8081
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
           env:
             - name: SPRING_DATASOURCE_URL
               value: jdbc:mysql://34.21.187.164:3306/syncio
@@ -62,6 +80,12 @@ metadata:
   namespace: syncio
 spec:
   replicas: 2
+  minReadySeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: syncio-user
@@ -75,6 +99,18 @@ spec:
           image: vietpham18/user-service:e4f269ea2f6b3795ef9849810e5bbac736c436d8
           ports:
             - containerPort: 8082
+          startupProbe:
+            tcpSocket:
+              port: 8082
+            periodSeconds: 10
+            failureThreshold: 18
+            timeoutSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: 8082
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
           env:
             - name: SPRING_DATASOURCE_URL
               value: jdbc:mysql://34.21.187.164:3306/syncio
@@ -118,6 +154,12 @@ metadata:
   namespace: syncio
 spec:
   replicas: 2
+  minReadySeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: syncio-relationship
@@ -131,6 +173,18 @@ spec:
           image: vietpham18/relationship-service:c22e152ebd2992db3a5f160d396626c988534fd9
           ports:
             - containerPort: 8087
+          startupProbe:
+            tcpSocket:
+              port: 8087
+            periodSeconds: 10
+            failureThreshold: 18
+            timeoutSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: 8087
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka.syncio.svc.cluster.local:9092
@@ -168,6 +222,12 @@ metadata:
   namespace: syncio
 spec:
   replicas: 2
+  minReadySeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: syncio-post
@@ -181,6 +241,18 @@ spec:
           image: vietpham18/post-service:ea2cb0af246848e7658c4fcf0b0e7d08070f6341
           ports:
             - containerPort: 8085
+          startupProbe:
+            tcpSocket:
+              port: 8085
+            periodSeconds: 10
+            failureThreshold: 18
+            timeoutSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: 8085
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka.syncio.svc.cluster.local:9092
@@ -218,6 +290,12 @@ metadata:
   namespace: syncio
 spec:
   replicas: 2
+  minReadySeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: syncio-permission
@@ -231,6 +309,18 @@ spec:
           image: vietpham18/permission-service:dbc5ffffd8d2de3911f3a4832b286b223413bb78
           ports:
             - containerPort: 8088
+          startupProbe:
+            tcpSocket:
+              port: 8088
+            periodSeconds: 10
+            failureThreshold: 18
+            timeoutSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: 8088
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka.syncio.svc.cluster.local:9092
@@ -268,6 +358,12 @@ metadata:
   namespace: syncio
 spec:
   replicas: 2
+  minReadySeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: syncio-org
@@ -281,6 +377,18 @@ spec:
           image: vietpham18/org-service:dbc5ffffd8d2de3911f3a4832b286b223413bb78
           ports:
             - containerPort: 8084
+          startupProbe:
+            tcpSocket:
+              port: 8084
+            periodSeconds: 10
+            failureThreshold: 18
+            timeoutSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: 8084
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka.syncio.svc.cluster.local:9092
@@ -318,6 +426,12 @@ metadata:
   namespace: syncio
 spec:
   replicas: 2
+  minReadySeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: syncio-notification
@@ -331,6 +445,18 @@ spec:
           image: vietpham18/notification-service:ea2cb0af246848e7658c4fcf0b0e7d08070f6341
           ports:
             - containerPort: 8083
+          startupProbe:
+            tcpSocket:
+              port: 8083
+            periodSeconds: 10
+            failureThreshold: 18
+            timeoutSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: 8083
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka.syncio.svc.cluster.local:9092
