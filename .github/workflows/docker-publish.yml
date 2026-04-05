@@ -135,7 +135,7 @@ jobs:
         run: |
           echo "FINISHED_TIME=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_ENV
           echo "POD_STATUS<<EOF" >> $GITHUB_ENV
-          kubectl get pods -n syncio --no-headers=false || echo "Node unreachable" >> $GITHUB_ENV
+          (kubectl get pods -n syncio --no-headers=false || echo "Node unreachable") >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
       - name: Send result notification
