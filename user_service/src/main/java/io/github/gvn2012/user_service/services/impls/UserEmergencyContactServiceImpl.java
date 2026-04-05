@@ -26,6 +26,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+
+//aa
 public class UserEmergencyContactServiceImpl implements IUserEmergencyContactService {
 
     private final UserEmergencyContactRepository emergencyContactRepository;

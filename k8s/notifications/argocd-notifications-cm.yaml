@@ -8,19 +8,36 @@ metadata:
     app.kubernetes.io/name: argocd-notifications-controller
     app.kubernetes.io/part-of: argocd
 data:
-  # Telegram Service Configuration
-  service.telegram: |
-    token: $telegram-token
+  # Telegram via generic webhook to avoid native telegram notifier issues
+  service.webhook.telegramapi: |
+    url: https://api.telegram.org/bot$telegram-token
+    headers:
+      - name: Content-Type
+        value: application/x-www-form-urlencoded
 
-  # HTML Templates (Much more reliable than Markdown for Telegram)
   template.sync-succeeded: |
-    message: "✅ ArgoCD sync succeeded: {{.app.metadata.name}}"
+    webhook:
+      telegramapi:
+        method: POST
+        path: /sendMessage
+        body: |
+          chat_id=7537927055&text=✅+ArgoCD+sync+succeeded:+{{.app.metadata.name}}
   
   template.sync-failed: |
-    message: "❌ ArgoCD sync failed: {{.app.metadata.name}}"
+    webhook:
+      telegramapi:
+        method: POST
+        path: /sendMessage
+        body: |
+          chat_id=7537927055&text=❌+ArgoCD+sync+failed:+{{.app.metadata.name}}
 
   template.sync-running: |
-    message: "🔄 ArgoCD sync started: {{.app.metadata.name}}"
+    webhook:
+      telegramapi:
+        method: POST
+        path: /sendMessage
+        body: |
+          chat_id=7537927055&text=🔄+ArgoCD+sync+started:+{{.app.metadata.name}}
 
   # Notification Triggers
   trigger.on-sync-succeeded: |
