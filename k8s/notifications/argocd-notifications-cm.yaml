@@ -8,9 +8,9 @@ metadata:
     app.kubernetes.io/name: argocd-notifications-controller
     app.kubernetes.io/part-of: argocd
 data:
-  # Telegram Service Configuration
+  # Telegram Service Configuration (HARDCODED FOR TROUBLESHOOTING)
   service.telegram: |
-    token: $telegram-token
+    token: 8771671083:AAGj_8MG9Pwuq0oeHD5uwlSLWjI14FrpBh8
 
   # Minimalist Templates for Troubleshooting
   template.sync-succeeded: |
@@ -22,9 +22,9 @@ data:
   template.sync-running: |
     message: "🔄 ArgoCD: {{.app.metadata.name}} Syncing"
 
-  # Notification Triggers
+  # Notification Triggers (SIMPLIFIED)
   trigger.on-sync-succeeded: |
-    - when: app.status.sync.status == 'Synced' and app.status.health.status == 'Healthy'
+    - when: app.status.sync.status == 'Synced'
       send: [sync-succeeded]
   
   trigger.on-sync-failed: |
