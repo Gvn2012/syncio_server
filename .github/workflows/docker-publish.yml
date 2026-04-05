@@ -7,6 +7,9 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -110,20 +113,26 @@ jobs:
             git push
           fi
 
+      - id: 'auth'
+        if: always()
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: '${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}'
+          service_account: '${{ secrets.SERVICE_ACCOUNT_EMAIL }}'
+
+      - name: 'Get GKE credentials'
+        if: always()
+        uses: 'google-github-actions/get-gke-credentials@v2'
+        with:
+          cluster_name: 'syncio-cluster'
+          location: 'asia-southeast1-a'
+
       - name: Get Pod Status
         if: always()
-        env:
-          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
         run: |
-          if [ -n "$KUBECONFIG_DATA" ]; then
-            mkdir -p ~/.kube
-            echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
-            echo "POD_STATUS<<EOF" >> $GITHUB_ENV
-            kubectl get pods -n syncio >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
-          else
-            echo "POD_STATUS=Kubeconfig not provided. Skipping pod status." >> $GITHUB_ENV
-          fi
+          echo "POD_STATUS<<EOF" >> $GITHUB_ENV
+          kubectl get pods -n syncio --no-headers=false || echo "Node unreachable" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Send result notification
         if: always()
