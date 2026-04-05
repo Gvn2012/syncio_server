@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+//rebuild this
 @Service
 @RequiredArgsConstructor
 public class RelationshipServiceImpl implements IRelationshipService {
@@ -53,7 +54,8 @@ public class RelationshipServiceImpl implements IRelationshipService {
         relationship.setStatus(RelationshipStatus.ACTIVE);
         relationshipRepository.save(relationship);
 
-        eventProducer.publishEvent(new RelationshipChangedEvent(sourceId, targetId, RelationshipChangedEvent.ChangeType.FOLLOW));
+        eventProducer.publishEvent(
+                new RelationshipChangedEvent(sourceId, targetId, RelationshipChangedEvent.ChangeType.FOLLOW));
 
         return APIResource.ok("Followed successfully", relationshipMapper.toResponse(relationship));
     }
@@ -71,14 +73,16 @@ public class RelationshipServiceImpl implements IRelationshipService {
         relationship.setStatus(RelationshipStatus.REMOVED);
         relationshipRepository.save(relationship);
 
-        eventProducer.publishEvent(new RelationshipChangedEvent(sourceId, targetId, RelationshipChangedEvent.ChangeType.UNFOLLOW));
+        eventProducer.publishEvent(
+                new RelationshipChangedEvent(sourceId, targetId, RelationshipChangedEvent.ChangeType.UNFOLLOW));
 
         return APIResource.message("Unfollowed successfully", HttpStatus.OK);
     }
 
     @Override
     public APIResource<List<RelationshipResponse>> getFollowers(UUID userId) {
-        List<UserRelationship> followers = relationshipRepository.findAllByTargetUserIdAndStatus(userId, RelationshipStatus.ACTIVE);
+        List<UserRelationship> followers = relationshipRepository.findAllByTargetUserIdAndStatus(userId,
+                RelationshipStatus.ACTIVE);
         List<RelationshipResponse> responses = followers.stream()
                 .map(relationshipMapper::toResponse)
                 .collect(Collectors.toList());
@@ -115,11 +119,13 @@ public class RelationshipServiceImpl implements IRelationshipService {
 
     @Override
     public APIResource<List<UUID>> getMutualFriends(UUID userId, UUID targetId) {
-        List<UUID> userFriends = relationshipRepository.findAllBySourceUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+        List<UUID> userFriends = relationshipRepository
+                .findAllBySourceUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
                 .stream().filter(r -> r.getRelationshipType() == RelationshipType.FRIEND)
                 .map(UserRelationship::getTargetUserId).toList();
-        
-        List<UUID> targetFriends = relationshipRepository.findAllBySourceUserIdAndStatus(targetId, RelationshipStatus.ACTIVE)
+
+        List<UUID> targetFriends = relationshipRepository
+                .findAllBySourceUserIdAndStatus(targetId, RelationshipStatus.ACTIVE)
                 .stream().filter(r -> r.getRelationshipType() == RelationshipType.FRIEND)
                 .map(UserRelationship::getTargetUserId).toList();
 
@@ -132,9 +138,11 @@ public class RelationshipServiceImpl implements IRelationshipService {
 
     @Override
     public APIResource<List<RelationshipResponse>> searchFriends(UUID userId, String query) {
-        List<UserRelationship> friends = relationshipRepository.findAllBySourceUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+        List<UserRelationship> friends = relationshipRepository
+                .findAllBySourceUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
                 .stream().filter(r -> r.getRelationshipType() == RelationshipType.FRIEND)
-                .filter(r -> r.getSourceNickname() != null && r.getSourceNickname().toLowerCase().contains(query.toLowerCase()))
+                .filter(r -> r.getSourceNickname() != null
+                        && r.getSourceNickname().toLowerCase().contains(query.toLowerCase()))
                 .collect(Collectors.toList());
 
         List<RelationshipResponse> responses = friends.stream()

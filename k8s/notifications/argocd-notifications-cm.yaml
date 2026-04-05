@@ -19,14 +19,14 @@ data:
       *Application:* `{{.app.metadata.name}}`
       *Status:* `{{.app.status.health.status}}`
       *Revision:* `{{.app.status.sync.revision}}`
-      *Message:* `{{(index .app.status.conditions 0).message}}`
+      {{if .app.status.conditions}}*Message:* `{{(index .app.status.conditions 0).message}}`{{end}}
   
   template.sync-failed: |
     message: |
       ❌ *ArgoCD: Sync Failed*
       *Application:* `{{.app.metadata.name}}`
-      *Status:* `{{.app.status.health.status}}`
-      *Reason:* `{{(index .app.status.conditions 0).message}}`
+      {{if .app.status.health}}*Status:* `{{.app.status.health.status}}`{{end}}
+      {{if .app.status.conditions}}*Reason:* `{{(index .app.status.conditions 0).message}}`{{else}}*Reason:* Sync failed with unknown error.{{end}}
 
   template.sync-running: |
     message: |
