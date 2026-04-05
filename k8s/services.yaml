@@ -27,7 +27,7 @@ spec:
             - name: SPRING_DATASOURCE_PASSWORD
               value: Gvn2012@Phmz
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-              value: syncio-kafka:9092
+              value: syncio-kafka.syncio.svc.cluster.local:9092
             - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
               value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
@@ -83,7 +83,7 @@ spec:
             - name: SPRING_DATASOURCE_PASSWORD
               value: Gvn2012@Phmz
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-              value: syncio-kafka:9092
+              value: syncio-kafka.syncio.svc.cluster.local:9092
             - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
               value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
@@ -133,7 +133,7 @@ spec:
             - containerPort: 8087
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-              value: syncio-kafka:9092
+              value: syncio-kafka.syncio.svc.cluster.local:9092
             - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
               value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
@@ -183,7 +183,7 @@ spec:
             - containerPort: 8085
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-              value: syncio-kafka:9092
+              value: syncio-kafka.syncio.svc.cluster.local:9092
             - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
               value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
@@ -233,7 +233,7 @@ spec:
             - containerPort: 8088
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-              value: syncio-kafka:9092
+              value: syncio-kafka.syncio.svc.cluster.local:9092
             - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
               value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
@@ -283,7 +283,7 @@ spec:
             - containerPort: 8084
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-              value: syncio-kafka:9092
+              value: syncio-kafka.syncio.svc.cluster.local:9092
             - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
               value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
@@ -333,7 +333,7 @@ spec:
             - containerPort: 8083
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-              value: syncio-kafka:9092
+              value: syncio-kafka.syncio.svc.cluster.local:9092
             - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
               value: http://syncio-zipkin:9411/api/v2/spans
             - name: EUREKA_CLIENT_ENABLED
