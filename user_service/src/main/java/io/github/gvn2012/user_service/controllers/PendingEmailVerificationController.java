@@ -20,6 +20,7 @@ public class PendingEmailVerificationController {
 
     private final IPendingEmailVerificationService pendingEmailVerificationService;
 
+    // bb
     @PostMapping
     public ResponseEntity<APIResource<StartEmailVerificationResponse>> start(
             @Valid @RequestBody StartEmailVerificationRequest request) {
