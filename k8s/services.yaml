@@ -510,7 +510,7 @@ metadata:
   namespace: syncio
 rules:
   - apiGroups: [""]
-    resources: ["pods", "services"]
+    resources: ["pods", "services", "persistentvolumeclaims"]
     verbs: ["get", "list"]
   - apiGroups: ["apps"]
     resources: ["deployments"]
@@ -537,6 +537,9 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["nodes"]
+    verbs: ["get", "list"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes", "pods"]
     verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

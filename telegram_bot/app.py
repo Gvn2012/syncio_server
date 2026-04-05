@@ -186,6 +186,162 @@ def get_cluster_stats(core_api: client.CoreV1Api) -> str:
     return "\n".join(lines)
 
 
+def parse_cpu_millicores(value: str | None) -> int:
+    if not value:
+        return 0
+    if value.endswith("m"):
+        return int(value[:-1])
+    return int(float(value) * 1000)
+
+
+def parse_memory_bytes(value: str | None) -> int:
+    if not value:
+        return 0
+    suffixes = {
+        "Ki": 1024,
+        "Mi": 1024**2,
+        "Gi": 1024**3,
+        "Ti": 1024**4,
+        "K": 1000,
+        "M": 1000**2,
+        "G": 1000**3,
+        "T": 1000**4,
+    }
+    for suffix, multiplier in suffixes.items():
+        if value.endswith(suffix):
+            return int(float(value[: -len(suffix)]) * multiplier)
+    return int(value)
+
+
+def format_bytes(num_bytes: int) -> str:
+    value = float(num_bytes)
+    for unit in ["B", "Ki", "Mi", "Gi", "Ti"]:
+        if value < 1024 or unit == "Ti":
+            return f"{value:.0f}{unit}" if unit == "B" else f"{value:.1f}{unit}"
+        value /= 1024
+    return f"{value:.1f}Ti"
+
+
+def get_custom_objects_api() -> client.CustomObjectsApi:
+    return client.CustomObjectsApi()
+
+
+def get_top_pods() -> str:
+    custom_api = get_custom_objects_api()
+    try:
+        data = custom_api.list_namespaced_custom_object(
+            group="metrics.k8s.io",
+            version="v1beta1",
+            namespace=TARGET_NAMESPACE,
+            plural="pods",
+        )
+    except ApiException as exc:
+        LOGGER.exception("Failed to get pod metrics")
+        return "<b>Failed to get pod metrics</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    items = []
+    for item in data.get("items", []):
+        total_cpu = 0
+        total_memory = 0
+        for container in item.get("containers", []):
+            usage = container.get("usage", {})
+            total_cpu += parse_cpu_millicores(usage.get("cpu"))
+            total_memory += parse_memory_bytes(usage.get("memory"))
+        items.append((item["metadata"]["name"], total_cpu, total_memory))
+
+    items.sort(key=lambda row: (row[2], row[1]), reverse=True)
+    lines = [f"<b>Top pods in namespace:</b> <code>{TARGET_NAMESPACE}</code>", ""]
+    for name, cpu_m, mem_b in items[:15]:
+        lines.append(
+            f"<code>{escape(name)}</code> - CPU <b>{cpu_m}m</b>, RAM <b>{format_bytes(mem_b)}</b>"
+        )
+    if len(lines) == 2:
+        lines.append("No pod metrics found.")
+    return "\n".join(lines)
+
+
+def get_top_nodes() -> str:
+    custom_api = get_custom_objects_api()
+    try:
+        data = custom_api.list_cluster_custom_object(
+            group="metrics.k8s.io",
+            version="v1beta1",
+            plural="nodes",
+        )
+    except ApiException as exc:
+        LOGGER.exception("Failed to get node metrics")
+        return "<b>Failed to get node metrics</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    items = []
+    for item in data.get("items", []):
+        usage = item.get("usage", {})
+        items.append(
+            (
+                item["metadata"]["name"],
+                parse_cpu_millicores(usage.get("cpu")),
+                parse_memory_bytes(usage.get("memory")),
+            )
+        )
+
+    items.sort(key=lambda row: (row[2], row[1]), reverse=True)
+    lines = ["<b>Top nodes</b>", ""]
+    for name, cpu_m, mem_b in items:
+        lines.append(
+            f"<code>{escape(name)}</code> - CPU <b>{cpu_m}m</b>, RAM <b>{format_bytes(mem_b)}</b>"
+        )
+    if len(lines) == 2:
+        lines.append("No node metrics found.")
+    return "\n".join(lines)
+
+
+def get_storage(core_api: client.CoreV1Api) -> str:
+    try:
+        pvcs = core_api.list_namespaced_persistent_volume_claim(TARGET_NAMESPACE).items
+    except ApiException as exc:
+        LOGGER.exception("Failed to list PVCs")
+        return "<b>Failed to list PVCs</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    lines = [f"<b>Storage in namespace:</b> <code>{TARGET_NAMESPACE}</code>", ""]
+    total_requested = 0
+    for pvc in pvcs:
+        requested = (pvc.spec.resources.requests or {}).get("storage", "0")
+        total_requested += parse_memory_bytes(requested) if requested else 0
+        lines.append(
+            f"<code>{escape(pvc.metadata.name)}</code> - class <b>{escape(pvc.spec.storage_class_name)}</b>, requested <b>{escape(requested)}</b>"
+        )
+    if pvcs:
+        lines.extend(["", f"<b>Total requested storage:</b> <b>{format_bytes(total_requested)}</b>"])
+    else:
+        lines.append("No persistent volume claims found.")
+    return "\n".join(lines)
+
+
+def get_resource_requests(core_api: client.CoreV1Api) -> str:
+    pods, error = list_pods(core_api)
+    if pods is None:
+        return "<b>Failed to inspect resource requests</b>\n" f"<code>{escape(error)}</code>"
+
+    total_cpu_requests = total_cpu_limits = 0
+    total_mem_requests = total_mem_limits = 0
+
+    for pod in pods:
+        for container in pod.spec.containers or []:
+            requests_map = container.resources.requests or {}
+            limits_map = container.resources.limits or {}
+            total_cpu_requests += parse_cpu_millicores(requests_map.get("cpu"))
+            total_cpu_limits += parse_cpu_millicores(limits_map.get("cpu"))
+            total_mem_requests += parse_memory_bytes(requests_map.get("memory"))
+            total_mem_limits += parse_memory_bytes(limits_map.get("memory"))
+
+    return (
+        f"<b>Resource requests in namespace:</b> <code>{TARGET_NAMESPACE}</code>\n\n"
+        f"<b>CPU requests:</b> <b>{total_cpu_requests}m</b>\n"
+        f"<b>CPU limits:</b> <b>{total_cpu_limits}m</b>\n"
+        f"<b>RAM requests:</b> <b>{format_bytes(total_mem_requests)}</b>\n"
+        f"<b>RAM limits:</b> <b>{format_bytes(total_mem_limits)}</b>"
+    )
+
+
 def help_text() -> str:
     return (
         "<b>Syncio bot commands</b>\n\n"
@@ -194,6 +350,10 @@ def help_text() -> str:
         "<code>/deployments</code> - list deployments and ready counts\n"
         "<code>/services</code> - list services in the syncio namespace\n"
         "<code>/cluster</code> - show cluster statistics for syncio\n"
+        "<code>/top pods</code> - live CPU/RAM usage for pods\n"
+        "<code>/top nodes</code> - live CPU/RAM usage for nodes\n"
+        "<code>/storage</code> - PVC storage requests in syncio\n"
+        "<code>/resources</code> - CPU/RAM requests and limits summary\n"
         "<code>/help</code> - show this help"
     )
 
@@ -224,6 +384,18 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
         return
     if text == "/cluster":
         send_message(chat_id, get_cluster_stats(core_api))
+        return
+    if text == "/top pods":
+        send_message(chat_id, get_top_pods())
+        return
+    if text == "/top nodes":
+        send_message(chat_id, get_top_nodes())
+        return
+    if text == "/storage":
+        send_message(chat_id, get_storage(core_api))
+        return
+    if text == "/resources":
+        send_message(chat_id, get_resource_requests(core_api))
         return
     if text == "/help" or text == "/start":
         send_message(chat_id, help_text())
