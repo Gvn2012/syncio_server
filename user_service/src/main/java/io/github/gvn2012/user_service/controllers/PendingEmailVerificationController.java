@@ -27,11 +27,14 @@ public class PendingEmailVerificationController {
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
+    // aa
+
     @PostMapping("/{verificationId}/verify")
     public ResponseEntity<APIResource<VerifyPendingEmailResponse>> verify(
             @PathVariable UUID verificationId,
             @Valid @RequestBody VerifyPendingEmailRequest request) {
-        APIResource<VerifyPendingEmailResponse> response = pendingEmailVerificationService.verify(verificationId, request);
+        APIResource<VerifyPendingEmailResponse> response = pendingEmailVerificationService.verify(verificationId,
+                request);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 

@@ -19,6 +19,7 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: markdown
           message: |
             🚀 *CI/CD Pipeline Started*
             
@@ -26,6 +27,7 @@ jobs:
             *Branch:* `${{ github.ref_name }}`
             *Commit:* `${{ github.sha }}`
             *Author:* `${{ github.actor }}`
+            *Time:* `${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}`
             
             Building and pushing updated images...
 
@@ -48,7 +50,8 @@ jobs:
           set -e
           IMAGE_TAG=${{ github.sha }}
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
-
+          
+          REBUILT_SERVICES=""
           ALL_CHANGED=false
           if grep -Eq '^(pom.xml|common/|shared/)' changed_files.txt; then
             ALL_CHANGED=true
@@ -73,11 +76,14 @@ jobs:
               if [ -f k8s/gateway.yaml ]; then
                 sed -i "s|image: ${DOCKER_USERNAME}/${image_name}:.*|image: ${DOCKER_USERNAME}/${image_name}:${IMAGE_TAG}|g" k8s/gateway.yaml
               fi
+              REBUILT_SERVICES="${REBUILT_SERVICES}\n- ${service_name} ✅"
             else
               echo "Skipping ${service_name} (no changes)"
             fi
+            echo "${REBUILT_SERVICES}" > /tmp/rebuilt_list.txt
           }
 
+          touch /tmp/rebuilt_list.txt
           build_if_needed "discovery-service" "discovery_service" "discovery_service/Dockerfile" "discovery-service"
           build_if_needed "auth-service" "auth_service" "auth_service/Dockerfile" "auth-service"
           build_if_needed "user-service" "user_service" "user_service/Dockerfile" "user-service"
@@ -87,6 +93,10 @@ jobs:
           build_if_needed "api-gateway" "api_gateway" "api_gateway/Dockerfile" "api-gateway"
           build_if_needed "org-service" "org_service" "org_service/Dockerfile" "org-service"
           build_if_needed "permission-service" "permission_service" "permission_service/Dockerfile" "permission-service"
+
+          echo "REBUILT_LIST<<EOF" >> $GITHUB_ENV
+          cat /tmp/rebuilt_list.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Commit and push changes
         run: |
@@ -100,16 +110,40 @@ jobs:
             git push
           fi
 
+      - name: Get Pod Status
+        if: always()
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+        run: |
+          if [ -n "$KUBECONFIG_DATA" ]; then
+            mkdir -p ~/.kube
+            echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+            echo "POD_STATUS<<EOF" >> $GITHUB_ENV
+            kubectl get pods -n syncio >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          else
+            echo "POD_STATUS=Kubeconfig not provided. Skipping pod status." >> $GITHUB_ENV
+          fi
+
       - name: Send result notification
         if: always()
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: markdown
           message: |
-            ✅ *CI/CD Pipeline Completed*
+            🏁 *CI/CD Pipeline Completed*
             
             *Status:* `${{ job.status == 'success' && 'Success' || 'Failure' }}`
-            *Commit:* `${{ github.sha }}`
+            *Finished:* `$(date -u +'%Y-%m-%d %H:%M:%S UTC')`
             
-            ${{ job.status == 'success' && 'Images built and manifests updated successfully. Deployment sync triggered.' || 'Pipeline failed! Check GitHub Actions logs.' }}
+            *Images Rebuilt:*
+            ${{ env.REBUILT_LIST || 'None' }}
+            
+            *Namespace (syncio) Pod Status:*
+            ```
+            ${{ env.POD_STATUS }}
+            ```
+            
+            ${{ job.status == 'success' && 'Deployment sync triggered. Check ArgoCD for final health status.' || 'Pipeline failed! Check GitHub Actions logs.' }}

@@ -3,6 +3,10 @@ kind: Application
 metadata:
   name: syncio-app
   namespace: argocd
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-succeeded.telegram: "7537927055"
+    notifications.argoproj.io/subscribe.on-sync-failed.telegram: "7537927055"
+    notifications.argoproj.io/subscribe.on-sync-running.telegram: "7537927055"
 spec:
   project: default
   source:
