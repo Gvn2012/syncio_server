@@ -358,3 +358,78 @@ spec:
     app: syncio-notification
   ports:
     - port: 8083
+
+# ===================== TELEGRAM BOT =====================
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: syncio-telegram-bot-secret
+  namespace: syncio
+type: Opaque
+stringData:
+  TELEGRAM_BOT_TOKEN: "8771671083:AAGj_8MG9Pwuq0oeHD5uwlSLWjI14FrpBh8"
+  ALLOWED_CHAT_IDS: "7537927055"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: syncio-telegram-bot
+  namespace: syncio
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: syncio-telegram-bot-pod-reader
+  namespace: syncio
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: syncio-telegram-bot-pod-reader
+  namespace: syncio
+subjects:
+  - kind: ServiceAccount
+    name: syncio-telegram-bot
+    namespace: syncio
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: syncio-telegram-bot-pod-reader
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-telegram-bot
+  namespace: syncio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syncio-telegram-bot
+  template:
+    metadata:
+      labels:
+        app: syncio-telegram-bot
+    spec:
+      serviceAccountName: syncio-telegram-bot
+      containers:
+        - name: telegram-bot
+          image: vietpham18/telegram-bot:latest
+          envFrom:
+            - secretRef:
+                name: syncio-telegram-bot-secret
+          env:
+            - name: TARGET_NAMESPACE
+              value: syncio
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
