@@ -22,7 +22,8 @@ data:
           {
             "chat_id": "7537927055",
             "parse_mode": "HTML",
-            "text": "<b>Deployment Successful</b>\n\n<b>App:</b> {{ .app.metadata.name }}\n<b>Project:</b> {{ .app.spec.project }}\n<b>Revision:</b> <code>{{ .app.status.sync.revision }}</code>\n<b>Namespace:</b> {{ .app.spec.destination.namespace }}\n<b>Health:</b> {{ .app.status.health.status }}"
+            "disable_web_page_preview": true,
+            "text": "✅ <b>ArgoCD Deployment Successful</b>\n\n<b>Application:</b> {{ .app.metadata.name }}\n<b>Project:</b> {{ .app.spec.project }}\n<b>Sync Status:</b> {{ .app.status.sync.status }}\n<b>Operation:</b> {{ .app.status.operationState.phase }}\n<b>Health:</b> {{ .app.status.health.status }}\n<b>Revision:</b> <code>{{ .app.status.sync.revision }}</code>\n<b>Target Revision:</b> <code>{{ .app.spec.source.targetRevision }}</code>\n<b>Repo:</b> <code>{{ .app.spec.source.repoURL }}</code>\n<b>Path:</b> <code>{{ .app.spec.source.path }}</code>\n<b>Cluster:</b> <code>{{ .app.spec.destination.server }}</code>\n<b>Namespace:</b> <code>{{ .app.spec.destination.namespace }}</code>\n\n<a href=\"https://argocd.example.com/applications/{{ .app.metadata.name }}\">Open in ArgoCD</a>"
           }
   
   template.telegram-sync-failed: |
@@ -34,7 +35,7 @@ data:
             "chat_id": "7537927055",
             "parse_mode": "HTML",
             "disable_web_page_preview": true,
-            "text": "SYNC FAILED\n\n<b>Application:</b> {{ .app.metadata.name }}\n<b>Project:</b> {{ .app.spec.project }}\n<b>Revision:</b> <code>{{ .app.status.sync.revision }}</code>\n<b>Namespace:</b> {{ .app.spec.destination.namespace }}\n\n<b>Error:</b>\n<pre>{{ .app.status.operationState.message }}</pre>"
+            "text": "❌ <b>ArgoCD Sync Failed</b>\n\n<b>Application:</b> {{ .app.metadata.name }}\n<b>Project:</b> {{ .app.spec.project }}\n<b>Sync Status:</b> {{ .app.status.sync.status }}\n<b>Operation:</b> {{ .app.status.operationState.phase }}\n<b>Health:</b> {{ .app.status.health.status }}\n<b>Revision:</b> <code>{{ .app.status.sync.revision }}</code>\n<b>Target Revision:</b> <code>{{ .app.spec.source.targetRevision }}</code>\n<b>Path:</b> <code>{{ .app.spec.source.path }}</code>\n<b>Namespace:</b> <code>{{ .app.spec.destination.namespace }}</code>\n\n<b>Message:</b>\n<pre>{{ .app.status.operationState.message }}</pre>\n\n<a href=\"https://argocd.example.com/applications/{{ .app.metadata.name }}\">Investigate in ArgoCD</a>"
           }
 
   template.telegram-sync-running: |
@@ -45,7 +46,8 @@ data:
           {
             "chat_id": "7537927055",
             "parse_mode": "HTML",
-            "text": "SYNC RUNNING\n\n<b>Application:</b> {{ .app.metadata.name }}\n<b>Project:</b> {{ .app.spec.project }}\n<b>Namespace:</b> {{ .app.spec.destination.namespace }}"
+            "disable_web_page_preview": true,
+            "text": "🔄 <b>ArgoCD Sync Running</b>\n\n<b>Application:</b> {{ .app.metadata.name }}\n<b>Project:</b> {{ .app.spec.project }}\n<b>Sync Status:</b> {{ .app.status.sync.status }}\n<b>Operation:</b> {{ .app.status.operationState.phase }}\n<b>Health:</b> {{ .app.status.health.status }}\n<b>Revision:</b> <code>{{ .app.status.sync.revision }}</code>\n<b>Target Revision:</b> <code>{{ .app.spec.source.targetRevision }}</code>\n<b>Path:</b> <code>{{ .app.spec.source.path }}</code>\n<b>Namespace:</b> <code>{{ .app.spec.destination.namespace }}</code>\n\n<a href=\"https://argocd.example.com/applications/{{ .app.metadata.name }}\">Open in ArgoCD</a>"
           }
 
   # Notification Triggers
