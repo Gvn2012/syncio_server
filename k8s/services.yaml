@@ -510,8 +510,14 @@ metadata:
   namespace: syncio
 rules:
   - apiGroups: [""]
-    resources: ["pods", "services", "persistentvolumeclaims", "events"]
+    resources: ["pods", "services", "persistentvolumeclaims", "events", "endpoints"]
     verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["get", "list", "patch"]
@@ -541,7 +547,7 @@ metadata:
 rules:
   - apiGroups: ["argoproj.io"]
     resources: ["applications"]
-    verbs: ["get", "list"]
+    verbs: ["get", "list", "patch", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -613,6 +619,10 @@ spec:
               value: syncio-app
             - name: SCALABLE_DEPLOYMENTS
               value: syncio-auth,syncio-user,syncio-relationship,syncio-post,syncio-permission,syncio-org,syncio-notification
+            - name: GITHUB_REPO
+              value: Gvn2012/syncio_server
+            - name: GITHUB_BRANCH
+              value: main
           resources:
             requests:
               cpu: "50m"

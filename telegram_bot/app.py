@@ -4,6 +4,7 @@ import logging
 import os
 import time
 from collections import Counter
+from datetime import datetime, timezone
 from typing import Iterable
 
 import matplotlib
@@ -36,6 +37,9 @@ SCALABLE_DEPLOYMENTS = {
     for name in os.getenv("SCALABLE_DEPLOYMENTS", "").split(",")
     if name.strip()
 }
+GITHUB_REPO = os.getenv("GITHUB_REPO", "Gvn2012/syncio_server")
+GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 POLL_TIMEOUT_SECONDS = int(os.getenv("POLL_TIMEOUT_SECONDS", "30"))
 API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
@@ -90,6 +94,26 @@ def send_photo(chat_id: str, image: io.BytesIO, caption: str) -> None:
 
 def escape(value: str | None) -> str:
     return html.escape(value or "Unknown")
+
+
+def truncate_text(value: str, limit: int = 3500) -> str:
+    if len(value) <= limit:
+        return value
+    return f"{value[:limit]}\n...(truncated)"
+
+
+def github_api(path: str, params: dict | None = None) -> dict:
+    headers = {"Accept": "application/vnd.github+json"}
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    response = requests.get(
+        f"https://api.github.com{path}",
+        headers=headers,
+        params=params or {},
+        timeout=60,
+    )
+    response.raise_for_status()
+    return response.json()
 
 
 def format_pods(pods: Iterable[client.V1Pod]) -> str:
@@ -259,6 +283,38 @@ def get_custom_objects_api() -> client.CustomObjectsApi:
 
 def get_apps_api() -> client.AppsV1Api:
     return client.AppsV1Api()
+
+
+def current_bot_image(core_api: client.CoreV1Api) -> tuple[str | None, str | None]:
+    pod_name = os.getenv("HOSTNAME")
+    if not pod_name:
+        return None, "HOSTNAME is not set"
+    try:
+        pod = core_api.read_namespaced_pod(pod_name, TARGET_NAMESPACE)
+    except ApiException as exc:
+        LOGGER.exception("Failed to get bot pod")
+        return None, str(exc)
+
+    for container_def in pod.spec.containers or []:
+        if container_def.name == "telegram-bot":
+            return container_def.image, None
+    return None, "telegram-bot container image not found"
+
+
+def get_version(core_api: client.CoreV1Api) -> str:
+    image, error = current_bot_image(core_api)
+    if error:
+        return "<b>Bot version unavailable</b>\n" f"<code>{escape(error)}</code>"
+
+    image_tag = image.split(":")[-1] if ":" in image else image
+    return (
+        "<b>Telegram bot version</b>\n\n"
+        f"<b>Image:</b> <code>{escape(image)}</code>\n"
+        f"<b>Version:</b> <code>{escape(image_tag)}</code>\n"
+        f"<b>Namespace:</b> <code>{TARGET_NAMESPACE}</code>\n"
+        f"<b>Repo:</b> <code>{escape(GITHUB_REPO)}</code>\n"
+        f"<b>Branch:</b> <code>{escape(GITHUB_BRANCH)}</code>"
+    )
 
 
 def shorten_label(value: str, length: int = 32) -> str:
@@ -801,6 +857,204 @@ def get_storage(core_api: client.CoreV1Api) -> str:
     return "\n".join(lines)
 
 
+def describe_pod(core_api: client.CoreV1Api, pod_name: str) -> str:
+    try:
+        pod = core_api.read_namespaced_pod(pod_name, TARGET_NAMESPACE)
+    except ApiException as exc:
+        LOGGER.exception("Failed to describe pod")
+        return "<b>Failed to describe pod</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    statuses = pod.status.container_statuses or []
+    restarts = sum(status.restart_count or 0 for status in statuses)
+    images = ", ".join(container_def.image for container_def in pod.spec.containers or [])
+    lines = [
+        "<b>Pod details</b>",
+        "",
+        f"<b>Name:</b> <code>{escape(pod.metadata.name)}</code>",
+        f"<b>Phase:</b> <b>{escape(pod.status.phase)}</b>",
+        f"<b>Node:</b> <code>{escape(pod.spec.node_name)}</code>",
+        f"<b>Pod IP:</b> <code>{escape(pod.status.pod_ip)}</code>",
+        f"<b>Restarts:</b> <b>{restarts}</b>",
+        f"<b>Service account:</b> <code>{escape(pod.spec.service_account_name)}</code>",
+        f"<b>Images:</b> <code>{escape(images)}</code>",
+    ]
+    waiting_reasons = [
+        status.state.waiting.reason
+        for status in statuses
+        if status.state and status.state.waiting and status.state.waiting.reason
+    ]
+    if waiting_reasons:
+        lines.append(f"<b>Waiting reasons:</b> <code>{escape(', '.join(waiting_reasons))}</code>")
+    return "\n".join(lines)
+
+
+def describe_deployment(deployment_name: str) -> str:
+    try:
+        deployment = get_apps_api().read_namespaced_deployment(deployment_name, TARGET_NAMESPACE)
+    except ApiException as exc:
+        LOGGER.exception("Failed to describe deployment")
+        return "<b>Failed to describe deployment</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    images = ", ".join(container_def.image for container_def in deployment.spec.template.spec.containers or [])
+    conditions = deployment.status.conditions or []
+    lines = [
+        "<b>Deployment details</b>",
+        "",
+        f"<b>Name:</b> <code>{escape(deployment.metadata.name)}</code>",
+        f"<b>Replicas:</b> <b>{deployment.status.ready_replicas or 0}/{deployment.spec.replicas or 0}</b>",
+        f"<b>Updated:</b> <b>{deployment.status.updated_replicas or 0}</b>",
+        f"<b>Available:</b> <b>{deployment.status.available_replicas or 0}</b>",
+        f"<b>Strategy:</b> <code>{escape(deployment.spec.strategy.type)}</code>",
+        f"<b>Images:</b> <code>{escape(images)}</code>",
+    ]
+    for condition in conditions[:3]:
+        lines.append(
+            f"<b>{escape(condition.type)}:</b> <code>{escape(condition.reason)}</code> - {escape(condition.message)}"
+        )
+    return "\n".join(lines)
+
+
+def describe_service(core_api: client.CoreV1Api, service_name: str) -> str:
+    try:
+        service = core_api.read_namespaced_service(service_name, TARGET_NAMESPACE)
+    except ApiException as exc:
+        LOGGER.exception("Failed to describe service")
+        return "<b>Failed to describe service</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    selector = ", ".join(f"{key}={value}" for key, value in (service.spec.selector or {}).items()) or "-"
+    ports = ", ".join(
+        f"{port.port}->{port.target_port}/{port.protocol}"
+        for port in service.spec.ports or []
+    ) or "-"
+    return (
+        "<b>Service details</b>\n\n"
+        f"<b>Name:</b> <code>{escape(service.metadata.name)}</code>\n"
+        f"<b>Type:</b> <b>{escape(service.spec.type)}</b>\n"
+        f"<b>Cluster IP:</b> <code>{escape(service.spec.cluster_ip)}</code>\n"
+        f"<b>Selector:</b> <code>{escape(selector)}</code>\n"
+        f"<b>Ports:</b> <code>{escape(ports)}</code>"
+    )
+
+
+def get_pod_logs(core_api: client.CoreV1Api, pod_name: str) -> str:
+    try:
+        logs = core_api.read_namespaced_pod_log(
+            pod_name,
+            TARGET_NAMESPACE,
+            tail_lines=120,
+            timestamps=True,
+        )
+    except ApiException as exc:
+        LOGGER.exception("Failed to get pod logs")
+        return "<b>Failed to get pod logs</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    return (
+        f"<b>Logs for pod</b> <code>{escape(pod_name)}</code>\n\n"
+        f"<pre>{escape(truncate_text(logs or 'No logs found.'))}</pre>"
+    )
+
+
+def rollout_status(deployment_name: str) -> str:
+    try:
+        deployment = get_apps_api().read_namespaced_deployment(deployment_name, TARGET_NAMESPACE)
+    except ApiException as exc:
+        LOGGER.exception("Failed to get rollout status")
+        return "<b>Failed to get rollout status</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    observed = deployment.status.observed_generation or 0
+    generation = deployment.metadata.generation or 0
+    progressing = "Yes" if observed >= generation else "No"
+    return (
+        "<b>Rollout status</b>\n\n"
+        f"<b>Deployment:</b> <code>{escape(deployment.metadata.name)}</code>\n"
+        f"<b>Ready:</b> <b>{deployment.status.ready_replicas or 0}/{deployment.spec.replicas or 0}</b>\n"
+        f"<b>Updated:</b> <b>{deployment.status.updated_replicas or 0}</b>\n"
+        f"<b>Available:</b> <b>{deployment.status.available_replicas or 0}</b>\n"
+        f"<b>Observed generation:</b> <code>{observed}</code>\n"
+        f"<b>Target generation:</b> <code>{generation}</code>\n"
+        f"<b>Controller caught up:</b> <b>{progressing}</b>"
+    )
+
+
+def get_deployment_images(deployment_name: str) -> str:
+    try:
+        deployment = get_apps_api().read_namespaced_deployment(deployment_name, TARGET_NAMESPACE)
+    except ApiException as exc:
+        LOGGER.exception("Failed to get deployment images")
+        return "<b>Failed to get deployment images</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    lines = [f"<b>Images for deployment</b> <code>{escape(deployment_name)}</code>", ""]
+    for container_def in deployment.spec.template.spec.containers or []:
+        lines.append(f"<code>{escape(container_def.name)}</code>: <code>{escape(container_def.image)}</code>")
+    return "\n".join(lines)
+
+
+def restart_deployment(chat_id: str, deployment_name: str) -> None:
+    if not deployment_name:
+        send_message(chat_id, "Usage: <code>/restart &lt;deployment&gt;</code>")
+        return
+    if SCALABLE_DEPLOYMENTS and deployment_name not in SCALABLE_DEPLOYMENTS:
+        send_message(chat_id, f"<b>Restart not allowed</b>\n<code>{escape(deployment_name)}</code> is not in the allowlist.")
+        return
+    try:
+        get_apps_api().patch_namespaced_deployment(
+            deployment_name,
+            TARGET_NAMESPACE,
+            {
+                "spec": {
+                    "template": {
+                        "metadata": {
+                            "annotations": {
+                                "kubectl.kubernetes.io/restartedAt": datetime.now(timezone.utc).isoformat()
+                            }
+                        }
+                    }
+                }
+            },
+        )
+    except ApiException as exc:
+        LOGGER.exception("Failed to restart deployment")
+        send_message(chat_id, "<b>Failed to restart deployment</b>\n" f"<code>{escape(str(exc))}</code>")
+        return
+    send_message(chat_id, f"<b>Restart triggered</b>\n<code>{escape(deployment_name)}</code>")
+
+
+def delete_pod(chat_id: str, core_api: client.CoreV1Api, pod_name: str) -> None:
+    if not pod_name:
+        send_message(chat_id, "Usage: <code>/delete pod &lt;name&gt;</code>")
+        return
+    if not pod_name.startswith("syncio-"):
+        send_message(chat_id, "Only `syncio-*` pods can be deleted by the bot.")
+        return
+    try:
+        core_api.delete_namespaced_pod(pod_name, TARGET_NAMESPACE)
+    except ApiException as exc:
+        LOGGER.exception("Failed to delete pod")
+        send_message(chat_id, "<b>Failed to delete pod</b>\n" f"<code>{escape(str(exc))}</code>")
+        return
+    send_message(chat_id, f"<b>Pod deleted</b>\n<code>{escape(pod_name)}</code>")
+
+
+def get_service_endpoints(core_api: client.CoreV1Api, service_name: str) -> str:
+    try:
+        endpoints = core_api.read_namespaced_endpoints(service_name, TARGET_NAMESPACE)
+    except ApiException as exc:
+        LOGGER.exception("Failed to get service endpoints")
+        return "<b>Failed to get service endpoints</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    addresses = []
+    for subset in endpoints.subsets or []:
+        for address in subset.addresses or []:
+            target = address.target_ref.name if address.target_ref else "-"
+            addresses.append(f"{address.ip} ({target})")
+    if not addresses:
+        return f"<b>Service endpoints</b>\n\n<code>{escape(service_name)}</code>\nNo ready endpoints."
+    return (
+        f"<b>Service endpoints</b>\n\n<code>{escape(service_name)}</code>\n"
+        + "\n".join(f"<code>{escape(address)}</code>" for address in addresses[:20])
+    )
+
+
 def send_pod_metrics_chart(chat_id: str) -> None:
     items, error = collect_top_pod_metrics()
     if items is None:
@@ -1110,6 +1364,152 @@ def scale_deployment(chat_id: str, deployment_name: str, replicas_value: str) ->
     )
 
 
+def get_app_resources() -> str:
+    custom_api = get_custom_objects_api()
+    try:
+        app = custom_api.get_namespaced_custom_object(
+            group="argoproj.io",
+            version="v1alpha1",
+            namespace=ARGOCD_APP_NAMESPACE,
+            plural="applications",
+            name=ARGOCD_APP_NAME,
+        )
+    except ApiException as exc:
+        LOGGER.exception("Failed to get Argo CD resources")
+        return "<b>Failed to get Argo CD resources</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    resources = app.get("status", {}).get("resources") or []
+    lines = [f"<b>Argo CD resources</b> <code>{escape(ARGOCD_APP_NAME)}</code>", ""]
+    for resource in resources[:20]:
+        lines.append(
+            f"<code>{escape(resource.get('kind'))}/{escape(resource.get('name'))}</code> - "
+            f"sync <b>{escape(resource.get('status'))}</b>, health <b>{escape(resource.get('health', {}).get('status'))}</b>"
+        )
+    if len(lines) == 2:
+        lines.append("No resources found.")
+    return "\n".join(lines)
+
+
+def get_app_history() -> str:
+    custom_api = get_custom_objects_api()
+    try:
+        app = custom_api.get_namespaced_custom_object(
+            group="argoproj.io",
+            version="v1alpha1",
+            namespace=ARGOCD_APP_NAMESPACE,
+            plural="applications",
+            name=ARGOCD_APP_NAME,
+        )
+    except ApiException as exc:
+        LOGGER.exception("Failed to get Argo CD history")
+        return "<b>Failed to get Argo CD history</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    history = app.get("status", {}).get("history") or []
+    lines = [f"<b>Argo CD history</b> <code>{escape(ARGOCD_APP_NAME)}</code>", ""]
+    for item in history[:5]:
+        lines.append(
+            f"<b>ID {item.get('id')}</b> - <code>{escape(item.get('revision'))}</code> - "
+            f"<i>{escape(item.get('deployedAt'))}</i>"
+        )
+    if len(lines) == 2:
+        lines.append("No history found.")
+    return "\n".join(lines)
+
+
+def sync_argocd_app(chat_id: str) -> None:
+    custom_api = get_custom_objects_api()
+    try:
+        app = custom_api.get_namespaced_custom_object(
+            group="argoproj.io",
+            version="v1alpha1",
+            namespace=ARGOCD_APP_NAMESPACE,
+            plural="applications",
+            name=ARGOCD_APP_NAME,
+        )
+        operation = app.get("status", {}).get("operationState", {})
+        if operation.get("phase") in {"Running", "Terminating"}:
+            send_message(chat_id, f"<b>Sync already in progress</b>\n<code>{escape(ARGOCD_APP_NAME)}</code>")
+            return
+
+        revision = app.get("spec", {}).get("source", {}).get("targetRevision") or GITHUB_BRANCH
+        custom_api.patch_namespaced_custom_object(
+            group="argoproj.io",
+            version="v1alpha1",
+            namespace=ARGOCD_APP_NAMESPACE,
+            plural="applications",
+            name=ARGOCD_APP_NAME,
+            body={
+                "operation": {
+                    "sync": {
+                        "revision": revision,
+                        "prune": False,
+                    }
+                }
+            },
+        )
+    except ApiException as exc:
+        LOGGER.exception("Failed to sync Argo CD app")
+        send_message(chat_id, "<b>Failed to start Argo CD sync</b>\n" f"<code>{escape(str(exc))}</code>")
+        return
+    send_message(chat_id, f"<b>Argo CD sync triggered</b>\n<code>{escape(ARGOCD_APP_NAME)}</code>")
+
+
+def get_github_repo_summary() -> str:
+    try:
+        repo = github_api(f"/repos/{GITHUB_REPO}")
+    except requests.RequestException as exc:
+        LOGGER.exception("Failed to get GitHub repo summary")
+        return "<b>Failed to get GitHub repo info</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    return (
+        "<b>GitHub repo</b>\n\n"
+        f"<b>Name:</b> <code>{escape(repo.get('full_name'))}</code>\n"
+        f"<b>Default branch:</b> <code>{escape(repo.get('default_branch'))}</code>\n"
+        f"<b>Stars:</b> <b>{repo.get('stargazers_count', 0)}</b>\n"
+        f"<b>Open issues:</b> <b>{repo.get('open_issues_count', 0)}</b>\n"
+        f"<b>Last push:</b> <code>{escape(repo.get('pushed_at'))}</code>\n"
+        f"<b>URL:</b> <code>{escape(repo.get('html_url'))}</code>"
+    )
+
+
+def get_github_latest_commit() -> str:
+    try:
+        commit = github_api(f"/repos/{GITHUB_REPO}/commits/{GITHUB_BRANCH}")
+    except requests.RequestException as exc:
+        LOGGER.exception("Failed to get GitHub commit")
+        return "<b>Failed to get latest commit</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    author = ((commit.get("commit") or {}).get("author") or {}).get("name")
+    message = ((commit.get("commit") or {}).get("message") or "").splitlines()[0]
+    return (
+        "<b>Latest GitHub commit</b>\n\n"
+        f"<b>Branch:</b> <code>{escape(GITHUB_BRANCH)}</code>\n"
+        f"<b>SHA:</b> <code>{escape(commit.get('sha'))}</code>\n"
+        f"<b>Author:</b> <code>{escape(author)}</code>\n"
+        f"<b>Message:</b> {escape(message)}"
+    )
+
+
+def get_github_workflows() -> str:
+    try:
+        runs = github_api(f"/repos/{GITHUB_REPO}/actions/runs", params={"per_page": 5, "branch": GITHUB_BRANCH})
+    except requests.RequestException as exc:
+        LOGGER.exception("Failed to get GitHub workflows")
+        return "<b>Failed to get workflow runs</b>\n" f"<code>{escape(str(exc))}</code>"
+
+    items = runs.get("workflow_runs") or []
+    lines = [f"<b>GitHub workflow runs</b> <code>{escape(GITHUB_REPO)}</code>", ""]
+    for item in items[:5]:
+        lines.append(
+            f"<code>{escape(item.get('name'))}</code> - <b>{escape(item.get('status'))}/{escape(item.get('conclusion'))}</b>"
+        )
+        lines.append(f"{escape(item.get('head_branch'))} @ <code>{escape(item.get('head_sha'))}</code>")
+        lines.append("")
+    if len(lines) == 2:
+        lines.append("No workflow runs found.")
+    return "\n".join(lines).rstrip()
+
+
 def get_resource_requests(core_api: client.CoreV1Api) -> str:
     pods, error = list_pods(core_api)
     if pods is None:
@@ -1139,11 +1539,24 @@ def get_resource_requests(core_api: client.CoreV1Api) -> str:
 def help_text() -> str:
     return (
         "<b>Syncio bot commands</b>\n\n"
+        "<code>/version</code> - show current bot version\n"
         "<code>/pods</code> - list pods in the syncio namespace\n"
         "<code>/pods pending</code> - list only pending pods\n"
+        "<code>/describe pod &lt;name&gt;</code> - show pod details\n"
+        "<code>/describe deploy &lt;name&gt;</code> - show deployment details\n"
+        "<code>/describe service &lt;name&gt;</code> - show service details\n"
+        "<code>/logs &lt;pod&gt;</code> - tail pod logs\n"
+        "<code>/rollout &lt;deployment&gt;</code> - rollout status\n"
+        "<code>/image &lt;deployment&gt;</code> - show deployment images\n"
+        "<code>/endpoints &lt;service&gt;</code> - show service endpoints\n"
+        "<code>/restart &lt;deployment&gt;</code> - rollout restart an allowed deployment\n"
+        "<code>/delete pod &lt;name&gt;</code> - delete a syncio pod\n"
         "<code>/events</code> - show recent namespace events\n"
         "<code>/restarts</code> - show pods with restart counts\n"
         "<code>/app</code> - show Argo CD application status\n"
+        "<code>/argocd resources</code> - list Argo CD resource states\n"
+        "<code>/argocd history</code> - recent Argo CD deploy history\n"
+        "<code>/argocd sync</code> - trigger Argo CD sync\n"
         "<code>/deployments</code> - list deployments and ready counts\n"
         "<code>/services</code> - list services in the syncio namespace\n"
         "<code>/cluster</code> - show cluster statistics for syncio\n"
@@ -1165,6 +1578,9 @@ def help_text() -> str:
         "<code>/graph pods scatter</code> - CPU vs RAM scatter plot\n"
         "<code>/summary pods</code> - top pod metrics table\n"
         "<code>/scale &lt;deployment&gt; &lt;replicas&gt;</code> - scale an allowed deployment\n"
+        "<code>/github repo</code> - GitHub repository summary\n"
+        "<code>/github latest</code> - latest commit on configured branch\n"
+        "<code>/github workflows</code> - recent GitHub workflow runs\n"
         "<code>/storage</code> - PVC storage requests in syncio\n"
         "<code>/resources</code> - CPU/RAM requests and limits summary\n"
         "<code>/help</code> - show this help"
@@ -1187,7 +1603,46 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
         parts = text.split()
         scale_deployment(chat_id, parts[1] if len(parts) > 1 else "", parts[2] if len(parts) > 2 else "")
         return
+    if text == "/restart" or text.startswith("/restart "):
+        parts = text.split()
+        restart_deployment(chat_id, parts[1] if len(parts) > 1 else "")
+        return
+    if text == "/delete pod" or text.startswith("/delete pod "):
+        parts = text.split(maxsplit=2)
+        delete_pod(chat_id, core_api, parts[2] if len(parts) > 2 else "")
+        return
+    if text == "/describe pod" or text.startswith("/describe pod "):
+        parts = text.split(maxsplit=2)
+        send_message(chat_id, describe_pod(core_api, parts[2] if len(parts) > 2 else ""))
+        return
+    if text == "/describe deploy" or text.startswith("/describe deploy "):
+        parts = text.split(maxsplit=2)
+        send_message(chat_id, describe_deployment(parts[2] if len(parts) > 2 else ""))
+        return
+    if text == "/describe service" or text.startswith("/describe service "):
+        parts = text.split(maxsplit=2)
+        send_message(chat_id, describe_service(core_api, parts[2] if len(parts) > 2 else ""))
+        return
+    if text == "/logs" or text.startswith("/logs "):
+        parts = text.split(maxsplit=1)
+        send_message(chat_id, get_pod_logs(core_api, parts[1] if len(parts) > 1 else ""))
+        return
+    if text == "/rollout" or text.startswith("/rollout "):
+        parts = text.split(maxsplit=1)
+        send_message(chat_id, rollout_status(parts[1] if len(parts) > 1 else ""))
+        return
+    if text == "/image" or text.startswith("/image "):
+        parts = text.split(maxsplit=1)
+        send_message(chat_id, get_deployment_images(parts[1] if len(parts) > 1 else ""))
+        return
+    if text == "/endpoints" or text.startswith("/endpoints "):
+        parts = text.split(maxsplit=1)
+        send_message(chat_id, get_service_endpoints(core_api, parts[1] if len(parts) > 1 else ""))
+        return
 
+    if text == "/version":
+        send_message(chat_id, get_version(core_api))
+        return
     if text == "/pods":
         send_message(chat_id, get_pods(core_api))
         return
@@ -1202,6 +1657,15 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
         return
     if text == "/app":
         send_message(chat_id, get_app_status())
+        return
+    if text == "/argocd resources":
+        send_message(chat_id, get_app_resources())
+        return
+    if text == "/argocd history":
+        send_message(chat_id, get_app_history())
+        return
+    if text == "/argocd sync":
+        sync_argocd_app(chat_id)
         return
     if text == "/deployments":
         send_message(chat_id, get_deployments())
@@ -1262,6 +1726,15 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
         return
     if text == "/summary pods":
         send_top_summary_table(core_api, chat_id)
+        return
+    if text == "/github repo":
+        send_message(chat_id, get_github_repo_summary())
+        return
+    if text == "/github latest":
+        send_message(chat_id, get_github_latest_commit())
+        return
+    if text == "/github workflows":
+        send_message(chat_id, get_github_workflows())
         return
     if text == "/storage":
         send_message(chat_id, get_storage(core_api))
