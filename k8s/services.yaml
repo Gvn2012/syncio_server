@@ -514,7 +514,10 @@ rules:
     verbs: ["get", "list"]
   - apiGroups: ["apps"]
     resources: ["deployments"]
-    verbs: ["get", "list"]
+    verbs: ["get", "list", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "patch", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -608,6 +611,8 @@ spec:
               value: argocd
             - name: ARGOCD_APP_NAME
               value: syncio-app
+            - name: SCALABLE_DEPLOYMENTS
+              value: syncio-auth,syncio-user,syncio-relationship,syncio-post,syncio-permission,syncio-org,syncio-notification
           resources:
             requests:
               cpu: "50m"

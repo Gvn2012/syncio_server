@@ -7,6 +7,7 @@ from collections import Counter
 from typing import Iterable
 
 import matplotlib
+import pandas as pd
 import requests
 from kubernetes import client, config
 from kubernetes.client import ApiException
@@ -30,6 +31,11 @@ ALLOWED_CHAT_IDS = {
 TARGET_NAMESPACE = os.getenv("TARGET_NAMESPACE", "syncio")
 ARGOCD_APP_NAMESPACE = os.getenv("ARGOCD_APP_NAMESPACE", "argocd")
 ARGOCD_APP_NAME = os.getenv("ARGOCD_APP_NAME", "syncio-app")
+SCALABLE_DEPLOYMENTS = {
+    name.strip()
+    for name in os.getenv("SCALABLE_DEPLOYMENTS", "").split(",")
+    if name.strip()
+}
 POLL_TIMEOUT_SECONDS = int(os.getenv("POLL_TIMEOUT_SECONDS", "30"))
 API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
@@ -251,6 +257,23 @@ def get_custom_objects_api() -> client.CustomObjectsApi:
     return client.CustomObjectsApi()
 
 
+def get_apps_api() -> client.AppsV1Api:
+    return client.AppsV1Api()
+
+
+def shorten_label(value: str, length: int = 32) -> str:
+    if len(value) <= length:
+        return value
+    return f"{value[: length - 3]}..."
+
+
+def make_dataframe(items: list[dict], columns: list[str]) -> pd.DataFrame:
+    frame = pd.DataFrame(items)
+    if frame.empty:
+        return pd.DataFrame(columns=columns)
+    return frame
+
+
 def collect_top_pod_metrics() -> tuple[list[tuple[str, int, int]] | None, str | None]:
     custom_api = get_custom_objects_api()
     try:
@@ -350,6 +373,245 @@ def build_bar_chart(
     plt.close(fig)
     image.seek(0)
     return image
+
+
+def build_dataframe_bar_chart(
+    frame: pd.DataFrame,
+    label_column: str,
+    value_column: str,
+    title: str,
+    x_label: str,
+    color: str,
+    limit: int = 10,
+) -> io.BytesIO:
+    plot_frame = frame.sort_values(by=value_column, ascending=False).head(limit).copy()
+    plot_frame[label_column] = plot_frame[label_column].apply(shorten_label)
+    return build_bar_chart(
+        plot_frame[label_column].tolist(),
+        plot_frame[value_column].tolist(),
+        title,
+        x_label,
+        color,
+    )
+
+
+def build_grouped_bar_chart(
+    frame: pd.DataFrame,
+    label_column: str,
+    first_column: str,
+    second_column: str,
+    title: str,
+    y_label: str,
+    first_label: str,
+    second_label: str,
+    first_color: str,
+    second_color: str,
+    limit: int = 10,
+) -> io.BytesIO:
+    plot_frame = frame.sort_values(by=second_column, ascending=False).head(limit).copy()
+    plot_frame[label_column] = plot_frame[label_column].apply(shorten_label)
+
+    fig, ax = plt.subplots(figsize=(12, max(4, len(plot_frame) * 0.6)))
+    positions = range(len(plot_frame))
+    width = 0.4
+    ax.bar(
+        [position - width / 2 for position in positions],
+        plot_frame[first_column],
+        width=width,
+        color=first_color,
+        label=first_label,
+    )
+    ax.bar(
+        [position + width / 2 for position in positions],
+        plot_frame[second_column],
+        width=width,
+        color=second_color,
+        label=second_label,
+    )
+    ax.set_xticks(list(positions))
+    ax.set_xticklabels(plot_frame[label_column], rotation=20, ha="right")
+    ax.set_title(title)
+    ax.set_ylabel(y_label)
+    ax.legend()
+    ax.grid(axis="y", linestyle="--", alpha=0.3)
+    fig.tight_layout()
+
+    image = io.BytesIO()
+    fig.savefig(image, format="png", dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    image.seek(0)
+    return image
+
+
+def build_pie_chart(
+    frame: pd.DataFrame,
+    label_column: str,
+    value_column: str,
+    title: str,
+    colors: list[str] | None = None,
+) -> io.BytesIO:
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.pie(
+        frame[value_column],
+        labels=frame[label_column],
+        autopct="%1.0f%%",
+        startangle=90,
+        colors=colors,
+    )
+    ax.set_title(title)
+    fig.tight_layout()
+    image = io.BytesIO()
+    fig.savefig(image, format="png", dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    image.seek(0)
+    return image
+
+
+def pod_metrics_frame(items: list[tuple[str, int, int]]) -> pd.DataFrame:
+    rows = [
+        {
+            "name": name,
+            "cpu_m": cpu_m,
+            "memory_mib": round(mem_b / (1024**2), 2),
+        }
+        for name, cpu_m, mem_b in items
+    ]
+    return make_dataframe(rows, ["name", "cpu_m", "memory_mib"])
+
+
+def node_metrics_frame(items: list[tuple[str, int, int]]) -> pd.DataFrame:
+    rows = [
+        {
+            "name": name,
+            "cpu_m": cpu_m,
+            "memory_gib": round(mem_b / (1024**3), 2),
+        }
+        for name, cpu_m, mem_b in items
+    ]
+    return make_dataframe(rows, ["name", "cpu_m", "memory_gib"])
+
+
+def storage_metrics_frame(items: list[tuple[str, str | None, int]]) -> pd.DataFrame:
+    rows = [
+        {
+            "name": name,
+            "storage_class": storage_class or "Unknown",
+            "requested_gib": round(requested_bytes / (1024**3), 2),
+        }
+        for name, storage_class, requested_bytes in items
+    ]
+    return make_dataframe(rows, ["name", "storage_class", "requested_gib"])
+
+
+def restart_metrics_frame(core_api: client.CoreV1Api) -> tuple[pd.DataFrame | None, str | None]:
+    pods, error = list_pods(core_api)
+    if pods is None:
+        return None, error
+
+    rows = []
+    for pod in pods:
+        statuses = pod.status.container_statuses or []
+        rows.append(
+            {
+                "name": pod.metadata.name,
+                "restarts": sum(status.restart_count or 0 for status in statuses),
+            }
+        )
+    frame = make_dataframe(rows, ["name", "restarts"])
+    if not frame.empty:
+        frame = frame[frame["restarts"] > 0]
+    return frame, None
+
+
+def pod_phase_frame(core_api: client.CoreV1Api) -> tuple[pd.DataFrame | None, str | None]:
+    pods, error = list_pods(core_api)
+    if pods is None:
+        return None, error
+
+    counts = Counter((pod.status.phase or "Unknown") for pod in pods)
+    rows = [{"phase": phase, "count": count} for phase, count in sorted(counts.items())]
+    return make_dataframe(rows, ["phase", "count"]), None
+
+
+def deployment_frame() -> tuple[pd.DataFrame | None, str | None]:
+    try:
+        deployments = get_apps_api().list_namespaced_deployment(TARGET_NAMESPACE).items
+    except ApiException as exc:
+        LOGGER.exception("Failed to list deployments")
+        return None, str(exc)
+
+    rows = []
+    for deployment in deployments:
+        desired = deployment.spec.replicas or 0
+        ready = deployment.status.ready_replicas or 0
+        rows.append(
+            {
+                "name": deployment.metadata.name,
+                "desired": desired,
+                "ready": ready,
+                "availability_pct": round((ready / desired) * 100, 1) if desired else 0,
+            }
+        )
+    return make_dataframe(rows, ["name", "desired", "ready", "availability_pct"]), None
+
+
+def resource_frame(core_api: client.CoreV1Api) -> tuple[pd.DataFrame | None, str | None]:
+    pods, error = list_pods(core_api)
+    if pods is None:
+        return None, error
+
+    grouped: dict[str, dict[str, float]] = {}
+    for pod in pods:
+        owner_name = pod.metadata.name.rsplit("-", 2)[0] if pod.metadata.name else "unknown"
+        bucket = grouped.setdefault(
+            owner_name,
+            {
+                "name": owner_name,
+                "cpu_requests_m": 0,
+                "cpu_limits_m": 0,
+                "memory_requests_mib": 0,
+                "memory_limits_mib": 0,
+            },
+        )
+        for container_def in pod.spec.containers or []:
+            requests_map = container_def.resources.requests or {}
+            limits_map = container_def.resources.limits or {}
+            bucket["cpu_requests_m"] += parse_cpu_millicores(requests_map.get("cpu"))
+            bucket["cpu_limits_m"] += parse_cpu_millicores(limits_map.get("cpu"))
+            bucket["memory_requests_mib"] += round(
+                parse_memory_bytes(requests_map.get("memory")) / (1024**2), 2
+            )
+            bucket["memory_limits_mib"] += round(
+                parse_memory_bytes(limits_map.get("memory")) / (1024**2), 2
+            )
+    return make_dataframe(
+        list(grouped.values()),
+        [
+            "name",
+            "cpu_requests_m",
+            "cpu_limits_m",
+            "memory_requests_mib",
+            "memory_limits_mib",
+        ],
+    ), None
+
+
+def send_frame_chart(
+    chat_id: str,
+    frame: pd.DataFrame,
+    label_column: str,
+    value_column: str,
+    title: str,
+    x_label: str,
+    color: str,
+    caption: str,
+    limit: int = 10,
+) -> None:
+    if frame.empty:
+        send_message(chat_id, "No data available for this chart.")
+        return
+    image = build_dataframe_bar_chart(frame, label_column, value_column, title, x_label, color, limit)
+    send_photo(chat_id, image, caption)
 
 
 def format_timestamp(value: object) -> str:
@@ -561,6 +823,24 @@ def send_pod_metrics_chart(chat_id: str) -> None:
     send_photo(chat_id, image, f"<b>Pod RAM usage snapshot</b>\n<code>{TARGET_NAMESPACE}</code>")
 
 
+def send_pod_cpu_chart(chat_id: str) -> None:
+    items, error = collect_top_pod_metrics()
+    if items is None:
+        send_message(chat_id, "<b>Failed to get pod metrics</b>\n" f"<code>{escape(error)}</code>")
+        return
+    frame = pod_metrics_frame(items)
+    send_frame_chart(
+        chat_id,
+        frame,
+        "name",
+        "cpu_m",
+        f"Pod CPU Usage - {TARGET_NAMESPACE}",
+        "Millicores",
+        "#1D3557",
+        f"<b>Pod CPU usage snapshot</b>\n<code>{TARGET_NAMESPACE}</code>",
+    )
+
+
 def send_node_metrics_chart(chat_id: str) -> None:
     items, error = collect_top_node_metrics()
     if items is None:
@@ -574,6 +854,24 @@ def send_node_metrics_chart(chat_id: str) -> None:
     memory_values = [round(mem_b / (1024**3), 2) for _, _, mem_b in items]
     image = build_bar_chart(labels, memory_values, "Node RAM Usage", "GiB", "#BC6C25")
     send_photo(chat_id, image, "<b>Node RAM usage snapshot</b>")
+
+
+def send_node_cpu_chart(chat_id: str) -> None:
+    items, error = collect_top_node_metrics()
+    if items is None:
+        send_message(chat_id, "<b>Failed to get node metrics</b>\n" f"<code>{escape(error)}</code>")
+        return
+    frame = node_metrics_frame(items)
+    send_frame_chart(
+        chat_id,
+        frame,
+        "name",
+        "cpu_m",
+        "Node CPU Usage",
+        "Millicores",
+        "#A44A3F",
+        "<b>Node CPU usage snapshot</b>",
+    )
 
 
 def send_storage_chart(core_api: client.CoreV1Api, chat_id: str) -> None:
@@ -595,6 +893,221 @@ def send_storage_chart(core_api: client.CoreV1Api, chat_id: str) -> None:
         "#6C757D",
     )
     send_photo(chat_id, image, f"<b>PVC storage snapshot</b>\n<code>{TARGET_NAMESPACE}</code>")
+
+
+def send_restart_chart(core_api: client.CoreV1Api, chat_id: str) -> None:
+    frame, error = restart_metrics_frame(core_api)
+    if frame is None:
+        send_message(chat_id, "<b>Failed to inspect restarts</b>\n" f"<code>{escape(error)}</code>")
+        return
+    send_frame_chart(
+        chat_id,
+        frame,
+        "name",
+        "restarts",
+        f"Pod Restarts - {TARGET_NAMESPACE}",
+        "Restart count",
+        "#C1121F",
+        f"<b>Pod restart snapshot</b>\n<code>{TARGET_NAMESPACE}</code>",
+    )
+
+
+def send_pod_phase_chart(core_api: client.CoreV1Api, chat_id: str) -> None:
+    frame, error = pod_phase_frame(core_api)
+    if frame is None:
+        send_message(chat_id, "<b>Failed to get pod phases</b>\n" f"<code>{escape(error)}</code>")
+        return
+    if frame.empty:
+        send_message(chat_id, "No pod phase data found.")
+        return
+    image = build_pie_chart(
+        frame,
+        "phase",
+        "count",
+        f"Pod Phases - {TARGET_NAMESPACE}",
+        ["#2A9D8F", "#E9C46A", "#E76F51", "#264653", "#8D99AE"],
+    )
+    send_photo(chat_id, image, f"<b>Pod phase distribution</b>\n<code>{TARGET_NAMESPACE}</code>")
+
+
+def send_deployment_chart(chat_id: str) -> None:
+    frame, error = deployment_frame()
+    if frame is None:
+        send_message(chat_id, "<b>Failed to list deployments</b>\n" f"<code>{escape(error)}</code>")
+        return
+    if frame.empty:
+        send_message(chat_id, "No deployments found.")
+        return
+    image = build_grouped_bar_chart(
+        frame,
+        "name",
+        "ready",
+        "desired",
+        f"Deployment Readiness - {TARGET_NAMESPACE}",
+        "Replicas",
+        "Ready",
+        "Desired",
+        "#2A9D8F",
+        "#ADB5BD",
+    )
+    send_photo(chat_id, image, f"<b>Deployment readiness snapshot</b>\n<code>{TARGET_NAMESPACE}</code>")
+
+
+def send_cpu_request_chart(core_api: client.CoreV1Api, chat_id: str) -> None:
+    frame, error = resource_frame(core_api)
+    if frame is None:
+        send_message(chat_id, "<b>Failed to inspect resource requests</b>\n" f"<code>{escape(error)}</code>")
+        return
+    if frame.empty:
+        send_message(chat_id, "No resource request data found.")
+        return
+    image = build_grouped_bar_chart(
+        frame,
+        "name",
+        "cpu_requests_m",
+        "cpu_limits_m",
+        f"CPU Requests vs Limits - {TARGET_NAMESPACE}",
+        "Millicores",
+        "Requests",
+        "Limits",
+        "#457B9D",
+        "#E63946",
+    )
+    send_photo(chat_id, image, f"<b>CPU requests vs limits</b>\n<code>{TARGET_NAMESPACE}</code>")
+
+
+def send_ram_request_chart(core_api: client.CoreV1Api, chat_id: str) -> None:
+    frame, error = resource_frame(core_api)
+    if frame is None:
+        send_message(chat_id, "<b>Failed to inspect resource requests</b>\n" f"<code>{escape(error)}</code>")
+        return
+    if frame.empty:
+        send_message(chat_id, "No resource request data found.")
+        return
+    image = build_grouped_bar_chart(
+        frame,
+        "name",
+        "memory_requests_mib",
+        "memory_limits_mib",
+        f"RAM Requests vs Limits - {TARGET_NAMESPACE}",
+        "MiB",
+        "Requests",
+        "Limits",
+        "#588157",
+        "#BC4749",
+    )
+    send_photo(chat_id, image, f"<b>RAM requests vs limits</b>\n<code>{TARGET_NAMESPACE}</code>")
+
+
+def send_storage_class_chart(core_api: client.CoreV1Api, chat_id: str) -> None:
+    items, error = collect_storage_metrics(core_api)
+    if items is None:
+        send_message(chat_id, "<b>Failed to list PVCs</b>\n" f"<code>{escape(error)}</code>")
+        return
+    frame = storage_metrics_frame(items)
+    if frame.empty:
+        send_message(chat_id, "No persistent volume claims found.")
+        return
+    grouped = (
+        frame.groupby("storage_class", as_index=False)["requested_gib"]
+        .sum()
+        .sort_values(by="requested_gib", ascending=False)
+    )
+    image = build_pie_chart(
+        grouped,
+        "storage_class",
+        "requested_gib",
+        f"Storage Class Share - {TARGET_NAMESPACE}",
+        ["#355070", "#6D597A", "#B56576", "#E56B6F", "#EAAC8B"],
+    )
+    send_photo(chat_id, image, f"<b>Storage by class</b>\n<code>{TARGET_NAMESPACE}</code>")
+
+
+def send_cpu_vs_ram_scatter(chat_id: str) -> None:
+    items, error = collect_top_pod_metrics()
+    if items is None:
+        send_message(chat_id, "<b>Failed to get pod metrics</b>\n" f"<code>{escape(error)}</code>")
+        return
+    frame = pod_metrics_frame(items)
+    if frame.empty:
+        send_message(chat_id, "No pod metrics found.")
+        return
+
+    plot_frame = frame.head(12).copy()
+    fig, ax = plt.subplots(figsize=(10, 7))
+    ax.scatter(plot_frame["cpu_m"], plot_frame["memory_mib"], c="#3A86FF", s=90, alpha=0.8)
+    for _, row in plot_frame.iterrows():
+        ax.annotate(shorten_label(row["name"], 18), (row["cpu_m"], row["memory_mib"]), fontsize=8)
+    ax.set_title(f"Pod CPU vs RAM - {TARGET_NAMESPACE}")
+    ax.set_xlabel("CPU (millicores)")
+    ax.set_ylabel("RAM (MiB)")
+    ax.grid(True, linestyle="--", alpha=0.3)
+    fig.tight_layout()
+    image = io.BytesIO()
+    fig.savefig(image, format="png", dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    image.seek(0)
+    send_photo(chat_id, image, f"<b>Pod CPU vs RAM scatter</b>\n<code>{TARGET_NAMESPACE}</code>")
+
+
+def send_top_summary_table(core_api: client.CoreV1Api, chat_id: str) -> None:
+    items, error = collect_top_pod_metrics()
+    if items is None:
+        send_message(chat_id, "<b>Failed to get pod metrics</b>\n" f"<code>{escape(error)}</code>")
+        return
+    frame = pod_metrics_frame(items).head(8)
+    if frame.empty:
+        send_message(chat_id, "No pod metrics found.")
+        return
+
+    frame["name"] = frame["name"].apply(lambda value: shorten_label(value, 24))
+    table_text = frame.to_string(index=False)
+    send_message(
+        chat_id,
+        f"<b>Top pod metrics table</b>\n<code>{TARGET_NAMESPACE}</code>\n\n<pre>{escape(table_text)}</pre>",
+    )
+
+
+def scale_deployment(chat_id: str, deployment_name: str, replicas_value: str) -> None:
+    if not deployment_name or not replicas_value:
+        send_message(chat_id, "Usage: <code>/scale &lt;deployment&gt; &lt;replicas&gt;</code>")
+        return
+    if SCALABLE_DEPLOYMENTS and deployment_name not in SCALABLE_DEPLOYMENTS:
+        send_message(
+            chat_id,
+            f"<b>Scaling not allowed</b>\n<code>{escape(deployment_name)}</code> is not in the allowlist.",
+        )
+        return
+    try:
+        replicas = int(replicas_value)
+    except ValueError:
+        send_message(chat_id, "Replica count must be an integer.")
+        return
+    if replicas < 0 or replicas > 10:
+        send_message(chat_id, "Replica count must be between <b>0</b> and <b>10</b>.")
+        return
+
+    try:
+        scale = get_apps_api().read_namespaced_deployment_scale(deployment_name, TARGET_NAMESPACE)
+        current = scale.spec.replicas or 0
+        get_apps_api().patch_namespaced_deployment_scale(
+            deployment_name,
+            TARGET_NAMESPACE,
+            {"spec": {"replicas": replicas}},
+        )
+    except ApiException as exc:
+        LOGGER.exception("Failed to scale deployment")
+        send_message(chat_id, "<b>Failed to scale deployment</b>\n" f"<code>{escape(str(exc))}</code>")
+        return
+
+    send_message(
+        chat_id,
+        (
+            f"<b>Scaled deployment</b>\n"
+            f"<code>{escape(deployment_name)}</code>: <b>{current}</b> -> <b>{replicas}</b>\n"
+            f"<i>Note: Argo CD self-heal may revert this if Git still declares a different replica count.</i>"
+        ),
+    )
 
 
 def get_resource_requests(core_api: client.CoreV1Api) -> str:
@@ -637,8 +1150,21 @@ def help_text() -> str:
         "<code>/top pods</code> - live CPU/RAM usage for pods\n"
         "<code>/top nodes</code> - live CPU/RAM usage for nodes\n"
         "<code>/graph pods</code> - RAM usage chart for pods\n"
+        "<code>/graph pods cpu</code> - CPU usage chart for pods\n"
+        "<code>/graph pods ram</code> - RAM usage chart for pods\n"
         "<code>/graph nodes</code> - RAM usage chart for nodes\n"
+        "<code>/graph nodes cpu</code> - CPU usage chart for nodes\n"
+        "<code>/graph nodes ram</code> - RAM usage chart for nodes\n"
         "<code>/graph storage</code> - PVC storage chart\n"
+        "<code>/graph storage classes</code> - storage split by class\n"
+        "<code>/graph restarts</code> - restart count chart\n"
+        "<code>/graph pod-phases</code> - pod phase distribution\n"
+        "<code>/graph deployments</code> - ready vs desired replicas\n"
+        "<code>/graph cpu requests</code> - CPU requests vs limits\n"
+        "<code>/graph ram requests</code> - RAM requests vs limits\n"
+        "<code>/graph pods scatter</code> - CPU vs RAM scatter plot\n"
+        "<code>/summary pods</code> - top pod metrics table\n"
+        "<code>/scale &lt;deployment&gt; &lt;replicas&gt;</code> - scale an allowed deployment\n"
         "<code>/storage</code> - PVC storage requests in syncio\n"
         "<code>/resources</code> - CPU/RAM requests and limits summary\n"
         "<code>/help</code> - show this help"
@@ -656,6 +1182,11 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
         return
 
     LOGGER.info("Received command '%s' from chat_id=%s", text, chat_id)
+
+    if text == "/scale" or text.startswith("/scale "):
+        parts = text.split()
+        scale_deployment(chat_id, parts[1] if len(parts) > 1 else "", parts[2] if len(parts) > 2 else "")
+        return
 
     if text == "/pods":
         send_message(chat_id, get_pods(core_api))
@@ -690,11 +1221,47 @@ def handle_message(core_api: client.CoreV1Api, message: dict) -> None:
     if text == "/graph pods":
         send_pod_metrics_chart(chat_id)
         return
+    if text == "/graph pods ram":
+        send_pod_metrics_chart(chat_id)
+        return
+    if text == "/graph pods cpu":
+        send_pod_cpu_chart(chat_id)
+        return
     if text == "/graph nodes":
         send_node_metrics_chart(chat_id)
         return
+    if text == "/graph nodes ram":
+        send_node_metrics_chart(chat_id)
+        return
+    if text == "/graph nodes cpu":
+        send_node_cpu_chart(chat_id)
+        return
     if text == "/graph storage":
         send_storage_chart(core_api, chat_id)
+        return
+    if text == "/graph storage classes":
+        send_storage_class_chart(core_api, chat_id)
+        return
+    if text == "/graph restarts":
+        send_restart_chart(core_api, chat_id)
+        return
+    if text == "/graph pod-phases":
+        send_pod_phase_chart(core_api, chat_id)
+        return
+    if text == "/graph deployments":
+        send_deployment_chart(chat_id)
+        return
+    if text == "/graph cpu requests":
+        send_cpu_request_chart(core_api, chat_id)
+        return
+    if text == "/graph ram requests":
+        send_ram_request_chart(core_api, chat_id)
+        return
+    if text == "/graph pods scatter":
+        send_cpu_vs_ram_scatter(chat_id)
+        return
+    if text == "/summary pods":
+        send_top_summary_table(core_api, chat_id)
         return
     if text == "/storage":
         send_message(chat_id, get_storage(core_api))
