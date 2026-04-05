@@ -223,7 +223,7 @@ public class UserServiceImpl implements IUserService {
     public APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse> checkAvailableEmailAndUsernameWhenRegister(
             String email, String username) {
         Boolean isEmailAvailable = userEmailService.isEmailAvailable(email);
-        Boolean isUsernameAvailable = userRepository.existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse(username);
+        Boolean isUsernameAvailable = !userRepository.existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse(username);
         return APIResource.ok("Check available email and username when register successfully",
                 new CheckAvailableEmailAndUsernameWhenRegisterResponse(isEmailAvailable, isUsernameAvailable));
     }
