@@ -38,7 +38,7 @@ public class UploadServiceImpl implements UploadServiceInterface {
     public APIResource<UploadResponse> sendUploadRequest(UploadRequest request) {
 
         String imageId = UUID.randomUUID().toString();
-        String objectPath = "uploads/" + imageId + "-" + request.getFileName();
+        String objectPath = "prl_img/" + imageId + "-" + request.getFileName();
 
         URL signedUrl = gcsService.generateUploadUrl(objectPath, request.getFileContentType());
 
