@@ -30,20 +30,6 @@
         </processorPath>
         <module name="relationship_service" />
       </profile>
-      <profile name="Annotation profile for syncio_server" enabled="true">
-        <sourceOutputDir name="target/generated-sources/annotations" />
-        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
-        <outputRelativeToContentRoot value="true" />
-        <processorPath useClasspath="false">
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.38/lombok-1.18.38.jar" />
-        </processorPath>
-        <module name="user_service" />
-        <module name="auth_service" />
-        <module name="org_service" />
-        <module name="notification_service" />
-        <module name="api_gateway" />
-        <module name="permission_service" />
-      </profile>
       <profile name="Annotation profile for discovery_service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
@@ -64,6 +50,21 @@
         </processorPath>
         <module name="shared" />
       </profile>
+      <profile name="Annotation profile for syncio_server" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.38/lombok-1.18.38.jar" />
+        </processorPath>
+        <module name="user_service" />
+        <module name="auth_service" />
+        <module name="org_service" />
+        <module name="notification_service" />
+        <module name="uploading_service" />
+        <module name="api_gateway" />
+        <module name="permission_service" />
+      </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="test" target="21" />
@@ -82,6 +83,7 @@
       <module name="shared" options="-parameters" />
       <module name="syncio_server" options="-parameters" />
       <module name="test" options="-parameters" />
+      <module name="uploading_service" options="-parameters" />
       <module name="user_service" options="-parameters" />
     </option>
   </component>

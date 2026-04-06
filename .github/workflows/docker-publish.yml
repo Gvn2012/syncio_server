@@ -98,6 +98,7 @@ jobs:
           build_if_needed "telegram-bot" "telegram_bot" "telegram_bot/Dockerfile" "telegram-bot"
           build_if_needed "api-gateway" "api_gateway" "api_gateway/Dockerfile" "api-gateway"
           build_if_needed "org-service" "org_service" "org_service/Dockerfile" "org-service"
+          build_if_needed "uploading-service" "uploading_service" "uploading_service/Dockerfile" "uploading-service"
           build_if_needed "permission-service" "permission_service" "permission_service/Dockerfile" "permission-service"
 
           echo "REBUILT_LIST<<EOF" >> $GITHUB_ENV

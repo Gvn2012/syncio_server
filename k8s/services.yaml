@@ -630,3 +630,71 @@ spec:
             limits:
               cpu: "200m"
               memory: "256Mi"
+
+# ===================== UPLOADING =====================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-uploading
+  namespace: syncio
+spec:
+  replicas: 2
+  minReadySeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: syncio-uploading
+  template:
+    metadata:
+      labels:
+        app: syncio-uploading
+    spec:
+      containers:
+        - name: uploading
+          image: vietpham18/uploading-service:ea2cb0af246848e7658c4fcf0b0e7d08070f6341
+          ports:
+            - containerPort: 8090
+          startupProbe:
+            tcpSocket:
+              port: 8090
+            periodSeconds: 10
+            failureThreshold: 18
+            timeoutSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: 8090
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
+          env:
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: syncio-kafka.syncio.svc.cluster.local:9092
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: http://syncio-zipkin:9411/api/v2/spans
+            - name: EUREKA_CLIENT_ENABLED
+              value: "false"
+            - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
+              value: "false"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-uploading
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-uploading
+  ports:
+    - port: 8090
