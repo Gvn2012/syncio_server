@@ -21,8 +21,17 @@ spec:
       containers:
         - name: zookeeper
           image: confluentinc/cp-zookeeper:7.5.0
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              ordinal="${HOSTNAME##*-}"
+              export ZOOKEEPER_SERVER_ID="$((ordinal + 1))"
+              exec /etc/confluent/docker/run
           ports:
             - containerPort: 2181
+            - containerPort: 2888
+            - containerPort: 3888
           env:
             - name: ZOOKEEPER_CLIENT_PORT
               value: "2181"
@@ -32,8 +41,8 @@ spec:
               value: "5"
             - name: ZOOKEEPER_SYNC_LIMIT
               value: "2"
-            - name: ZOOKEEPER_SERVER_ID
-              value: "1"
+            - name: ZOOKEEPER_SERVERS
+              value: "syncio-zookeeper-0.syncio-zookeeper.syncio.svc.cluster.local:2888:3888;syncio-zookeeper-1.syncio-zookeeper.syncio.svc.cluster.local:2888:3888;syncio-zookeeper-2.syncio-zookeeper.syncio.svc.cluster.local:2888:3888"
           volumeMounts:
             - name: zookeeper-data
               mountPath: /var/lib/zookeeper/data
@@ -41,7 +50,7 @@ spec:
               mountPath: /var/lib/zookeeper/log
           resources:
             requests:
-              cpu: "500m"
+              cpu: "200m"
               memory: "512Mi"
             limits:
               cpu: "1"
@@ -69,10 +78,16 @@ metadata:
   namespace: syncio
 spec:
   clusterIP: None
+  publishNotReadyAddresses: true
   selector:
     app: syncio-zookeeper
   ports:
     - port: 2181
+      name: client
+    - port: 2888
+      name: peer
+    - port: 3888
+      name: leader-election
 
 # ===================== KAFKA =====================
 ---
@@ -103,8 +118,10 @@ spec:
             - -ec
             - |
               ordinal="${KAFKA_NODE_NAME##*-}"
-              export KAFKA_BROKER_ID="$((ordinal + 1))"
-              exec /etc/confluent/docker/run
+              broker_id="$((ordinal + 1))"
+              export KAFKA_BROKER_ID="${broker_id}"
+              /etc/confluent/docker/configure
+              exec /etc/confluent/docker/launch
           ports:
             - containerPort: 9092
           env:
