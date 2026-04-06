@@ -618,7 +618,7 @@ spec:
             - name: ARGOCD_APP_NAME
               value: syncio-app
             - name: SCALABLE_DEPLOYMENTS
-              value: syncio-auth,syncio-user,syncio-relationship,syncio-post,syncio-permission,syncio-org,syncio-notification
+              value: syncio-auth,syncio-user,syncio-relationship,syncio-post,syncio-permission,syncio-org,syncio-notification,syncio-uploading
             - name: GITHUB_REPO
               value: Gvn2012/syncio_server
             - name: GITHUB_BRANCH
