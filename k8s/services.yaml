@@ -656,7 +656,7 @@ spec:
     spec:
       containers:
         - name: uploading
-          image: vietpham18/uploading-service:ea2cb0af246848e7658c4fcf0b0e7d08070f6341
+          image: vietpham18/uploading-service:b8f5107ff135b839de5e8521b20c2c6b5d0f2aa5
           ports:
             - containerPort: 8090
           startupProbe:
