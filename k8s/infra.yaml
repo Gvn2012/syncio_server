@@ -98,6 +98,13 @@ spec:
       containers:
         - name: kafka
           image: confluentinc/cp-kafka:7.5.0
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              ordinal="${KAFKA_NODE_NAME##*-}"
+              export KAFKA_BROKER_ID="$((ordinal + 1))"
+              exec /etc/confluent/docker/run
           ports:
             - containerPort: 9092
           env:
@@ -105,8 +112,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: KAFKA_BROKER_ID
-              value: "-1"
             - name: KAFKA_ZOOKEEPER_CONNECT
               value: syncio-zookeeper-0.syncio-zookeeper:2181,syncio-zookeeper-1.syncio-zookeeper:2181,syncio-zookeeper-2.syncio-zookeeper:2181
             - name: KAFKA_LISTENERS
