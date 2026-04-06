@@ -50,7 +50,7 @@
         </processorPath>
         <module name="shared" />
       </profile>
-      <profile name="Annotation profile for syncio_server" enabled="true">
+      <profile name="Annotation profile for uploading_service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
