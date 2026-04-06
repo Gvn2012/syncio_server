@@ -1,7 +1,9 @@
 package io.github.gvn2012.image_uploading_service.controllers;
 
 import io.github.gvn2012.image_uploading_service.dtos.APIResource;
+import io.github.gvn2012.image_uploading_service.dtos.requests.UploadConfirmRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadRequest;
+import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadResponse;
 import io.github.gvn2012.image_uploading_service.services.interfaces.UploadServiceInterface;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,16 @@ public class UploadController {
                 uploadService.sendUploadRequest(uploadRequest);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(uploadResponse);
+    }
+
+    @PostMapping("/confirm")
+    public ResponseEntity<APIResource<UploadConfirmResponse>> confirmUpload(
+            @RequestBody UploadConfirmRequest uploadConfirmRequest){
+
+        APIResource<UploadConfirmResponse> response =
+                uploadService.confirmUpload(uploadConfirmRequest);
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/health")

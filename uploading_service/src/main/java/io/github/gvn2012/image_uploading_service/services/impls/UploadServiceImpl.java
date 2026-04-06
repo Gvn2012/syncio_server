@@ -3,7 +3,9 @@ package io.github.gvn2012.image_uploading_service.services.impls;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.gvn2012.image_uploading_service.dtos.APIResource;
+import io.github.gvn2012.image_uploading_service.dtos.requests.UploadConfirmRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadRequest;
+import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadResponse;
 import io.github.gvn2012.image_uploading_service.models.UploadAudit;
 import io.github.gvn2012.image_uploading_service.repositories.UploadAuditRepository;
@@ -63,6 +65,20 @@ public class UploadServiceImpl implements UploadServiceInterface {
     }
 
     @Override
+    public APIResource<UploadConfirmResponse> confirmUpload(UploadConfirmRequest request) {
+        UploadAudit audit = uploadAuditRepository.findByImageId(request.getImageId())
+                .orElseThrow(() -> new RuntimeException("Upload not found"));
+
+        UploadConfirmResponse response = new UploadConfirmResponse(
+                audit.getImageId(),
+                audit.getStatus()
+        );
+
+        return APIResource.success(response);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
     public void handle(Map<String, Object> body) {
         try {
             Map<String, Object> message = (Map<String, Object>) body.get("message");

@@ -633,6 +633,14 @@ spec:
 
 # ===================== UPLOADING =====================
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: uploading-service-ksa
+  namespace: syncio
+  annotations:
+    iam.gke.io/gcp-service-account: "syncio-uploading-sa@syncio-492111.iam.gserviceaccount.com"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
