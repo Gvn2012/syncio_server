@@ -32,6 +32,7 @@
         <module>notification_service</module>
         <module>relationship_service</module>
         <module>permission_service</module>
+        <module>uploading_service</module>
         <module>post_service</module>
         <module>shared</module>
     </modules>

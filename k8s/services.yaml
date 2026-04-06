@@ -654,6 +654,7 @@ spec:
       labels:
         app: syncio-uploading
     spec:
+      serviceAccountName: uploading-service-ksa
       containers:
         - name: uploading
           image: vietpham18/uploading-service:ea2cb0af246848e7658c4fcf0b0e7d08070f6341

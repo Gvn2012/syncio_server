@@ -17,7 +17,8 @@ public class RouteValidator {
             "/api/v1/users/register",
             "/api/v1/users/emails/verify",
             "/api/v1/auth/**",
-            "/api/v1/users/email-verifications/**");
+            "/api/v1/users/email-verifications/**",
+            "/api/v1/upload/**");
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 

@@ -16,7 +16,7 @@
         <option value="$PROJECT_DIR$/post_service/test/pom.xml" />
         <option value="$PROJECT_DIR$/permission_service/pom.xml" />
         <option value="$PROJECT_DIR$/org_service/pom.xml" />
-        <option value="$PROJECT_DIR$/image_uploading_service/pom.xml" />
+        <option value="$PROJECT_DIR$/uploading_service/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">
