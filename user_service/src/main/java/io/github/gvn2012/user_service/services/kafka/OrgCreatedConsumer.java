@@ -27,13 +27,15 @@ public class OrgCreatedConsumer {
             UUID ownerId = UUID.fromString(event.getOwnerId());
             UUID orgId = UUID.fromString(event.getOrgId());
             
-            userRepository.findById(ownerId).ifPresent(user -> {
-                user.setOrgId(orgId);
-                userRepository.save(user);
-                log.info("Successfully updated user {} with orgId {}", ownerId, orgId);
-            });
+            User user = userRepository.findById(ownerId)
+                .orElseThrow(() -> new RuntimeException("User not found for ownerId: " + ownerId + " (Race condition - retrying...)"));
+
+            user.setOrgId(orgId);
+            userRepository.save(user);
+            log.info("Successfully updated user {} with orgId {}", ownerId, orgId);
         } catch (Exception e) {
-            log.error("Failed to process OrgCreatedEvent", e);
+            log.warn("Failed to process OrgCreatedEvent. Retrying... Reason: {}", e.getMessage());
+            throw new RuntimeException("Rethrowing for Kafka Retry: " + e.getMessage(), e);
         }
     }
 }
