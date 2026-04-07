@@ -7,12 +7,14 @@ import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmRes
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadResponse;
 import io.github.gvn2012.image_uploading_service.services.interfaces.UploadServiceInterface;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/upload")
@@ -50,10 +52,11 @@ public class UploadController {
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestBody Map<String, Object> body) {
 
+        log.info("Received GCS event: {}", body);
         try {
             uploadService.handle(body);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Error handling GCS event", e);
             return ResponseEntity.internalServerError().build();
         }
 

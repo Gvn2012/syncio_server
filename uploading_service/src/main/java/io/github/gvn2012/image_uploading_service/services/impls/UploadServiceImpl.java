@@ -13,6 +13,7 @@ import io.github.gvn2012.image_uploading_service.repositories.UploadAuditReposit
 import io.github.gvn2012.image_uploading_service.services.interfaces.GCSServiceInterface;
 import io.github.gvn2012.image_uploading_service.services.interfaces.UploadServiceInterface;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UploadServiceImpl implements UploadServiceInterface {
@@ -89,12 +91,17 @@ public class UploadServiceImpl implements UploadServiceInterface {
 
             String objectName = json.get("name").asText();
             String bucketName = json.get("bucket").asText();
-            String imageId = objectName.split("/")[1].split("-")[0];
+            String secondPart = objectName.split("/")[1];
+            String imageId = secondPart.substring(0, 36);
+            log.info("Extracted imageId: {} from object: {}", imageId, objectName);
 
-            uploadAuditRepository.findByImageId(imageId).ifPresent(audit -> {
+            uploadAuditRepository.findByImageId(imageId).ifPresentOrElse(audit -> {
+                log.info("Updating audit for imageId: {}", imageId);
                 audit.setStatus("COMPLETED");
                 audit.setUpdatedAt(Instant.now());
                 uploadAuditRepository.save(audit);
+            }, () -> {
+                log.warn("UploadAudit not found for imageId: {}", imageId);
             });
 
             Map<String, Object> metadata = new HashMap<>();
