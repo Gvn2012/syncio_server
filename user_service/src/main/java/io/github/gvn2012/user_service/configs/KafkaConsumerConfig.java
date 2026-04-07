@@ -8,6 +8,7 @@ import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.converter.RecordMessageConverter;
 import org.springframework.kafka.support.converter.StringJsonMessageConverter;
 import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
+import org.springframework.util.backoff.BackOffExecution;
 
 @Configuration
 public class KafkaConsumerConfig {
@@ -25,7 +26,20 @@ public class KafkaConsumerConfig {
         factory.setConsumerFactory(consumerFactory);
         factory.setRecordMessageConverter(converter());
 
-        ExponentialBackOffWithMaxRetries backOff = new ExponentialBackOffWithMaxRetries(5);
+        ExponentialBackOffWithMaxRetries backOff = new ExponentialBackOffWithMaxRetries(5) {
+            @Override
+            public BackOffExecution start() {
+                BackOffExecution execution = super.start();
+                return new BackOffExecution() {
+                    @Override
+                    public long nextBackOff() {
+                        long interval = execution.nextBackOff();
+                        if (interval == STOP) return STOP;
+                        return interval + (long) (Math.random() * 500); // 0 to 500ms jitter
+                    }
+                };
+            }
+        };
         backOff.setInitialInterval(1000L);
         backOff.setMultiplier(2.0);
         backOff.setMaxInterval(10000L);
