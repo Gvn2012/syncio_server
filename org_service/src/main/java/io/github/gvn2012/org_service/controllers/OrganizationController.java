@@ -34,7 +34,7 @@ public class OrganizationController {
                 .body(APIResource.ok("Organization created successfully", response));
     }
 
-    @GetMapping
+    @GetMapping("/availability")
     public ResponseEntity<APIResource<OrgAvailabilityResponse>> checkOrgAvailability(
             @RequestParam String name) {
         OrgAvailabilityResponse response = organizationService.getOrgAvailability(name);
