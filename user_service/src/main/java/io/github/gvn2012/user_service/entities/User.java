@@ -55,6 +55,9 @@ public class User extends AuditableEntity {
         @Size(min = 8, max = 512)
         private String passwordHash;
 
+        @Column(name = "org_id", columnDefinition = "BINARY(16)")
+        private UUID orgId;
+
         @Column(name = "is_active", nullable = false)
         private Boolean active = true;
 

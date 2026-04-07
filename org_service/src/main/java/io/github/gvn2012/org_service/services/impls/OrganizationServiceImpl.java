@@ -23,6 +23,9 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.springframework.kafka.core.KafkaTemplate;
+import io.github.gvn2012.shared.kafka_events.OrgCreatedEvent;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -30,6 +33,7 @@ public class OrganizationServiceImpl implements IOrganizationService {
 
     private final OrganizationRepository organizationRepository;
     private final OrganizationMapper organizationMapper;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
     @Transactional
@@ -65,11 +69,20 @@ public class OrganizationServiceImpl implements IOrganizationService {
 
         Organization savedOrg = organizationRepository.save(org);
 
+        // Publish event to Kafka
+        OrgCreatedEvent event = OrgCreatedEvent.builder()
+                .orgId(savedOrg.getId().toString())
+                .ownerId(requestingUserId.toString())
+                .name(savedOrg.getName())
+                .build();
+        kafkaTemplate.send("org.created", savedOrg.getId().toString(), event);
+
         return CreateOrganizationResponse.builder()
                 .id(savedOrg.getId())
                 .slug(savedOrg.getSlug())
                 .build();
     }
+
 
     @Override
     @Transactional(readOnly = true)

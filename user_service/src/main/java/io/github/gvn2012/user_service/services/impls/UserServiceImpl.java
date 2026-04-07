@@ -81,7 +81,21 @@ public class UserServiceImpl implements IUserService {
 
         ensureUserCanLogin(user);
 
-        // Test service deployment
+        // Disambiguate logic based on the presence of orgId in LoginRequest
+        if (loginRequest.getOrgId() != null && !loginRequest.getOrgId().isBlank()) {
+            // Org login path
+            if (user.getOrgId() == null) {
+                throw new BadRequestException("User does not belong to any organization. Please use standalone login.");
+            }
+            if (!user.getOrgId().toString().equalsIgnoreCase(loginRequest.getOrgId())) {
+                throw new BadRequestException("User does not belong to the requested organization.");
+            }
+        } else {
+            // Standalone login path
+            if (user.getOrgId() != null) {
+                throw new BadRequestException("User belongs to an organization. Please use organization login.");
+            }
+        }
 
         GenerateLoginTokenResponse tokenResponse = null;
 
@@ -255,7 +269,8 @@ public class UserServiceImpl implements IUserService {
     }
 
     private void buildAddresses(User user, List<UserAddressDTO> dtos) {
-        if (dtos == null || dtos.isEmpty()) return;
+        if (dtos == null || dtos.isEmpty())
+            return;
         for (UserAddressDTO dto : dtos) {
             UserAddress address = new UserAddress();
             address.setUser(user);
@@ -271,14 +286,16 @@ public class UserServiceImpl implements IUserService {
     }
 
     private void buildEmergencyContacts(User user, List<UserEmergencyContactDTO> dtos) {
-        if (dtos == null || dtos.isEmpty()) return;
+        if (dtos == null || dtos.isEmpty())
+            return;
         AtomicInteger priority = new AtomicInteger(1);
         for (UserEmergencyContactDTO dto : dtos) {
             UserEmergencyContact contact = new UserEmergencyContact();
             contact.setUser(user);
             contact.setContactName(dto.getContactName());
             contact.setRelationship(dto.getRelationship() != null && !dto.getRelationship().isBlank()
-                    ? dto.getRelationship() : "OTHER");
+                    ? dto.getRelationship()
+                    : "OTHER");
             contact.setPhoneNumber(dto.getPhoneNumber());
             contact.setEmail(dto.getEmail());
             contact.setPrimary(Boolean.TRUE.equals(dto.getIsPrimary()));

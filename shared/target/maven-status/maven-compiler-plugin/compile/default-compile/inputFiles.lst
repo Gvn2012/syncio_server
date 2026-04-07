@@ -1,4 +1,5 @@
 /Users/cps/IdeaProjects/syncio_server/shared/src/main/java/io/github/gvn2012/shared/kafka_events/EmailVerificationEvent.java
 /Users/cps/IdeaProjects/syncio_server/shared/src/main/java/io/github/gvn2012/shared/kafka_events/ImageUploadedEvent.java
+/Users/cps/IdeaProjects/syncio_server/shared/src/main/java/io/github/gvn2012/shared/kafka_events/OrgCreatedEvent.java
 /Users/cps/IdeaProjects/syncio_server/shared/src/main/java/io/github/gvn2012/shared/kafka_events/PostActivityEvent.java
 /Users/cps/IdeaProjects/syncio_server/shared/src/main/java/io/github/gvn2012/shared/kafka_events/RelationshipChangedEvent.java
