@@ -54,7 +54,7 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "500m"
+              cpu: "100m"
               memory: "512Mi"
             limits:
               cpu: "1"
@@ -128,7 +128,7 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "500m"
+              cpu: "100m"
               memory: "512Mi"
             limits:
               cpu: "1"
@@ -196,7 +196,7 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "300m"
+              cpu: "100m"
               memory: "384Mi"
             limits:
               cpu: "700m"
@@ -264,7 +264,7 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "300m"
+              cpu: "100m"
               memory: "384Mi"
             limits:
               cpu: "700m"
@@ -332,7 +332,7 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "200m"
+              cpu: "100m"
               memory: "256Mi"
             limits:
               cpu: "500m"
@@ -400,7 +400,7 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "200m"
+              cpu: "100m"
               memory: "256Mi"
             limits:
               cpu: "500m"
@@ -468,7 +468,7 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "200m"
+              cpu: "100m"
               memory: "256Mi"
             limits:
               cpu: "500m"
@@ -691,7 +691,7 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "200m"
+              cpu: "100m"
               memory: "256Mi"
             limits:
               cpu: "500m"

@@ -12,6 +12,7 @@ import java.util.function.Predicate;
 public class RouteValidator {
     private static final List<String> OPEN_ROUTES = List.of(
             "/eureka/**",
+            "/api/v1/orgs/availability",
             "/api/v1/users/check-username-email-availability**",
             "/api/v1/users/login",
             "/api/v1/users/register",

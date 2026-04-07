@@ -50,7 +50,7 @@ spec:
               mountPath: /var/lib/zookeeper/log
           resources:
             requests:
-              cpu: "200m"
+              cpu: "50m"
               memory: "512Mi"
             limits:
               cpu: "1"
@@ -153,7 +153,7 @@ spec:
               subPath: kafka-data
           resources:
             requests:
-              cpu: "500m"
+              cpu: "150m"
               memory: "512Mi"
             limits:
               cpu: "1"
@@ -187,7 +187,7 @@ metadata:
   name: syncio-zipkin
   namespace: syncio
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: syncio-zipkin
@@ -203,7 +203,7 @@ spec:
             - containerPort: 9411
           resources:
             requests:
-              cpu: "500m"
+              cpu: "100m"
               memory: "512Mi"
             limits:
               cpu: "1"
