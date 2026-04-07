@@ -374,7 +374,7 @@ spec:
     spec:
       containers:
         - name: org
-          image: vietpham18/org-service:f3f958f248e2406a6cff9b3c5adcc6793ce025f4
+          image: vietpham18/org-service:87d6bab261a0ab370dcad164d5fb3bc618dbc21a
           ports:
             - containerPort: 8084
           startupProbe:
