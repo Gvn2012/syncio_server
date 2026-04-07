@@ -7,7 +7,7 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.converter.RecordMessageConverter;
 import org.springframework.kafka.support.converter.StringJsonMessageConverter;
-import org.springframework.util.backoff.FixedBackOff;
+import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 
 @Configuration
 public class KafkaConsumerConfig {
@@ -25,7 +25,12 @@ public class KafkaConsumerConfig {
         factory.setConsumerFactory(consumerFactory);
         factory.setRecordMessageConverter(converter());
 
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler(new FixedBackOff(5000L, 5));
+        ExponentialBackOffWithMaxRetries backOff = new ExponentialBackOffWithMaxRetries(5);
+        backOff.setInitialInterval(1000L);
+        backOff.setMultiplier(2.0);
+        backOff.setMaxInterval(10000L);
+
+        DefaultErrorHandler errorHandler = new DefaultErrorHandler(backOff);
         factory.setCommonErrorHandler(errorHandler);
 
         return factory;
