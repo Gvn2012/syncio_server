@@ -2,9 +2,15 @@ package io.github.gvn2012.user_service.dtos.responses;
 
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.Map;
 
 @Data
+@Builder
+@NoArgsConstructor
 @AllArgsConstructor
 public class UserProfilePictureResponse {
     private String id;
@@ -15,4 +21,5 @@ public class UserProfilePictureResponse {
     private String mimeType;
     private Boolean deleted;
     private Boolean primary;
+    private Map<String, Object> metadata;
 }

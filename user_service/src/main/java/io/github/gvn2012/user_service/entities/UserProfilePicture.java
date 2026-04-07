@@ -58,6 +58,9 @@ public class UserProfilePicture extends AuditableEntity {
     @Column(name = "mime_type", length = 128)
     private String mimeType;
 
+    @Column(name = "metadata", columnDefinition = "json")
+    private String metadata;
+
     @Column(name = "is_primary", nullable = false)
     private Boolean primary = false;
 

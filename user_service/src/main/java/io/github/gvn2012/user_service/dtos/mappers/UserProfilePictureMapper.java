@@ -1,13 +1,21 @@
 package io.github.gvn2012.user_service.dtos.mappers;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.gvn2012.user_service.dtos.responses.UserProfilePictureResponse;
 import io.github.gvn2012.user_service.entities.UserProfilePicture;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 
 @Component
+@RequiredArgsConstructor
 public class UserProfilePictureMapper implements IMapper<UserProfilePicture, UserProfilePictureResponse> {
+
+    private final ObjectMapper objectMapper;
 
     @Value("${gcp.storage.public-url-prefix:https://storage.googleapis.com}")
     private String publicUrlPrefix;
@@ -19,16 +27,26 @@ public class UserProfilePictureMapper implements IMapper<UserProfilePicture, Use
             url = String.format("%s/%s/%s", publicUrlPrefix, entity.getBucketName(), entity.getObjectPath());
         }
 
-        return new UserProfilePictureResponse(
-                entity.getId().toString(),
-                entity.getFileSize(),
-                entity.getHeight(),
-                entity.getWidth(),
-                url,
-                entity.getMimeType(),
-                entity.getDeleted(),
-                entity.getPrimary()
-        );
+        Map<String, Object> metadata = null;
+        if (entity.getMetadata() != null && !entity.getMetadata().isBlank()) {
+            try {
+                metadata = objectMapper.readValue(entity.getMetadata(), new TypeReference<Map<String, Object>>() {});
+            } catch (Exception e) {
+                // Log error or fallback
+            }
+        }
+
+        return UserProfilePictureResponse.builder()
+                .id(entity.getId().toString())
+                .fileSize(entity.getFileSize())
+                .height(entity.getHeight())
+                .width(entity.getWidth())
+                .url(url)
+                .mimeType(entity.getMimeType())
+                .deleted(entity.getDeleted())
+                .primary(entity.getPrimary())
+                .metadata(metadata)
+                .build();
     }
 
     @Override
@@ -41,6 +59,15 @@ public class UserProfilePictureMapper implements IMapper<UserProfilePicture, Use
         entity.setMimeType(dto.getMimeType());
         entity.setDeleted(dto.getDeleted());
         entity.setPrimary(dto.getPrimary());
+        
+        if (dto.getMetadata() != null) {
+            try {
+                entity.setMetadata(objectMapper.writeValueAsString(dto.getMetadata()));
+            } catch (Exception e) {
+                // Log error
+            }
+        }
+        
         return entity;
     }
 }

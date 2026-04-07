@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * Event published when an image is successfully uploaded to GCS.
@@ -20,4 +21,5 @@ public class ImageUploadedEvent implements Serializable {
     private String bucketName;
     private String contentType;
     private Long size;
+    private Map<String, Object> metadata;
 }

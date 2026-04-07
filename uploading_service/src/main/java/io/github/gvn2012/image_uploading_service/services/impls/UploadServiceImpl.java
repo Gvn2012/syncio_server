@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import java.net.URL;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -96,12 +97,23 @@ public class UploadServiceImpl implements UploadServiceInterface {
                 uploadAuditRepository.save(audit);
             });
 
+            Map<String, Object> metadata = new HashMap<>();
+            if (json.has("etag")) metadata.put("etag", json.get("etag").asText());
+            if (json.has("md5Hash")) metadata.put("md5Hash", json.get("md5Hash").asText());
+            if (json.has("timeCreated")) metadata.put("timeCreated", json.get("timeCreated").asText());
+            if (json.has("updated")) metadata.put("updated", json.get("updated").asText());
+            
+            if (json.has("metadata")) {
+                metadata.putAll(objectMapper.convertValue(json.get("metadata"), Map.class));
+            }
+
             ImageUploadedEvent event = ImageUploadedEvent.builder()
                     .imageId(imageId)
                     .objectPath(objectName)
                     .bucketName(bucketName)
                     .contentType(json.has("contentType") ? json.get("contentType").asText() : null)
                     .size(json.has("size") ? json.get("size").asLong() : null)
+                    .metadata(metadata)
                     .build();
 
             kafkaTemplate.send("image.uploaded", imageId, event);
