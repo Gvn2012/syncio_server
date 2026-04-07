@@ -59,6 +59,6 @@ public class CreateOrganizationRequest {
     @Size(max = 32)
     private String postalCode;
 
-    @Size(max = 32)
+    @Size(max = 36)
     private String ownerId;
 }

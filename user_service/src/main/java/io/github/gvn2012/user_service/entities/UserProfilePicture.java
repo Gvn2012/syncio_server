@@ -17,7 +17,8 @@ import java.util.UUID;
         indexes = {
                 @Index(name = "ix_profile_pictures_profile", columnList = "user_profile_id"),
                 @Index(name = "ix_profile_pictures_profile_primary", columnList = "user_profile_id, is_primary"),
-                @Index(name = "ix_profile_pictures_profile_deleted", columnList = "user_profile_id, is_deleted")
+                @Index(name = "ix_profile_pictures_profile_deleted", columnList = "user_profile_id, is_deleted"),
+                @Index(name = "ix_profile_pictures_external_id", columnList = "external_id", unique = true)
         }
 )
 public class UserProfilePicture extends AuditableEntity {

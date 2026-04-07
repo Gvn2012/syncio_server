@@ -5,7 +5,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
+
+import io.github.gvn2012.user_service.dtos.OrgRegisterDTO;
+import io.github.gvn2012.user_service.dtos.UserAddressDTO;
+import io.github.gvn2012.user_service.dtos.UserEmergencyContactDTO;
+import io.github.gvn2012.user_service.entities.enums.Gender;
 
 @Data
 @AllArgsConstructor
@@ -26,16 +32,30 @@ public class UserRegisterRequest {
     @NotNull(message = "Email verification id must not be null")
     private UUID emailVerificationId;
 
+    @NotBlank(message = "Phone code must not be blank")
+    private String phoneCode;
+
     @NotBlank(message = "Phone number must not be blank")
-    @Pattern(
-            regexp = "^(\\+?[0-9]{10,15})$",
-            message = "Invalid phone number format"
-    )
+    @Pattern(regexp = "^(\\+?[0-9]{10,15})$", message = "Invalid phone number format")
     private String phoneNumber;
 
     @NotNull(message = "Date of birth must not be null")
     @Past(message = "Date of birth must be in the past")
     private LocalDate dateBirth;
 
-    private String profileImageId;
+    @NotNull(message = "Profile image id must not be null")
+    private UUID profileImageId;
+
+    private List<UserAddressDTO> addresses;
+
+    private List<UserEmergencyContactDTO> emergencyContacts;
+
+    @NotNull(message = "Gender must not be null")
+    private String gender;
+
+    @NotNull(message = "Registration type must not be null")
+    private String registrationType;
+
+    private OrgRegisterDTO organization;
+
 }

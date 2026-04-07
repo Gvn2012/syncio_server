@@ -1,7 +1,11 @@
 package io.github.gvn2012.user_service.services.impls;
 
 import io.github.gvn2012.user_service.clients.AuthClient;
+import io.github.gvn2012.user_service.clients.OrgClient;
 import io.github.gvn2012.user_service.dtos.APIResource;
+import io.github.gvn2012.user_service.dtos.OrgRegisterDTO;
+import io.github.gvn2012.user_service.dtos.UserAddressDTO;
+import io.github.gvn2012.user_service.dtos.UserEmergencyContactDTO;
 import io.github.gvn2012.user_service.dtos.mappers.UserDetailMapper;
 import io.github.gvn2012.user_service.dtos.requests.GenerateLoginTokenRequest;
 import io.github.gvn2012.user_service.dtos.requests.LoginRequest;
@@ -13,11 +17,15 @@ import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
 import io.github.gvn2012.user_service.dtos.responses.UserRegisterResponse;
 import io.github.gvn2012.user_service.entities.PendingEmailVerification;
 import io.github.gvn2012.user_service.entities.User;
+import io.github.gvn2012.user_service.entities.UserAddress;
 import io.github.gvn2012.user_service.entities.UserEmail;
+import io.github.gvn2012.user_service.entities.UserEmergencyContact;
 import io.github.gvn2012.user_service.entities.UserPhone;
 import io.github.gvn2012.user_service.entities.UserProfile;
 import io.github.gvn2012.user_service.entities.UserProfilePicture;
+import io.github.gvn2012.user_service.entities.enums.AddressType;
 import io.github.gvn2012.user_service.entities.enums.EmailStatus;
+import io.github.gvn2012.user_service.entities.enums.Gender;
 import io.github.gvn2012.user_service.exceptions.BadRequestException;
 import io.github.gvn2012.user_service.exceptions.DataIntegrityViolationException;
 import io.github.gvn2012.user_service.exceptions.NotFoundException;
@@ -35,8 +43,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Service
@@ -49,6 +62,7 @@ public class UserServiceImpl implements IUserService {
     private final UserPhoneRepository userPhoneRepository;
 
     private final AuthClient authClient;
+    private final OrgClient orgClient;
 
     private final IUserEmailService userEmailService;
     private final IPendingEmailVerificationService pendingEmailVerificationService;
@@ -129,6 +143,10 @@ public class UserServiceImpl implements IUserService {
 
         pendingEmailVerificationService.markConsumed(verification);
 
+        if ("admin".equalsIgnoreCase(request.getRegistrationType()) && request.getOrganization() != null) {
+            createOrganizationForAdmin(user.getId(), request.getOrganization());
+        }
+
         return APIResource.ok(
                 "User created successfully",
                 new UserRegisterResponse(user.getId().toString()),
@@ -190,6 +208,10 @@ public class UserServiceImpl implements IUserService {
         user.setUsername(request.getUsername());
         user.setPasswordHash(hashedPassword);
 
+        if (request.getGender() != null) {
+            user.setGender(Gender.valueOf(request.getGender().toUpperCase()));
+        }
+
         UserEmail email = new UserEmail();
         email.setUser(user);
         email.setEmail(request.getEmail().trim().toLowerCase());
@@ -200,7 +222,7 @@ public class UserServiceImpl implements IUserService {
 
         UserPhone phone = new UserPhone();
         phone.setUser(user);
-        phone.setPhoneNumber(request.getPhoneNumber());
+        phone.setPhoneNumber(request.getPhoneCode() + request.getPhoneNumber());
         phone.setPrimary(true);
         phone.setVerified(true);
         phone.setVerifiedAt(LocalDateTime.now());
@@ -214,9 +236,9 @@ public class UserServiceImpl implements IUserService {
         picture.setPrimary(true);
         picture.setDeleted(false);
 
-        if (request.getProfileImageId() != null && !request.getProfileImageId().isBlank()) {
-            picture.setExternalId(request.getProfileImageId());
-            picture.setUrl("PENDING"); // Will be updated by Kafka consumer
+        if (request.getProfileImageId() != null) {
+            picture.setExternalId(request.getProfileImageId().toString());
+            picture.setUrl("PENDING");
         } else {
             picture.setUrl("https://storage.googleapis.com/syncio-bucket/defaults/avatar.png");
         }
@@ -226,7 +248,76 @@ public class UserServiceImpl implements IUserService {
         user.setProfile(profile);
         profile.getPictures().add(picture);
 
+        buildAddresses(user, request.getAddresses());
+        buildEmergencyContacts(user, request.getEmergencyContacts());
+
         return user;
+    }
+
+    private void buildAddresses(User user, List<UserAddressDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) return;
+        for (UserAddressDTO dto : dtos) {
+            UserAddress address = new UserAddress();
+            address.setUser(user);
+            address.setAddressType(AddressType.valueOf(dto.getAddressType().toUpperCase()));
+            address.setAddressLine1(dto.getAddressLine1());
+            address.setAddressLine2(dto.getAddressLine2());
+            address.setCity(dto.getCity());
+            address.setPostalCode(dto.getPostalCode());
+            address.setCountry(dto.getCountry());
+            address.setPrimary(Boolean.TRUE.equals(dto.getIsPrimary()));
+            user.getAddresses().add(address);
+        }
+    }
+
+    private void buildEmergencyContacts(User user, List<UserEmergencyContactDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) return;
+        AtomicInteger priority = new AtomicInteger(1);
+        for (UserEmergencyContactDTO dto : dtos) {
+            UserEmergencyContact contact = new UserEmergencyContact();
+            contact.setUser(user);
+            contact.setContactName(dto.getContactName());
+            contact.setRelationship(dto.getRelationship() != null && !dto.getRelationship().isBlank()
+                    ? dto.getRelationship() : "OTHER");
+            contact.setPhoneNumber(dto.getPhoneNumber());
+            contact.setEmail(dto.getEmail());
+            contact.setPrimary(Boolean.TRUE.equals(dto.getIsPrimary()));
+            contact.setPriority(priority.getAndIncrement());
+            user.getEmergencyContacts().add(contact);
+        }
+    }
+
+    private void createOrganizationForAdmin(UUID ownerId, OrgRegisterDTO org) {
+        Map<String, Object> orgRequest = new HashMap<>();
+        orgRequest.put("name", org.getName());
+        orgRequest.put("ownerId", ownerId.toString());
+
+        if (org.getLegalName() != null && !org.getLegalName().isBlank())
+            orgRequest.put("legalName", org.getLegalName());
+        if (org.getDescription() != null && !org.getDescription().isBlank())
+            orgRequest.put("description", org.getDescription());
+        if (org.getIndustry() != null && !org.getIndustry().isBlank())
+            orgRequest.put("industry", org.getIndustry());
+        if (org.getWebsite() != null && !org.getWebsite().isBlank())
+            orgRequest.put("website", org.getWebsite());
+        if (org.getLogoUrl() != null && !org.getLogoUrl().isBlank())
+            orgRequest.put("logoUrl", org.getLogoUrl());
+        if (org.getFoundedDate() != null && !org.getFoundedDate().isBlank())
+            orgRequest.put("foundedDate", org.getFoundedDate());
+        if (org.getRegistrationNumber() != null && !org.getRegistrationNumber().isBlank())
+            orgRequest.put("registrationNumber", org.getRegistrationNumber());
+        if (org.getTaxId() != null && !org.getTaxId().isBlank())
+            orgRequest.put("taxId", org.getTaxId());
+        if (org.getOrganizationSize() != null && !org.getOrganizationSize().isBlank())
+            orgRequest.put("organizationSize", org.getOrganizationSize());
+
+        try {
+            orgClient.createOrganization(orgRequest).block(Duration.ofSeconds(5));
+            log.info("Organization created for admin user: {}", ownerId);
+        } catch (Exception e) {
+            log.error("Failed to create organization for user: {}", ownerId, e);
+            throw new BadRequestException("Failed to create organization: " + e.getMessage());
+        }
     }
 
     @Override

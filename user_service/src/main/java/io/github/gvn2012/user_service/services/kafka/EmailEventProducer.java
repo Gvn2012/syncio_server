@@ -23,7 +23,6 @@ public class EmailEventProducer {
                                 event.getEmail(),
                                 result.getRecordMetadata().partition(),
                                 result.getRecordMetadata().offset());
-                        log.info("Event sent");
                     } else {
                         log.error("Failed to send email verification event for {}", event.getEmail(), ex);
                     }
