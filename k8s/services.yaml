@@ -96,7 +96,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:8963b01f254471809c148a23d73afafe9d7de804
+          image: vietpham18/user-service:eaf5c89b6c049032f1d0d10b5a098c2c31528185
           ports:
             - containerPort: 8082
           startupProbe:
