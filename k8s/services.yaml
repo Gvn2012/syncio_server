@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: auth
-          image: vietpham18/auth-service:52e0aa1dd6dd7ec01e672419f7c5ea27844c98d6
+          image: vietpham18/auth-service:56fa8c93982d1c1f73627dea6818517296013b37
           ports:
             - containerPort: 8081
           startupProbe:
@@ -96,7 +96,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:52e0aa1dd6dd7ec01e672419f7c5ea27844c98d6
+          image: vietpham18/user-service:56fa8c93982d1c1f73627dea6818517296013b37
           ports:
             - containerPort: 8082
           startupProbe:
@@ -170,7 +170,7 @@ spec:
     spec:
       containers:
         - name: relationship
-          image: vietpham18/relationship-service:52e0aa1dd6dd7ec01e672419f7c5ea27844c98d6
+          image: vietpham18/relationship-service:56fa8c93982d1c1f73627dea6818517296013b37
           ports:
             - containerPort: 8087
           startupProbe:
@@ -238,7 +238,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:52e0aa1dd6dd7ec01e672419f7c5ea27844c98d6
+          image: vietpham18/post-service:56fa8c93982d1c1f73627dea6818517296013b37
           ports:
             - containerPort: 8085
           startupProbe:
@@ -306,7 +306,7 @@ spec:
     spec:
       containers:
         - name: permission
-          image: vietpham18/permission-service:52e0aa1dd6dd7ec01e672419f7c5ea27844c98d6
+          image: vietpham18/permission-service:56fa8c93982d1c1f73627dea6818517296013b37
           ports:
             - containerPort: 8088
           startupProbe:
@@ -374,7 +374,7 @@ spec:
     spec:
       containers:
         - name: org
-          image: vietpham18/org-service:87d6bab261a0ab370dcad164d5fb3bc618dbc21a
+          image: vietpham18/org-service:56fa8c93982d1c1f73627dea6818517296013b37
           ports:
             - containerPort: 8084
           startupProbe:
@@ -442,7 +442,7 @@ spec:
     spec:
       containers:
         - name: notification
-          image: vietpham18/notification-service:72f08473f8a5e03823af1e328d14868c76832822
+          image: vietpham18/notification-service:56fa8c93982d1c1f73627dea6818517296013b37
           ports:
             - containerPort: 8083
           startupProbe:
@@ -606,7 +606,7 @@ spec:
       serviceAccountName: syncio-telegram-bot
       containers:
         - name: telegram-bot
-          image: vietpham18/telegram-bot:52e0aa1dd6dd7ec01e672419f7c5ea27844c98d6
+          image: vietpham18/telegram-bot:56fa8c93982d1c1f73627dea6818517296013b37
           envFrom:
             - secretRef:
                 name: syncio-telegram-bot-secret
@@ -665,7 +665,7 @@ spec:
       serviceAccountName: uploading-service-ksa
       containers:
         - name: uploading
-          image: vietpham18/uploading-service:72f08473f8a5e03823af1e328d14868c76832822
+          image: vietpham18/uploading-service:56fa8c93982d1c1f73627dea6818517296013b37
           ports:
             - containerPort: 8090
           startupProbe:
