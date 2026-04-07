@@ -32,7 +32,6 @@ public class OrgAuditLog {
     @Column(name = "organization_id", nullable = false, columnDefinition = "BINARY(16)")
     private UUID organizationId;
 
-    /** References User.id — who performed the action */
     @Column(name = "actor_user_id", nullable = false, columnDefinition = "BINARY(16)")
     private UUID actorUserId;
 

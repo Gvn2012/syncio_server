@@ -4,6 +4,7 @@ import io.github.gvn2012.org_service.dtos.mappers.OrganizationMapper;
 import io.github.gvn2012.org_service.dtos.requests.CreateOrganizationRequest;
 import io.github.gvn2012.org_service.dtos.requests.UpdateOrganizationRequest;
 import io.github.gvn2012.org_service.dtos.responses.CreateOrganizationResponse;
+import io.github.gvn2012.org_service.dtos.responses.OrgAvailabilityResponse;
 import io.github.gvn2012.org_service.dtos.responses.OrganizationDto;
 import io.github.gvn2012.org_service.dtos.responses.UpdateOrganizationResponse;
 import io.github.gvn2012.org_service.entities.Organization;
@@ -19,8 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -35,7 +35,7 @@ public class OrganizationServiceImpl implements IOrganizationService {
     @Transactional
     public CreateOrganizationResponse createOrganization(UUID requestingUserId, CreateOrganizationRequest request) {
         log.info("Creating organization for user {}", requestingUserId);
-        
+
         String slug = generateSlug(request.getName());
         
         if (organizationRepository.existsBySlug(slug)) {
@@ -124,6 +124,32 @@ public class OrganizationServiceImpl implements IOrganizationService {
         
         org.setStatus(OrganizationStatus.DELETED);
         organizationRepository.save(org);
+    }
+
+    @Override
+    @Transactional
+    public OrgAvailabilityResponse getOrgAvailability(String name) {
+        OrgAvailabilityResponse response = new OrgAvailabilityResponse();
+
+        boolean exists = organizationRepository.existsByName(name);
+        response.setIsNameAvailable(!exists);
+
+        if (exists) {
+            Set<String> recommendedNames = new HashSet<>();
+            Random random = new Random();
+
+            while (recommendedNames.size() < 3) {
+                int number = 100 + random.nextInt(900);
+                String candidate = name + number;
+
+                if (!organizationRepository.existsByName(candidate)) {
+                    recommendedNames.add(candidate);
+                }
+            }
+            response.setRecommendedNames(recommendedNames);
+        }
+
+        return response;
     }
 
     @Override

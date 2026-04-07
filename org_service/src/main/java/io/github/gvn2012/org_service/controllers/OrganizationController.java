@@ -4,6 +4,7 @@ import io.github.gvn2012.org_service.dtos.APIResource;
 import io.github.gvn2012.org_service.dtos.requests.CreateOrganizationRequest;
 import io.github.gvn2012.org_service.dtos.requests.UpdateOrganizationRequest;
 import io.github.gvn2012.org_service.dtos.responses.CreateOrganizationResponse;
+import io.github.gvn2012.org_service.dtos.responses.OrgAvailabilityResponse;
 import io.github.gvn2012.org_service.dtos.responses.OrganizationDto;
 import io.github.gvn2012.org_service.dtos.responses.UpdateOrganizationResponse;
 import io.github.gvn2012.org_service.services.interfaces.IOrganizationService;
@@ -25,12 +26,19 @@ public class OrganizationController {
 
     @PostMapping
     public ResponseEntity<APIResource<CreateOrganizationResponse>> createOrganization(
-            @RequestHeader("X-User-Id") UUID requestingUserId,
             @Valid @RequestBody CreateOrganizationRequest request) {
 
+        UUID requestingUserId = UUID.fromString(request.getOwnerId());
         CreateOrganizationResponse response = organizationService.createOrganization(requestingUserId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(APIResource.ok("Organization created successfully", response));
+    }
+
+    @PutMapping
+    public ResponseEntity<APIResource<OrgAvailabilityResponse>> checkOrgAvailability(
+            @RequestParam String name) {
+        OrgAvailabilityResponse response = organizationService.getOrgAvailability(name);
+        return ResponseEntity.ok(APIResource.ok("Organization availability check successfully", response));
     }
 
     @GetMapping("/{oid}")

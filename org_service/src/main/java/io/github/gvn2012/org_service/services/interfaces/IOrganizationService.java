@@ -3,6 +3,7 @@ package io.github.gvn2012.org_service.services.interfaces;
 import io.github.gvn2012.org_service.dtos.requests.CreateOrganizationRequest;
 import io.github.gvn2012.org_service.dtos.requests.UpdateOrganizationRequest;
 import io.github.gvn2012.org_service.dtos.responses.CreateOrganizationResponse;
+import io.github.gvn2012.org_service.dtos.responses.OrgAvailabilityResponse;
 import io.github.gvn2012.org_service.dtos.responses.OrganizationDto;
 import io.github.gvn2012.org_service.dtos.responses.UpdateOrganizationResponse;
 
@@ -20,6 +21,8 @@ public interface IOrganizationService {
     void deleteOrganization(UUID orgId, UUID requestingUserId);
     
     List<OrganizationDto> getOrgsByOwner(UUID ownerId);
+
+    OrgAvailabilityResponse getOrgAvailability(String name);
     
     // OrganizationDetailResponse getOrganizationDetail(UUID orgId); // To be implemented with associations
 }
