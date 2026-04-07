@@ -43,7 +43,6 @@ public class OrganizationServiceImpl implements IOrganizationService {
         String slug = generateSlug(request.getName());
 
         if (organizationRepository.existsBySlug(slug)) {
-            // Suffix with random UUID fragment if duplicate
             slug = slug + "-" + UUID.randomUUID().toString().substring(0, 8);
         }
 
@@ -69,7 +68,6 @@ public class OrganizationServiceImpl implements IOrganizationService {
 
         Organization savedOrg = organizationRepository.save(org);
 
-        // Publish event to Kafka
         OrgCreatedEvent event = OrgCreatedEvent.builder()
                 .orgId(savedOrg.getId().toString())
                 .ownerId(requestingUserId.toString())
@@ -82,7 +80,6 @@ public class OrganizationServiceImpl implements IOrganizationService {
                 .slug(savedOrg.getSlug())
                 .build();
     }
-
 
     @Override
     @Transactional(readOnly = true)

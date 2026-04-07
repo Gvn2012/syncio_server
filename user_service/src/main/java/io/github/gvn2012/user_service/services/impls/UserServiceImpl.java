@@ -25,6 +25,7 @@ import io.github.gvn2012.user_service.entities.UserProfile;
 import io.github.gvn2012.user_service.entities.UserProfilePicture;
 import io.github.gvn2012.user_service.entities.enums.AddressType;
 import io.github.gvn2012.user_service.entities.enums.EmailStatus;
+import io.github.gvn2012.user_service.entities.enums.EmailVerificationMethod;
 import io.github.gvn2012.user_service.entities.enums.Gender;
 import io.github.gvn2012.user_service.exceptions.BadRequestException;
 import io.github.gvn2012.user_service.exceptions.DataIntegrityViolationException;
@@ -37,6 +38,8 @@ import io.github.gvn2012.user_service.services.interfaces.IUserService;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.kafka.shaded.com.google.protobuf.DescriptorProtos.ExtensionRangeOptions.VerificationState;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -81,9 +84,7 @@ public class UserServiceImpl implements IUserService {
 
         ensureUserCanLogin(user);
 
-        // Disambiguate logic based on the presence of orgId in LoginRequest
         if (loginRequest.getOrgId() != null && !loginRequest.getOrgId().isBlank()) {
-            // Org login path
             if (user.getOrgId() == null) {
                 throw new BadRequestException("User does not belong to any organization. Please use standalone login.");
             }
@@ -233,6 +234,7 @@ public class UserServiceImpl implements IUserService {
         email.setVerifiedAt(LocalDateTime.now());
         email.setPrimary(true);
         email.setStatus(EmailStatus.ACTIVE);
+        email.setVerificationMethod(EmailVerificationMethod.OTP);
 
         UserPhone phone = new UserPhone();
         phone.setUser(user);
