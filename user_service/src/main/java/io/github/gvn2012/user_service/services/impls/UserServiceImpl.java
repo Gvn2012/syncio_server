@@ -331,7 +331,7 @@ public class UserServiceImpl implements IUserService {
             orgRequest.put("organizationSize", org.getOrganizationSize());
 
         try {
-            orgClient.createOrganization(orgRequest).block(Duration.ofSeconds(5));
+            orgClient.createOrganization(orgRequest).block(Duration.ofSeconds(10));
             log.info("Organization created for admin user: {}", ownerId);
         } catch (Exception e) {
             log.error("Failed to create organization for user: {}", ownerId, e);
