@@ -3,6 +3,7 @@ package io.github.gvn2012.image_uploading_service.services.impls;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.gvn2012.image_uploading_service.dtos.APIResource;
+import io.github.gvn2012.shared.kafka_events.ImageUploadedEvent;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadConfirmRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadRequest;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmResponse;
@@ -25,7 +26,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class UploadServiceImpl implements UploadServiceInterface {
-//aaa
+
     private final GCSServiceInterface gcsService;
     private final UploadAuditRepository uploadAuditRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
@@ -58,8 +59,7 @@ public class UploadServiceImpl implements UploadServiceInterface {
                 signedUrl.toString(),
                 "PUT",
                 Map.of("Content-Type", request.getFileContentType()),
-                900
-        );
+                900);
 
         return APIResource.success(response);
     }
@@ -71,8 +71,7 @@ public class UploadServiceImpl implements UploadServiceInterface {
 
         UploadConfirmResponse response = new UploadConfirmResponse(
                 audit.getImageId(),
-                audit.getStatus()
-        );
+                audit.getStatus());
 
         return APIResource.success(response);
     }
@@ -88,7 +87,7 @@ public class UploadServiceImpl implements UploadServiceInterface {
             JsonNode json = objectMapper.readTree(decoded);
 
             String objectName = json.get("name").asText();
-
+            String bucketName = json.get("bucket").asText();
             String imageId = objectName.split("/")[1].split("-")[0];
 
             uploadAuditRepository.findByImageId(imageId).ifPresent(audit -> {
@@ -97,7 +96,15 @@ public class UploadServiceImpl implements UploadServiceInterface {
                 uploadAuditRepository.save(audit);
             });
 
-            kafkaTemplate.send("image.uploaded", imageId, json);
+            ImageUploadedEvent event = ImageUploadedEvent.builder()
+                    .imageId(imageId)
+                    .objectPath(objectName)
+                    .bucketName(bucketName)
+                    .contentType(json.has("contentType") ? json.get("contentType").asText() : null)
+                    .size(json.has("size") ? json.get("size").asLong() : null)
+                    .build();
+
+            kafkaTemplate.send("image.uploaded", imageId, event);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to handle GCS event", e);

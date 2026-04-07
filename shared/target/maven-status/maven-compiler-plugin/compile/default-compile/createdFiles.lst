@@ -1,5 +1,7 @@
-io/github/gvn2012/shared/kafka_events/PostActivityEvent$ActivityType.class
 io/github/gvn2012/shared/kafka_events/PostActivityEvent.class
-io/github/gvn2012/shared/kafka_events/RelationshipChangedEvent.class
+io/github/gvn2012/shared/kafka_events/ImageUploadedEvent$ImageUploadedEventBuilder.class
 io/github/gvn2012/shared/kafka_events/EmailVerificationEvent.class
 io/github/gvn2012/shared/kafka_events/RelationshipChangedEvent$ChangeType.class
+io/github/gvn2012/shared/kafka_events/PostActivityEvent$ActivityType.class
+io/github/gvn2012/shared/kafka_events/RelationshipChangedEvent.class
+io/github/gvn2012/shared/kafka_events/ImageUploadedEvent.class

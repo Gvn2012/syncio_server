@@ -37,7 +37,7 @@ public class OrganizationServiceImpl implements IOrganizationService {
         log.info("Creating organization for user {}", requestingUserId);
 
         String slug = generateSlug(request.getName());
-        
+
         if (organizationRepository.existsBySlug(slug)) {
             // Suffix with random UUID fragment if duplicate
             slug = slug + "-" + UUID.randomUUID().toString().substring(0, 8);
@@ -64,7 +64,7 @@ public class OrganizationServiceImpl implements IOrganizationService {
         org.setStatus(OrganizationStatus.ACTIVE);
 
         Organization savedOrg = organizationRepository.save(org);
-        
+
         return CreateOrganizationResponse.builder()
                 .id(savedOrg.getId())
                 .slug(savedOrg.getSlug())
@@ -80,9 +80,10 @@ public class OrganizationServiceImpl implements IOrganizationService {
 
     @Override
     @Transactional
-    public UpdateOrganizationResponse updateOrganization(UUID orgId, UUID requestingUserId, UpdateOrganizationRequest request) {
+    public UpdateOrganizationResponse updateOrganization(UUID orgId, UUID requestingUserId,
+            UpdateOrganizationRequest request) {
         Organization org = getOrganizationOrThrow(orgId);
-        
+
         if (!org.getOwnerId().equals(requestingUserId)) {
             throw new ForbiddenException("Only the organization owner can update the organization");
         }
@@ -90,23 +91,37 @@ public class OrganizationServiceImpl implements IOrganizationService {
         if (request.getName() != null) {
             org.setName(request.getName());
         }
-        if (request.getLegalName() != null) org.setLegalName(request.getLegalName());
-        if (request.getDescription() != null) org.setDescription(request.getDescription());
-        if (request.getIndustry() != null) org.setIndustry(request.getIndustry());
-        if (request.getWebsite() != null) org.setWebsite(request.getWebsite());
-        if (request.getLogoUrl() != null) org.setLogoUrl(request.getLogoUrl());
-        if (request.getFoundedDate() != null) org.setFoundedDate(request.getFoundedDate());
-        if (request.getRegistrationNumber() != null) org.setRegistrationNumber(request.getRegistrationNumber());
-        if (request.getTaxId() != null) org.setTaxId(request.getTaxId());
-        if (request.getOrganizationSize() != null) org.setOrganizationSize(request.getOrganizationSize());
-        if (request.getAddress() != null) org.setAddress(request.getAddress());
-        if (request.getCity() != null) org.setCity(request.getCity());
-        if (request.getState() != null) org.setState(request.getState());
-        if (request.getCountry() != null) org.setCountry(request.getCountry());
-        if (request.getPostalCode() != null) org.setPostalCode(request.getPostalCode());
+        if (request.getLegalName() != null)
+            org.setLegalName(request.getLegalName());
+        if (request.getDescription() != null)
+            org.setDescription(request.getDescription());
+        if (request.getIndustry() != null)
+            org.setIndustry(request.getIndustry());
+        if (request.getWebsite() != null)
+            org.setWebsite(request.getWebsite());
+        if (request.getLogoUrl() != null)
+            org.setLogoUrl(request.getLogoUrl());
+        if (request.getFoundedDate() != null)
+            org.setFoundedDate(request.getFoundedDate());
+        if (request.getRegistrationNumber() != null)
+            org.setRegistrationNumber(request.getRegistrationNumber());
+        if (request.getTaxId() != null)
+            org.setTaxId(request.getTaxId());
+        if (request.getOrganizationSize() != null)
+            org.setOrganizationSize(request.getOrganizationSize());
+        if (request.getAddress() != null)
+            org.setAddress(request.getAddress());
+        if (request.getCity() != null)
+            org.setCity(request.getCity());
+        if (request.getState() != null)
+            org.setState(request.getState());
+        if (request.getCountry() != null)
+            org.setCountry(request.getCountry());
+        if (request.getPostalCode() != null)
+            org.setPostalCode(request.getPostalCode());
 
         Organization updatedOrg = organizationRepository.save(org);
-        
+
         return UpdateOrganizationResponse.builder()
                 .id(updatedOrg.getId())
                 .slug(updatedOrg.getSlug())
@@ -117,11 +132,11 @@ public class OrganizationServiceImpl implements IOrganizationService {
     @Transactional
     public void deleteOrganization(UUID orgId, UUID requestingUserId) {
         Organization org = getOrganizationOrThrow(orgId);
-        
+
         if (!org.getOwnerId().equals(requestingUserId)) {
             throw new ForbiddenException("Only the organization owner can delete the organization");
         }
-        
+
         org.setStatus(OrganizationStatus.DELETED);
         organizationRepository.save(org);
     }
@@ -130,8 +145,8 @@ public class OrganizationServiceImpl implements IOrganizationService {
     @Transactional
     public OrgAvailabilityResponse getOrgAvailability(String name) {
         OrgAvailabilityResponse response = new OrgAvailabilityResponse();
-
-        boolean exists = organizationRepository.existsByName(name);
+        String normalizedName = name.toLowerCase().trim();
+        boolean exists = organizationRepository.existsByName(normalizedName);
         response.setIsNameAvailable(!exists);
 
         if (exists) {
@@ -140,7 +155,7 @@ public class OrganizationServiceImpl implements IOrganizationService {
 
             while (recommendedNames.size() < 3) {
                 int number = 100 + random.nextInt(900);
-                String candidate = name + number;
+                String candidate = normalizedName + number;
 
                 if (!organizationRepository.existsByName(candidate)) {
                     recommendedNames.add(candidate);
@@ -160,7 +175,7 @@ public class OrganizationServiceImpl implements IOrganizationService {
                 .map(organizationMapper::toDto)
                 .collect(Collectors.toList());
     }
-    
+
     private Organization getOrganizationOrThrow(UUID orgId) {
         return organizationRepository.findById(orgId)
                 .orElseThrow(() -> new NotFoundException("Organization not found with id: " + orgId));

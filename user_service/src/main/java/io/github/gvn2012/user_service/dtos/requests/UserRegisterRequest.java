@@ -36,4 +36,6 @@ public class UserRegisterRequest {
     @NotNull(message = "Date of birth must not be null")
     @Past(message = "Date of birth must be in the past")
     private LocalDate dateBirth;
+
+    private String profileImageId;
 }

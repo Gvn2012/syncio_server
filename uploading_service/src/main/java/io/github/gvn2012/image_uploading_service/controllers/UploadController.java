@@ -47,7 +47,7 @@ public class UploadController {
 
     @PostMapping("/gcs-events")
     public ResponseEntity<Void> handle(
-            @RequestHeader("Authorization") String authHeader,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestBody Map<String, Object> body) {
 
         try {

@@ -211,9 +211,15 @@ public class UserServiceImpl implements IUserService {
 
         UserProfilePicture picture = new UserProfilePicture();
         picture.setUserProfile(profile);
-        picture.setUrl("ghedep.xyz/default");
         picture.setPrimary(true);
         picture.setDeleted(false);
+
+        if (request.getProfileImageId() != null && !request.getProfileImageId().isBlank()) {
+            picture.setExternalId(request.getProfileImageId());
+            picture.setUrl("PENDING"); // Will be updated by Kafka consumer
+        } else {
+            picture.setUrl("https://storage.googleapis.com/syncio-bucket/defaults/avatar.png");
+        }
 
         user.getEmails().add(email);
         user.getPhones().add(phone);

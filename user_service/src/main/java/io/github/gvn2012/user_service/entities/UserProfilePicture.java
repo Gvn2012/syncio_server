@@ -1,7 +1,6 @@
 package io.github.gvn2012.user_service.entities;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
@@ -28,6 +27,9 @@ public class UserProfilePicture extends AuditableEntity {
     @Column(name = "id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
     private UUID id;
 
+    @Column(name = "external_id", length = 64)
+    private String externalId;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_profile_id", nullable = false)
     private UserProfile userProfile;
@@ -44,9 +46,14 @@ public class UserProfilePicture extends AuditableEntity {
     @Positive
     private Integer width;
 
-    @Column(name = "url", nullable = false, length = 1024)
-    @NotBlank
+    @Column(name = "url", length = 1024)
     private String url;
+
+    @Column(name = "object_path", length = 1024)
+    private String objectPath;
+
+    @Column(name = "bucket_name", length = 128)
+    private String bucketName;
 
     @Column(name = "mime_type", length = 128)
     private String mimeType;
