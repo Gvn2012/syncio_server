@@ -1,6 +1,5 @@
 package io.github.gvn2012.user_service.dtos;
 
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -24,19 +23,19 @@ public class APIResource<T> {
     public static class ErrorResource {
         private String code;
         private String message;
-        private String detail;
+        private Object detail;
 
-        public ErrorResource (String message) {
+        public ErrorResource(String message) {
             this.message = message;
         }
 
-        public ErrorResource (String message, String code) {
+        public ErrorResource(String message, String code) {
             this.message = message;
             this.code = code;
         }
     }
 
-    private APIResource(){
+    private APIResource() {
         this.timestamp = LocalDateTime.now();
     }
 
@@ -44,10 +43,10 @@ public class APIResource<T> {
         return new Builder<>();
     }
 
-    public static class Builder <T> {
+    public static class Builder<T> {
         private final APIResource<T> resource;
 
-        private Builder(){
+        private Builder() {
             resource = new APIResource<>();
         }
 
@@ -81,7 +80,7 @@ public class APIResource<T> {
         }
     }
 
-    public static <T> APIResource <T> ok(String message, T data) {
+    public static <T> APIResource<T> ok(String message, T data) {
         return APIResource.<T>builder()
                 .success(true)
                 .message(message)
@@ -90,7 +89,7 @@ public class APIResource<T> {
                 .build();
     }
 
-    public static <T> APIResource <T> ok(String message, T data, HttpStatus httpStatus) {
+    public static <T> APIResource<T> ok(String message, T data, HttpStatus httpStatus) {
         return APIResource.<T>builder()
                 .success(true)
                 .message(message)
@@ -99,7 +98,7 @@ public class APIResource<T> {
                 .build();
     }
 
-    public static <T> APIResource <T> message(String message, HttpStatus status) {
+    public static <T> APIResource<T> message(String message, HttpStatus status) {
         return APIResource.<T>builder()
                 .success(true)
                 .message(message)
@@ -107,7 +106,7 @@ public class APIResource<T> {
                 .build();
     }
 
-    public static <T> APIResource <T> error(String code, String message, HttpStatus status, String detail) {
+    public static <T> APIResource<T> error(String code, String message, HttpStatus status, Object detail) {
         return APIResource.<T>builder()
                 .success(false)
                 .error(new ErrorResource(code, message, detail))
@@ -115,4 +114,3 @@ public class APIResource<T> {
                 .build();
     }
 }
-

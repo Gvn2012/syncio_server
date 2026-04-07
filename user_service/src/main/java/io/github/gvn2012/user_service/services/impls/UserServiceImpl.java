@@ -39,7 +39,6 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.kafka.shaded.com.google.protobuf.DescriptorProtos.ExtensionRangeOptions.VerificationState;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -105,7 +104,7 @@ public class UserServiceImpl implements IUserService {
                     new GenerateLoginTokenRequest(
                             user.getUsername(),
                             user.getId().toString()))
-                    .block(Duration.ofSeconds(3));
+                    .block(Duration.ofSeconds(5));
         } catch (Exception e) {
             log.error("Failed to generate token", e);
             throw new BadRequestException("Failed to generate token");

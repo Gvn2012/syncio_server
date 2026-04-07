@@ -1,10 +1,15 @@
 package io.github.gvn2012.user_service.exceptions;
 
 import io.github.gvn2012.user_service.dtos.APIResource;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -72,6 +77,46 @@ public class GlobalExceptionHandler {
                                 e.getMessage(),
                                 HttpStatus.FORBIDDEN,
                                 e.getMessage()
+                        )
+                );
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<APIResource<?>> handleValidationExceptions(MethodArgumentNotValidException e) {
+        Map<String, String> errors = new HashMap<>();
+        e.getBindingResult().getAllErrors().forEach(error -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(
+                        APIResource.error(
+                                "VALIDATION_FAILED",
+                                "Validation failed",
+                                HttpStatus.BAD_REQUEST,
+                                errors
+                        )
+                );
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<APIResource<?>> handleConstraintViolationException(ConstraintViolationException e) {
+        Map<String, String> errors = new HashMap<>();
+        e.getConstraintViolations().forEach(violation -> {
+            String propertyPath = violation.getPropertyPath().toString();
+            String fieldName = propertyPath.substring(propertyPath.lastIndexOf('.') + 1);
+            errors.put(fieldName, violation.getMessage());
+        });
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(
+                        APIResource.error(
+                                "CONSTRAINT_VIOLATION",
+                                "Constraint violation",
+                                HttpStatus.BAD_REQUEST,
+                                errors
                         )
                 );
     }

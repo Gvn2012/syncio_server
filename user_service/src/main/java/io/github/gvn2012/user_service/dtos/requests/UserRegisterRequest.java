@@ -36,7 +36,7 @@ public class UserRegisterRequest {
     private String phoneCode;
 
     @NotBlank(message = "Phone number must not be blank")
-    @Pattern(regexp = "^(\\+?[0-9]{10,15})$", message = "Invalid phone number format")
+    @Pattern(regexp = "^(\\+?[0-9]{8,15})$", message = "Invalid phone number format")
     private String phoneNumber;
 
     @NotNull(message = "Date of birth must not be null")
