@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: auth
-          image: vietpham18/auth-service:5b106987b7278e64fc6258c7d9b21fa379db631b
+          image: vietpham18/auth-service:ee88016fa0a01c05446b5edf32b52a08c6a709e6
           ports:
             - containerPort: 8081
           startupProbe:
@@ -96,7 +96,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:c38eeb9d17944403c5927b731090b62710466dfc
+          image: vietpham18/user-service:ee88016fa0a01c05446b5edf32b52a08c6a709e6
           ports:
             - containerPort: 8082
           startupProbe:
@@ -170,7 +170,7 @@ spec:
     spec:
       containers:
         - name: relationship
-          image: vietpham18/relationship-service:5b106987b7278e64fc6258c7d9b21fa379db631b
+          image: vietpham18/relationship-service:ee88016fa0a01c05446b5edf32b52a08c6a709e6
           ports:
             - containerPort: 8087
           startupProbe:
@@ -238,7 +238,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:5b106987b7278e64fc6258c7d9b21fa379db631b
+          image: vietpham18/post-service:ee88016fa0a01c05446b5edf32b52a08c6a709e6
           ports:
             - containerPort: 8085
           startupProbe:
@@ -306,7 +306,7 @@ spec:
     spec:
       containers:
         - name: permission
-          image: vietpham18/permission-service:5b106987b7278e64fc6258c7d9b21fa379db631b
+          image: vietpham18/permission-service:ee88016fa0a01c05446b5edf32b52a08c6a709e6
           ports:
             - containerPort: 8088
           startupProbe:
@@ -374,7 +374,7 @@ spec:
     spec:
       containers:
         - name: org
-          image: vietpham18/org-service:5b106987b7278e64fc6258c7d9b21fa379db631b
+          image: vietpham18/org-service:ee88016fa0a01c05446b5edf32b52a08c6a709e6
           ports:
             - containerPort: 8084
           startupProbe:
