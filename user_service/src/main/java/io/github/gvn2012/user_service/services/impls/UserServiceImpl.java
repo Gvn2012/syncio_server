@@ -2,6 +2,7 @@ package io.github.gvn2012.user_service.services.impls;
 
 import io.github.gvn2012.user_service.clients.AuthClient;
 import io.github.gvn2012.user_service.clients.OrgClient;
+import io.github.gvn2012.user_service.clients.PermissionClient;
 import io.github.gvn2012.user_service.dtos.APIResource;
 import io.github.gvn2012.user_service.dtos.OrgRegisterDTO;
 import io.github.gvn2012.user_service.dtos.UserAddressDTO;
@@ -35,7 +36,6 @@ import io.github.gvn2012.user_service.repositories.UserRepository;
 import io.github.gvn2012.user_service.services.interfaces.IPendingEmailVerificationService;
 import io.github.gvn2012.user_service.services.interfaces.IUserEmailService;
 import io.github.gvn2012.user_service.services.interfaces.IUserService;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -64,6 +64,7 @@ public class UserServiceImpl implements IUserService {
 
     private final AuthClient authClient;
     private final OrgClient orgClient;
+    private final PermissionClient permissionClient;
 
     private final IUserEmailService userEmailService;
     private final IPendingEmailVerificationService pendingEmailVerificationService;
@@ -144,7 +145,6 @@ public class UserServiceImpl implements IUserService {
 
         String hashedPassword = passwordEncoder.encode(request.getPassword());
 
-        @NonNull
         User user = buildUserAggregate(request, hashedPassword);
 
         try {
@@ -158,6 +158,9 @@ public class UserServiceImpl implements IUserService {
         if ("admin".equalsIgnoreCase(request.getRegistrationType()) && request.getOrganization() != null) {
             createOrganizationForAdmin(user.getId(), request.getOrganization());
         }
+
+        permissionClient.initUserRole(user.getId().toString(),
+                request.getRegistrationType()).block(Duration.ofSeconds(5));
 
         return APIResource.ok(
                 "User created successfully",

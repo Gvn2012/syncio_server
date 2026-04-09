@@ -21,5 +21,4 @@ public interface IPendingEmailVerificationService {
 
     void markConsumed(PendingEmailVerification verification);
 
-    // Test
 }
