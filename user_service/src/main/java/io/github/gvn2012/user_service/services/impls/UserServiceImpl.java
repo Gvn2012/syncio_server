@@ -45,7 +45,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -91,7 +90,6 @@ public class UserServiceImpl implements IUserService {
                 throw new BadRequestException("User does not belong to the requested organization.");
             }
         } else {
-            // Standalone login path
             if (user.getOrgId() != null) {
                 throw new BadRequestException("User belongs to an organization. Please use organization login.");
             }
@@ -118,7 +116,7 @@ public class UserServiceImpl implements IUserService {
                 tokenResponse.getAccessToken(),
                 tokenResponse.getRefreshToken(),
                 user.getId().toString(),
-                tokenResponse.getUserRole());
+                tokenResponse.getUserRoles());
 
         return APIResource.ok("Login successfully", response);
     }

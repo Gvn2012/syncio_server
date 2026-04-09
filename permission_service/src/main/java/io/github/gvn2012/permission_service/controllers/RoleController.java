@@ -8,7 +8,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PostMapping;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/permissions")
@@ -18,8 +22,16 @@ public class RoleController {
     private final RoleServiceInterface roleService;
 
     @GetMapping("/user/{uid}/role")
-    public ResponseEntity<APIResource<GetUserRoleResponse>> getUserRole(@PathVariable("uid") String userId) {
-        APIResource<GetUserRoleResponse> response = roleService.getUserRole(userId);
+    public ResponseEntity<APIResource<List<GetUserRoleResponse>>> getUserRole(@PathVariable("uid") String userId) {
+        APIResource<List<GetUserRoleResponse>> response = roleService.getUserRole(userId);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
+
+    @PostMapping("/user/{uid}/initRole")
+    public ResponseEntity<APIResource<Boolean>> initUserRole(@PathVariable("uid") String userId,
+            @RequestParam("registrationType") String registrationType) {
+        APIResource<Boolean> response = roleService.initUserRole(userId, registrationType);
+        return ResponseEntity.status(response.getStatus()).body(response);
+    }
+
 }

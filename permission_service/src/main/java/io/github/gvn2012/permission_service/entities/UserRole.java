@@ -13,6 +13,7 @@ import java.util.UUID;
 @Entity
 @Getter
 @Setter
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @ToString(onlyExplicitlyIncluded = true)
@@ -47,6 +48,7 @@ public class UserRole extends AuditableEntity {
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
+    @Builder.Default
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "scope", nullable = false)
@@ -55,6 +57,7 @@ public class UserRole extends AuditableEntity {
     @Column(name = "scope_id", columnDefinition = "BINARY(16)")
     private UUID scopeId; // group_id, channel_id, organization_id when scope is not GLOBAL
 
+    @Builder.Default
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -63,6 +66,7 @@ public class UserRole extends AuditableEntity {
     @Column(name = "assigned_by", columnDefinition = "BINARY(16)")
     private UUID assignedBy;
 
+    @Builder.Default
     @Column(name = "assigned_at", nullable = false)
     private LocalDateTime assignedAt = LocalDateTime.now();
 
@@ -78,6 +82,7 @@ public class UserRole extends AuditableEntity {
     @Column(name = "revoke_reason", columnDefinition = "VARCHAR(512)")
     private String revokeReason;
 
+    @Builder.Default
     @Column(name = "is_primary", nullable = false)
     private Boolean isPrimary = false; // primary role for display
 
