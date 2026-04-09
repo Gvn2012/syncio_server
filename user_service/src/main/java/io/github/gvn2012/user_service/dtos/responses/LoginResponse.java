@@ -13,4 +13,5 @@ public class LoginResponse {
     String refreshToken;
     String userId;
     List<String> userRoles;
+    String orgId;
 }

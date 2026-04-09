@@ -35,7 +35,7 @@ public class RoleServiceImpl implements RoleServiceInterface {
                 List<GetUserRoleResponse> responses = userRoles.stream()
                                 .map(userRole -> new GetUserRoleResponse(
                                                 userRole.getRole().getId().toString(),
-                                                userRole.getRole().getName(),
+                                                userRole.getRole().getCode(),
                                                 userRole.getRole().getColor(),
                                                 userRole.getRole().getIcon(),
                                                 userRole.getRole().getDisplayOrder()))

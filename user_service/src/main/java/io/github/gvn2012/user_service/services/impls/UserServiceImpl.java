@@ -117,7 +117,8 @@ public class UserServiceImpl implements IUserService {
                 tokenResponse.getAccessToken(),
                 tokenResponse.getRefreshToken(),
                 user.getId().toString(),
-                tokenResponse.getUserRoles());
+                tokenResponse.getUserRoles(),
+                user.getOrgId() != null ? user.getOrgId().toString() : null);
 
         return APIResource.ok("Login successfully", response);
     }

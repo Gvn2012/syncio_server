@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-
 @Component
 @RequiredArgsConstructor
 public class UserProfilePictureMapper implements IMapper<UserProfilePicture, UserProfilePictureResponse> {
@@ -30,9 +29,9 @@ public class UserProfilePictureMapper implements IMapper<UserProfilePicture, Use
         Map<String, Object> metadata = null;
         if (entity.getMetadata() != null && !entity.getMetadata().isBlank()) {
             try {
-                metadata = objectMapper.readValue(entity.getMetadata(), new TypeReference<Map<String, Object>>() {});
+                metadata = objectMapper.readValue(entity.getMetadata(), new TypeReference<Map<String, Object>>() {
+                });
             } catch (Exception e) {
-                // Log error or fallback
             }
         }
 
@@ -42,6 +41,8 @@ public class UserProfilePictureMapper implements IMapper<UserProfilePicture, Use
                 .height(entity.getHeight())
                 .width(entity.getWidth())
                 .url(url)
+                .objectPath(entity.getObjectPath())
+                .bucketName(entity.getBucketName())
                 .mimeType(entity.getMimeType())
                 .deleted(entity.getDeleted())
                 .primary(entity.getPrimary())
@@ -59,15 +60,16 @@ public class UserProfilePictureMapper implements IMapper<UserProfilePicture, Use
         entity.setMimeType(dto.getMimeType());
         entity.setDeleted(dto.getDeleted());
         entity.setPrimary(dto.getPrimary());
-        
+        entity.setBucketName(dto.getBucketName());
+        entity.setObjectPath(dto.getObjectPath());
+
         if (dto.getMetadata() != null) {
             try {
                 entity.setMetadata(objectMapper.writeValueAsString(dto.getMetadata()));
             } catch (Exception e) {
-                // Log error
             }
         }
-        
+
         return entity;
     }
 }
