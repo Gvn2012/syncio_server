@@ -10,4 +10,5 @@ public class StartEmailVerificationRequest {
     @NotBlank(message = "Email must not be blank")
     @Email(message = "Invalid email format")
     private String email;
+
 }

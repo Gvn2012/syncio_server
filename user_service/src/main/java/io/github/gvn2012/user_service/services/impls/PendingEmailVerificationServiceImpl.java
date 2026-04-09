@@ -1,5 +1,7 @@
 package io.github.gvn2012.user_service.services.impls;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.gvn2012.user_service.utils.RequestMetadataUtils;
 import io.github.gvn2012.shared.kafka_events.EmailVerificationEvent;
 import io.github.gvn2012.user_service.dtos.APIResource;
 import io.github.gvn2012.user_service.dtos.requests.StartEmailVerificationRequest;
@@ -41,6 +43,7 @@ public class PendingEmailVerificationServiceImpl implements IPendingEmailVerific
     private final IUserEmailService userEmailService;
     private final ITokenService tokenService;
     private final EmailEventProducer emailEventProducer;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -59,6 +62,16 @@ public class PendingEmailVerificationServiceImpl implements IPendingEmailVerific
         verification.setResendAvailableAt(LocalDateTime.now().plusSeconds(RESEND_COOLDOWN_SECONDS));
         verification.setRegistrationExpiresAt(null);
         verification.setConsumedAt(null);
+
+        java.util.Map<String, Object> finalMetadata = RequestMetadataUtils.extractMetadata();
+
+        if (!finalMetadata.isEmpty()) {
+            try {
+                verification.setMetadata(objectMapper.writeValueAsString(finalMetadata));
+            } catch (Exception e) {
+                log.error("Failed to serialize metadata", e);
+            }
+        }
 
         pendingEmailVerificationRepository.save(verification);
         log.info("Saved to DB");
@@ -105,6 +118,24 @@ public class PendingEmailVerificationServiceImpl implements IPendingEmailVerific
         verification.setVerificationCodeHash(null);
         verification.setVerificationCodeExpiresAt(null);
         verification.setRegistrationExpiresAt(LocalDateTime.now().plusHours(REGISTRATION_TTL_HOURS));
+
+        java.util.Map<String, Object> requestMetadata = RequestMetadataUtils.extractMetadata();
+        if (!requestMetadata.isEmpty()) {
+            try {
+                java.util.Map<String, Object> existingMetadata = new java.util.HashMap<>();
+                if (verification.getMetadata() != null && !verification.getMetadata().isBlank()) {
+                    existingMetadata = objectMapper.readValue(verification.getMetadata(), new com.fasterxml.jackson.core.type.TypeReference<>() {});
+                }
+                
+                // Add current request metadata
+                existingMetadata.putAll(requestMetadata);
+                
+                verification.setMetadata(objectMapper.writeValueAsString(existingMetadata));
+            } catch (Exception e) {
+                log.error("Failed to update metadata", e);
+            }
+        }
+
         pendingEmailVerificationRepository.save(verification);
 
         return APIResource.ok(

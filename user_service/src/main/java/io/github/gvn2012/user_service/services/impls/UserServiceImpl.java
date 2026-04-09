@@ -1,5 +1,8 @@
 package io.github.gvn2012.user_service.services.impls;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.github.gvn2012.user_service.clients.AuthClient;
 import io.github.gvn2012.user_service.clients.OrgClient;
 import io.github.gvn2012.user_service.clients.PermissionClient;
@@ -31,11 +34,13 @@ import io.github.gvn2012.user_service.entities.enums.Gender;
 import io.github.gvn2012.user_service.exceptions.BadRequestException;
 import io.github.gvn2012.user_service.exceptions.DataIntegrityViolationException;
 import io.github.gvn2012.user_service.exceptions.NotFoundException;
+import io.github.gvn2012.user_service.repositories.UserEmailRepository;
 import io.github.gvn2012.user_service.repositories.UserPhoneRepository;
 import io.github.gvn2012.user_service.repositories.UserRepository;
 import io.github.gvn2012.user_service.services.interfaces.IPendingEmailVerificationService;
 import io.github.gvn2012.user_service.services.interfaces.IUserEmailService;
 import io.github.gvn2012.user_service.services.interfaces.IUserService;
+import io.github.gvn2012.user_service.utils.RequestMetadataUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -61,6 +66,7 @@ public class UserServiceImpl implements IUserService {
 
     private final UserRepository userRepository;
     private final UserPhoneRepository userPhoneRepository;
+    private final UserEmailRepository userEmailRepository;
 
     private final AuthClient authClient;
     private final OrgClient orgClient;
@@ -70,6 +76,7 @@ public class UserServiceImpl implements IUserService {
     private final IPendingEmailVerificationService pendingEmailVerificationService;
 
     private final UserDetailMapper userDetailMapper;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -146,7 +153,7 @@ public class UserServiceImpl implements IUserService {
 
         String hashedPassword = passwordEncoder.encode(request.getPassword());
 
-        User user = buildUserAggregate(request, hashedPassword);
+        User user = buildUserAggregate(request, hashedPassword, verification);
 
         try {
             userRepository.save(user);
@@ -219,7 +226,8 @@ public class UserServiceImpl implements IUserService {
         }
     }
 
-    private User buildUserAggregate(UserRegisterRequest request, String hashedPassword) {
+    private User buildUserAggregate(UserRegisterRequest request, String hashedPassword,
+            PendingEmailVerification verification) {
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPasswordHash(hashedPassword);
@@ -236,6 +244,22 @@ public class UserServiceImpl implements IUserService {
         email.setPrimary(true);
         email.setStatus(EmailStatus.ACTIVE);
         email.setVerificationMethod(EmailVerificationMethod.OTP);
+        try {
+            Map<String, Object> finalMetadata = new HashMap<>();
+            if (verification.getMetadata() != null && !verification.getMetadata().isBlank()) {
+                finalMetadata = objectMapper.readValue(verification.getMetadata(),
+                        new TypeReference<Map<String, Object>>() {
+                        });
+            }
+
+            finalMetadata.putAll(RequestMetadataUtils.extractMetadata());
+
+            email.setMetadata(objectMapper.writeValueAsString(finalMetadata));
+        } catch (Exception e) {
+            log.error("Failed to merge registration metadata", e);
+        }
+
+        userEmailRepository.save(email);
 
         UserPhone phone = new UserPhone();
         phone.setUser(user);

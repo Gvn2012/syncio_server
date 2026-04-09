@@ -68,4 +68,7 @@ public class UserEmail extends AuditableEntity {
         @Enumerated(EnumType.STRING)
         @Column(name = "status", length = 32)
         private EmailStatus status = EmailStatus.UNVERIFIED;
+
+        @Column(name = "metadata", columnDefinition = "json")
+        private String metadata;
 }

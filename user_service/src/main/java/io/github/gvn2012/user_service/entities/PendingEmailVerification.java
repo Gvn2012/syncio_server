@@ -55,4 +55,7 @@ public class PendingEmailVerification extends AuditableEntity {
 
     @Column(name = "consumed_at")
     private LocalDateTime consumedAt;
+
+    @Column(name = "metadata", columnDefinition = "json")
+    private String metadata;
 }

@@ -1,5 +1,8 @@
 package io.github.gvn2012.user_service.services.impls;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.gvn2012.user_service.utils.RequestMetadataUtils;
 import io.github.gvn2012.shared.kafka_events.EmailVerificationEvent;
 import io.github.gvn2012.user_service.dtos.APIResource;
 import io.github.gvn2012.user_service.dtos.requests.AddNewEmailRequest;
@@ -18,30 +21,36 @@ import io.github.gvn2012.user_service.services.interfaces.ITokenService;
 import io.github.gvn2012.user_service.services.interfaces.IUserEmailService;
 import io.github.gvn2012.user_service.services.kafka.EmailEventProducer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserEmailServiceImpl implements IUserEmailService {
 
     private static final int VERIFICATION_TOKEN_TTL_MINUTES = 15;
     private static final int VERIFICATION_CODE_TTL_MINUTES = 10;
     private static final int VERIFICATION_CODE_LENGTH = 6;
+    private static final String BASE_URL = "http://syncio.site";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final ITokenService tokenService;
     private final UserEmailRepository userEmailRepository;
     private final UserRepository userRepository;
     private final EmailEventProducer emailEventProducer;
+    private final ObjectMapper objectMapper;
 
     private record PendingEmail(UserEmail email, String rawSecret) {
     }
@@ -74,6 +83,17 @@ public class UserEmailServiceImpl implements IUserEmailService {
         validateEmailNotUsed(request.getEmail());
 
         PendingEmail pending = createPendingEmail(user, request.getEmail(), false, EmailVerificationMethod.TOKEN);
+
+        java.util.Map<String, Object> finalMetadata = RequestMetadataUtils.extractMetadata();
+
+        if (!finalMetadata.isEmpty()) {
+            try {
+                pending.email().setMetadata(objectMapper.writeValueAsString(finalMetadata));
+            } catch (Exception e) {
+                log.error("Failed to serialize metadata", e);
+            }
+        }
+
         userEmailRepository.save(pending.email());
 
         sendVerificationEmail(pending.email(), pending.rawSecret());
@@ -103,6 +123,17 @@ public class UserEmailServiceImpl implements IUserEmailService {
         validateEmailNotUsed(newEmail);
 
         PendingEmail pending = createPendingEmail(currentUser, newEmail, false, EmailVerificationMethod.TOKEN);
+
+        java.util.Map<String, Object> finalMetadata = RequestMetadataUtils.extractMetadata();
+
+        if (!finalMetadata.isEmpty()) {
+            try {
+                pending.email().setMetadata(objectMapper.writeValueAsString(finalMetadata));
+            } catch (Exception e) {
+                log.error("Failed to serialize metadata", e);
+            }
+        }
+
         userEmailRepository.save(pending.email());
 
         sendVerificationEmail(pending.email(), pending.rawSecret());
@@ -148,6 +179,24 @@ public class UserEmailServiceImpl implements IUserEmailService {
         email.setVerificationTokenHashExpiresAt(null);
         email.setVerificationCodeHash(null);
         email.setVerificationCodeHashExpiresAt(null);
+
+        java.util.Map<String, Object> requestMetadata = RequestMetadataUtils.extractMetadata();
+        if (!requestMetadata.isEmpty()) {
+            try {
+                Map<String, Object> existingMetadata = new HashMap<>();
+                if (email.getMetadata() != null && !email.getMetadata().isBlank()) {
+                    existingMetadata = objectMapper.readValue(email.getMetadata(), new TypeReference<Map<String, Object>>() {
+                    });
+                }
+                
+                // Add current request metadata
+                existingMetadata.putAll(requestMetadata);
+                
+                email.setMetadata(objectMapper.writeValueAsString(existingMetadata));
+            } catch (Exception e) {
+                log.error("Failed to update metadata", e);
+            }
+        }
 
         userEmailRepository.save(email);
 
@@ -368,7 +417,7 @@ public class UserEmailServiceImpl implements IUserEmailService {
     }
 
     private String buildVerificationLink(UUID userId, UUID emailId, String rawToken) {
-        return "http://34.87.46.116/api/v1/users/emails/verify"
+        return BASE_URL + "/api/v1/users/emails/verify"
                 + "?emailId=" + emailId
                 + "&userId=" + userId
                 + "&token=" + rawToken;
