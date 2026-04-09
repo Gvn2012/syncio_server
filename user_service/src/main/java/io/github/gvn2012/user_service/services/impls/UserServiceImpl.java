@@ -34,7 +34,6 @@ import io.github.gvn2012.user_service.entities.enums.Gender;
 import io.github.gvn2012.user_service.exceptions.BadRequestException;
 import io.github.gvn2012.user_service.exceptions.DataIntegrityViolationException;
 import io.github.gvn2012.user_service.exceptions.NotFoundException;
-import io.github.gvn2012.user_service.repositories.UserEmailRepository;
 import io.github.gvn2012.user_service.repositories.UserPhoneRepository;
 import io.github.gvn2012.user_service.repositories.UserRepository;
 import io.github.gvn2012.user_service.services.interfaces.IPendingEmailVerificationService;
@@ -66,7 +65,6 @@ public class UserServiceImpl implements IUserService {
 
     private final UserRepository userRepository;
     private final UserPhoneRepository userPhoneRepository;
-    private final UserEmailRepository userEmailRepository;
 
     private final AuthClient authClient;
     private final OrgClient orgClient;
@@ -259,7 +257,7 @@ public class UserServiceImpl implements IUserService {
             log.error("Failed to merge registration metadata", e);
         }
 
-        userEmailRepository.save(email);
+
 
         UserPhone phone = new UserPhone();
         phone.setUser(user);

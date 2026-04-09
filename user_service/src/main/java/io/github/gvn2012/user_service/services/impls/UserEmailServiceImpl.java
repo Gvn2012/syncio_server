@@ -185,13 +185,12 @@ public class UserEmailServiceImpl implements IUserEmailService {
             try {
                 Map<String, Object> existingMetadata = new HashMap<>();
                 if (email.getMetadata() != null && !email.getMetadata().isBlank()) {
-                    existingMetadata = objectMapper.readValue(email.getMetadata(), new TypeReference<Map<String, Object>>() {
-                    });
+                    existingMetadata = objectMapper.readValue(email.getMetadata(),
+                            new TypeReference<Map<String, Object>>() {
+                            });
                 }
-                
-                // Add current request metadata
                 existingMetadata.putAll(requestMetadata);
-                
+
                 email.setMetadata(objectMapper.writeValueAsString(existingMetadata));
             } catch (Exception e) {
                 log.error("Failed to update metadata", e);
