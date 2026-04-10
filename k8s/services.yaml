@@ -5,7 +5,7 @@ metadata:
   name: syncio-auth
   namespace: syncio
 spec:
-  replicas: 2
+  replicas: 1
   minReadySeconds: 30
   strategy:
     type: RollingUpdate
@@ -71,6 +71,7 @@ spec:
   ports:
     - port: 8081
 
+
 # ===================== USER =====================
 ---
 apiVersion: apps/v1
@@ -79,7 +80,7 @@ metadata:
   name: syncio-user
   namespace: syncio
 spec:
-  replicas: 2
+  replicas: 1
   minReadySeconds: 30
   strategy:
     type: RollingUpdate
@@ -145,6 +146,7 @@ spec:
   ports:
     - port: 8082
 
+
 # ===================== RELATIONSHIP =====================
 ---
 apiVersion: apps/v1
@@ -153,7 +155,7 @@ metadata:
   name: syncio-relationship
   namespace: syncio
 spec:
-  replicas: 2
+  replicas: 1
   minReadySeconds: 30
   strategy:
     type: RollingUpdate
@@ -213,6 +215,7 @@ spec:
   ports:
     - port: 8087
 
+
 # ===================== POST =====================
 ---
 apiVersion: apps/v1
@@ -221,7 +224,7 @@ metadata:
   name: syncio-post
   namespace: syncio
 spec:
-  replicas: 2
+  replicas: 1
   minReadySeconds: 30
   strategy:
     type: RollingUpdate
@@ -281,6 +284,7 @@ spec:
   ports:
     - port: 8085
 
+
 # ===================== PERMISSION =====================
 ---
 apiVersion: apps/v1
@@ -289,7 +293,7 @@ metadata:
   name: syncio-permission
   namespace: syncio
 spec:
-  replicas: 2
+  replicas: 1
   minReadySeconds: 30
   strategy:
     type: RollingUpdate
@@ -349,6 +353,7 @@ spec:
   ports:
     - port: 8088
 
+
 # ===================== ORG =====================
 ---
 apiVersion: apps/v1
@@ -357,7 +362,7 @@ metadata:
   name: syncio-org
   namespace: syncio
 spec:
-  replicas: 2
+  replicas: 1
   minReadySeconds: 30
   strategy:
     type: RollingUpdate
@@ -417,6 +422,7 @@ spec:
   ports:
     - port: 8084
 
+
 # ===================== NOTIFICATION =====================
 ---
 apiVersion: apps/v1
@@ -425,7 +431,7 @@ metadata:
   name: syncio-notification
   namespace: syncio
 spec:
-  replicas: 2
+  replicas: 1
   minReadySeconds: 30
   strategy:
     type: RollingUpdate
@@ -485,6 +491,7 @@ spec:
   ports:
     - port: 8083
 
+
 # ===================== TELEGRAM BOT =====================
 ---
 apiVersion: v1
@@ -510,7 +517,8 @@ metadata:
   namespace: syncio
 rules:
   - apiGroups: [""]
-    resources: ["pods", "services", "persistentvolumeclaims", "events", "endpoints"]
+    resources:
+      ["pods", "services", "persistentvolumeclaims", "events", "endpoints"]
     verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["pods/log"]
@@ -631,6 +639,7 @@ spec:
               cpu: "200m"
               memory: "256Mi"
 
+
 # ===================== UPLOADING =====================
 ---
 apiVersion: v1
@@ -647,7 +656,7 @@ metadata:
   name: syncio-uploading
   namespace: syncio
 spec:
-  replicas: 2
+  replicas: 1
   minReadySeconds: 30
   strategy:
     type: RollingUpdate
