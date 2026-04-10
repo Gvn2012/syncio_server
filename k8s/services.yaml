@@ -96,7 +96,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:43469e79644ca9ee26d8a79ca88837344bdb0ad8
+          image: vietpham18/user-service:239880410bb053f10bb338189af48e9a4374ee5c
           ports:
             - containerPort: 8082
           startupProbe:
@@ -673,7 +673,7 @@ spec:
       serviceAccountName: uploading-service-ksa
       containers:
         - name: uploading
-          image: vietpham18/uploading-service:43469e79644ca9ee26d8a79ca88837344bdb0ad8
+          image: vietpham18/uploading-service:239880410bb053f10bb338189af48e9a4374ee5c
           ports:
             - containerPort: 8090
           startupProbe:
@@ -742,7 +742,7 @@ spec:
     spec:
       containers:
         - name: search
-          image: vietpham18/search-service:43469e79644ca9ee26d8a79ca88837344bdb0ad8
+          image: vietpham18/search-service:239880410bb053f10bb338189af48e9a4374ee5c
           ports:
             - containerPort: 8086
           startupProbe:
