@@ -40,8 +40,11 @@ import io.github.gvn2012.user_service.services.interfaces.IPendingEmailVerificat
 import io.github.gvn2012.user_service.services.interfaces.IUserEmailService;
 import io.github.gvn2012.user_service.services.interfaces.IUserService;
 import io.github.gvn2012.user_service.utils.RequestMetadataUtils;
+import io.github.gvn2012.shared.kafka_events.UserSearchEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.kafka.core.KafkaTemplate;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -75,6 +78,7 @@ public class UserServiceImpl implements IUserService {
 
     private final UserDetailMapper userDetailMapper;
     private final ObjectMapper objectMapper;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
     @Transactional(readOnly = true)
@@ -168,9 +172,28 @@ public class UserServiceImpl implements IUserService {
         permissionClient.initUserRole(user.getId().toString(),
                 request.getRegistrationType()).block(Duration.ofSeconds(5));
 
+        UserRegisterResponse response = new UserRegisterResponse(user.getId().toString());
+
+        try {
+            UserSearchEvent searchEvent = UserSearchEvent.builder()
+                    .userId(user.getId())
+                    .username(user.getUsername())
+                    .fullName(user.getFirstName() + " " + user.getLastName())
+                    .avatarUrl(user.getProfile().getPictures().stream()
+                            .filter(p -> Boolean.TRUE.equals(p.getPrimary()))
+                            .findFirst()
+                            .map(UserProfilePicture::getUrl)
+                            .orElse(null))
+                    .operationType(UserSearchEvent.OperationType.UPSERT)
+                    .build();
+            kafkaTemplate.send("user-search-indexing", user.getId().toString(), searchEvent);
+        } catch (Exception e) {
+            log.error("Failed to send user search indexing event", e);
+        }
+
         return APIResource.ok(
                 "User created successfully",
-                new UserRegisterResponse(user.getId().toString()),
+                response,
                 HttpStatus.CREATED);
     }
 

@@ -1,4 +1,3 @@
-# ===================== AUTH =====================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -626,7 +625,7 @@ spec:
             - name: ARGOCD_APP_NAME
               value: syncio-app
             - name: SCALABLE_DEPLOYMENTS
-              value: syncio-auth,syncio-user,syncio-relationship,syncio-post,syncio-permission,syncio-org,syncio-notification,syncio-uploading
+              value: syncio-auth,syncio-user,syncio-relationship,syncio-post,syncio-permission,syncio-org,syncio-notification,syncio-uploading,syncio-search
             - name: GITHUB_REPO
               value: Gvn2012/syncio_server
             - name: GITHUB_BRANCH
@@ -716,3 +715,70 @@ spec:
     app: syncio-uploading
   ports:
     - port: 8090
+
+
+# ===================== SEARCH =====================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-search
+  namespace: syncio
+spec:
+  replicas: 1
+  minReadySeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: syncio-search
+  template:
+    metadata:
+      labels:
+        app: syncio-search
+    spec:
+      containers:
+        - name: search
+          image: vietpham18/search-service:latest
+          ports:
+            - containerPort: 8086
+          startupProbe:
+            tcpSocket:
+              port: 8086
+            periodSeconds: 10
+            failureThreshold: 18
+            timeoutSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: 8086
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
+          env:
+            - name: SPRING_ELASTICSEARCH_URIS
+              value: http://syncio-elasticsearch:9200
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: syncio-kafka.syncio.svc.cluster.local:9092
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: http://syncio-zipkin:9411/api/v2/spans
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-search
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-search
+  ports:
+    - port: 8086

@@ -89,6 +89,7 @@ spec:
     - port: 3888
       name: leader-election
 
+
 # ===================== KAFKA =====================
 ---
 apiVersion: apps/v1
@@ -188,6 +189,7 @@ spec:
     - port: 29092
       name: external
 
+
 # ===================== ZIPKIN =====================
 ---
 apiVersion: apps/v1
@@ -228,6 +230,7 @@ spec:
     app: syncio-zipkin
   ports:
     - port: 9411
+
 
 # ===================== REDIS =====================
 ---
@@ -289,6 +292,7 @@ spec:
   ports:
     - port: 6379
 
+
 # ===================== REDIS COMMANDER (UI) =====================
 ---
 apiVersion: apps/v1
@@ -333,3 +337,130 @@ spec:
   ports:
     - port: 8081
       targetPort: 8081
+
+
+# ===================== ELASTICSEARCH =====================
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: syncio-elasticsearch
+  namespace: syncio
+spec:
+  serviceName: "syncio-elasticsearch"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syncio-elasticsearch
+  template:
+    metadata:
+      labels:
+        app: syncio-elasticsearch
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: fix-permissions
+          image: busybox
+          command:
+            ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
+          volumeMounts:
+            - name: elasticsearch-data
+              mountPath: /usr/share/elasticsearch/data
+        - name: increase-vm-max-map-count
+          image: busybox
+          command: ["sysctl", "-w", "vm.max_map_count=262144"]
+          securityContext:
+            privileged: true
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+          ports:
+            - containerPort: 9200
+              name: rest
+            - containerPort: 9300
+              name: nodes
+          env:
+            - name: discovery.type
+              value: single-node
+            - name: xpack.security.enabled
+              value: "false"
+            - name: ES_JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+          volumeMounts:
+            - name: elasticsearch-data
+              mountPath: /usr/share/elasticsearch/data
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+  volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-elasticsearch
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-elasticsearch
+  ports:
+    - port: 9200
+      name: rest
+    - port: 9300
+      name: nodes
+
+
+# ===================== KIBANA =====================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-kibana
+  namespace: syncio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syncio-kibana
+  template:
+    metadata:
+      labels:
+        app: syncio-kibana
+    spec:
+      containers:
+        - name: kibana
+          image: docker.elastic.co/kibana/kibana:8.12.0
+          ports:
+            - containerPort: 5601
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: "http://syncio-elasticsearch:9200"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-kibana
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-kibana
+  ports:
+    - port: 5601

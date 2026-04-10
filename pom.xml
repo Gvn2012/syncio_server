@@ -34,6 +34,7 @@
         <module>permission_service</module>
         <module>uploading_service</module>
         <module>post_service</module>
+        <module>search_service</module>
         <module>shared</module>
     </modules>
 
@@ -84,7 +85,7 @@
         </pluginManagement>
 
         <plugins>
-            <!-- 🔥 THIS LINE IS MISSING IN YOUR SETUP -->
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

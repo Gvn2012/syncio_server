@@ -8,6 +8,8 @@ import io.github.gvn2012.post_service.dtos.requests.PostUpdateRequest;
 import io.github.gvn2012.post_service.dtos.responses.PostResponse;
 import io.github.gvn2012.post_service.entities.*;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
+import io.github.gvn2012.shared.kafka_events.PostSearchEvent;
+import io.github.gvn2012.shared.kafka_events.PostSearchEvent.OperationType;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
 import io.github.gvn2012.post_service.repositories.*;
 import io.github.gvn2012.post_service.services.interfaces.IPostContentVersionService;
@@ -56,6 +58,14 @@ public class PostServiceImpl implements IPostService {
 
         contentVersionService.captureNewVersion(saved, saved.getAuthorId(), saved.getContent());
         postEventProducer.publishPostCreated(saved.getId(), saved.getAuthorId());
+        postEventProducer.publishPostSearchIndexing(PostSearchEvent.builder()
+                .postId(saved.getId())
+                .authorId(saved.getAuthorId())
+                .content(saved.getContent())
+                .publishedAt(saved.getPublishedAt())
+                .status(saved.getStatus().name())
+                .operationType(OperationType.UPSERT)
+                .build());
         eventPublisher.publishEvent(new FeedFanoutWorker.PostCreatedEvent(saved));
         return postMapper.toResponse(saved);
     }
@@ -123,6 +133,14 @@ public class PostServiceImpl implements IPostService {
         post.setEditCount(post.getEditCount() + 1);
         Post saved = postRepository.save(post);
         postEventProducer.publishPostUpdated(saved.getId(), saved.getAuthorId(), editorId);
+        postEventProducer.publishPostSearchIndexing(PostSearchEvent.builder()
+                .postId(saved.getId())
+                .authorId(saved.getAuthorId())
+                .content(saved.getContent())
+                .publishedAt(saved.getPublishedAt())
+                .status(saved.getStatus().name())
+                .operationType(OperationType.UPSERT)
+                .build());
         return postMapper.toResponse(saved);
     }
 
@@ -180,6 +198,10 @@ public class PostServiceImpl implements IPostService {
         post.setStatus(PostStatus.DELETED);
         postRepository.save(post);
         postEventProducer.publishPostDeleted(post.getId(), post.getAuthorId());
+        postEventProducer.publishPostSearchIndexing(PostSearchEvent.builder()
+                .postId(post.getId())
+                .operationType(OperationType.DELETE)
+                .build());
     }
 
     @Override
@@ -190,6 +212,14 @@ public class PostServiceImpl implements IPostService {
         validateOwnership(post, userId);
         post.setStatus(PostStatus.ARCHIVED);
         postRepository.save(post);
+        postEventProducer.publishPostSearchIndexing(PostSearchEvent.builder()
+                .postId(post.getId())
+                .authorId(post.getAuthorId())
+                .content(post.getContent())
+                .publishedAt(post.getPublishedAt())
+                .status(post.getStatus().name())
+                .operationType(OperationType.UPSERT)
+                .build());
     }
 
     @Override
@@ -233,6 +263,14 @@ public class PostServiceImpl implements IPostService {
         postRepository.incrementShareCount(originalPostId, 1);
 
         postEventProducer.publishPostCreated(saved.getId(), sharerId);
+        postEventProducer.publishPostSearchIndexing(PostSearchEvent.builder()
+                .postId(saved.getId())
+                .authorId(saved.getAuthorId())
+                .content(saved.getContent())
+                .publishedAt(saved.getPublishedAt())
+                .status(saved.getStatus().name())
+                .operationType(OperationType.UPSERT)
+                .build());
         return postMapper.toResponse(saved);
     }
 

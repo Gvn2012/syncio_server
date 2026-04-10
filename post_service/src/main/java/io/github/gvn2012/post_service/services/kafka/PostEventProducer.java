@@ -2,6 +2,7 @@ package io.github.gvn2012.post_service.services.kafka;
 
 import io.github.gvn2012.shared.kafka_events.PostActivityEvent;
 import io.github.gvn2012.shared.kafka_events.PostActivityEvent.ActivityType;
+import io.github.gvn2012.shared.kafka_events.PostSearchEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -16,6 +17,7 @@ public class PostEventProducer {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private static final String TOPIC = "post-events-v2";
+    private static final String SEARCH_TOPIC = "post-search-indexing";
 
     public void publishPostCreated(UUID postId, UUID authorId) {
         publish(postId, authorId, authorId, ActivityType.CREATED, null);
@@ -43,6 +45,11 @@ public class PostEventProducer {
 
     public void publishPostReported(UUID postId, UUID authorId, UUID reporterId) {
         publish(postId, authorId, reporterId, ActivityType.REPORTED, null);
+    }
+
+    public void publishPostSearchIndexing(PostSearchEvent event) {
+        log.info("Publishing post search indexing event: {} for post: {}", event.getOperationType(), event.getPostId());
+        kafkaTemplate.send(SEARCH_TOPIC, event.getPostId().toString(), event);
     }
 
     @SuppressWarnings("null")
