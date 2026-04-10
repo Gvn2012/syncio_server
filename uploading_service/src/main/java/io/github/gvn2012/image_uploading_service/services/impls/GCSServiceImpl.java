@@ -6,15 +6,14 @@ import io.github.gvn2012.image_uploading_service.services.interfaces.GCSServiceI
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 
 import java.io.IOException;
 import java.net.URL;
-import java.time.Instant;
+import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -23,13 +22,15 @@ import java.util.concurrent.TimeUnit;
 public class GCSServiceImpl implements GCSServiceInterface {
 
     private static final long SIGN_TTL_MINUTES = 60;
-    private static final long CACHE_TTL_MINUTES = 50;
+    private static final Duration CACHE_TTL = Duration.ofMinutes(50);
+    private static final String CACHE_PREFIX = "signed_url:";
+
+    private final StringRedisTemplate redisTemplate;
 
     @Value("${gcp.storage.bucket}")
     private String bucket;
 
     private Storage storage;
-    private final ConcurrentHashMap<String, CachedSignedUrl> downloadUrlCache = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void init() throws IOException {
@@ -54,14 +55,14 @@ public class GCSServiceImpl implements GCSServiceInterface {
 
     @Override
     public String generateDownloadUrl(String objectPath) {
-        CachedSignedUrl cached = downloadUrlCache.get(objectPath);
-        if (cached != null && !cached.isExpired()) {
-            return cached.url;
+        String cacheKey = CACHE_PREFIX + objectPath;
+        String cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            return cached;
         }
 
         String signedUrl = signForGet(objectPath);
-        downloadUrlCache.put(objectPath, new CachedSignedUrl(signedUrl,
-                Instant.now().plusSeconds(CACHE_TTL_MINUTES * 60)));
+        redisTemplate.opsForValue().set(cacheKey, signedUrl, CACHE_TTL);
         return signedUrl;
     }
 
@@ -69,9 +70,26 @@ public class GCSServiceImpl implements GCSServiceInterface {
     public Map<String, String> generateDownloadUrls(Set<String> objectPaths) {
         Map<String, String> result = new HashMap<>(objectPaths.size());
 
+        List<String> keys = objectPaths.stream()
+                .filter(p -> p != null && !p.isBlank())
+                .map(p -> CACHE_PREFIX + p)
+                .toList();
+
+        List<String> cached = redisTemplate.opsForValue().multiGet(keys);
+
+        int i = 0;
         for (String objectPath : objectPaths) {
             if (objectPath == null || objectPath.isBlank()) continue;
-            result.put(objectPath, generateDownloadUrl(objectPath));
+
+            String cachedUrl = (cached != null && i < cached.size()) ? cached.get(i) : null;
+            if (cachedUrl != null) {
+                result.put(objectPath, cachedUrl);
+            } else {
+                String signedUrl = signForGet(objectPath);
+                redisTemplate.opsForValue().set(CACHE_PREFIX + objectPath, signedUrl, CACHE_TTL);
+                result.put(objectPath, signedUrl);
+            }
+            i++;
         }
 
         return result;
@@ -86,21 +104,5 @@ public class GCSServiceImpl implements GCSServiceInterface {
                 Storage.SignUrlOption.withV4Signature()
         );
         return url.toString();
-    }
-
-    @Scheduled(fixedRate = 300_000)
-    public void evictExpiredEntries() {
-        int before = downloadUrlCache.size();
-        downloadUrlCache.entrySet().removeIf(e -> e.getValue().isExpired());
-        int evicted = before - downloadUrlCache.size();
-        if (evicted > 0) {
-            log.debug("Evicted {} expired signed URL cache entries", evicted);
-        }
-    }
-
-    private record CachedSignedUrl(String url, Instant expiresAt) {
-        boolean isExpired() {
-            return Instant.now().isAfter(expiresAt);
-        }
     }
 }
