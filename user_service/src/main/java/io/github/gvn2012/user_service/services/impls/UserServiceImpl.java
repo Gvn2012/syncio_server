@@ -186,7 +186,7 @@ public class UserServiceImpl implements IUserService {
                             .orElse(null))
                     .operationType(UserSearchEvent.OperationType.UPSERT)
                     .build();
-            kafkaTemplate.send("user-search-indexing", user.getId().toString(), searchEvent);
+            kafkaTemplate.send("user-search-indexing", String.valueOf(user.getId()), searchEvent);
         } catch (Exception e) {
             log.error("Failed to send user search indexing event", e);
         }

@@ -56,7 +56,7 @@ public class UserProfilePictureServiceImpl implements IUserProfilePictureService
                     .avatarUrl(newPicture.getUrl())
                     .operationType(UserSearchEvent.OperationType.UPSERT)
                     .build();
-            kafkaTemplate.send("user-search-indexing", userId.toString(), searchEvent);
+            kafkaTemplate.send("user-search-indexing", String.valueOf(userId), searchEvent);
         } catch (Exception e) {
             log.error("Failed to send user search indexing event", e);
         }
