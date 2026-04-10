@@ -10,13 +10,9 @@ import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.query.Query;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -30,19 +26,32 @@ public class SearchController {
     public ResponseEntity<UniversalSearchResponse> search(
             @RequestParam("q") String keyword,
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "10") int size) {
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestHeader(value = "X-User-Id", required = false) String currentUserId) {
             
         long startTime = System.currentTimeMillis();
-        log.info("Performing universal fuzzy search for keyword: '{}'", keyword);
+        log.info("Performing universal fuzzy search for keyword: '{}', requester: {}", keyword, currentUserId);
 
-        // 1. Search People (Fuzzy match on username and fullName)
         Query userQuery = NativeQuery.builder()
                 .withQuery(q -> q
-                    .multiMatch(m -> m
-                        .fields("username", "fullName")
-                        .query(keyword)
-                        .fuzziness("AUTO")
-                    )
+                    .bool(b -> {
+                        b.must(m -> m
+                            .multiMatch(mm -> mm
+                                .fields("username", "fullName")
+                                .query(keyword)
+                                .fuzziness("AUTO")
+                            )
+                        );
+                        if (currentUserId != null) {
+                            b.mustNot(mn -> mn
+                                .term(t -> t
+                                    .field("_id")
+                                    .value(currentUserId)
+                                )
+                            );
+                        }
+                        return b;
+                    })
                 )
                 .withPageable(org.springframework.data.domain.PageRequest.of(page, size))
                 .build();
