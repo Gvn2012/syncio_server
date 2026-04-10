@@ -1,8 +1,10 @@
 package io.github.gvn2012.image_uploading_service.controllers;
 
 import io.github.gvn2012.image_uploading_service.dtos.APIResource;
+import io.github.gvn2012.image_uploading_service.dtos.requests.SignedUrlRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadConfirmRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadRequest;
+import io.github.gvn2012.image_uploading_service.dtos.responses.SignedUrlResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadResponse;
 import io.github.gvn2012.image_uploading_service.services.interfaces.UploadServiceInterface;
@@ -61,5 +63,11 @@ public class UploadController {
         }
 
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/internal/signed-urls")
+    public ResponseEntity<APIResource<SignedUrlResponse>> getSignedUrls(
+            @RequestBody SignedUrlRequest request) {
+        return ResponseEntity.ok(uploadService.getSignedUrls(request));
     }
 }

@@ -25,7 +25,18 @@ public class UserProfilePictureMapper implements IMapper<UserProfilePicture, Use
         if (entity.getObjectPath() != null && entity.getBucketName() != null) {
             url = String.format("%s/%s/%s", publicUrlPrefix, entity.getBucketName(), entity.getObjectPath());
         }
+        return buildResponse(entity, url);
+    }
 
+    public UserProfilePictureResponse toDto(UserProfilePicture entity, String resolvedUrl) {
+        String url = resolvedUrl;
+        if (url == null || url.isBlank()) {
+            return toDto(entity);
+        }
+        return buildResponse(entity, url);
+    }
+
+    private UserProfilePictureResponse buildResponse(UserProfilePicture entity, String url) {
         Map<String, Object> metadata = null;
         if (entity.getMetadata() != null && !entity.getMetadata().isBlank()) {
             try {

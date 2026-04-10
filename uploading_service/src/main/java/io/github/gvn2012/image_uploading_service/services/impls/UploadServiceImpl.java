@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.gvn2012.image_uploading_service.dtos.APIResource;
 import io.github.gvn2012.shared.kafka_events.ImageUploadedEvent;
+import io.github.gvn2012.image_uploading_service.dtos.requests.SignedUrlRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadConfirmRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadRequest;
+import io.github.gvn2012.image_uploading_service.dtos.responses.SignedUrlResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadResponse;
 import io.github.gvn2012.image_uploading_service.models.UploadAudit;
@@ -128,5 +130,11 @@ public class UploadServiceImpl implements UploadServiceInterface {
         } catch (Exception e) {
             throw new RuntimeException("Failed to handle GCS event", e);
         }
+    }
+
+    @Override
+    public APIResource<SignedUrlResponse> getSignedUrls(SignedUrlRequest request) {
+        Map<String, String> signedUrls = gcsService.generateDownloadUrls(request.getObjectPaths());
+        return APIResource.success(new SignedUrlResponse(signedUrls));
     }
 }
