@@ -31,14 +31,17 @@ public class SearchController {
             
         long startTime = System.currentTimeMillis();
         log.info("Performing universal fuzzy search for keyword: '{}', requester: {}", keyword, currentUserId);
+        boolean isUsernameSearch = keyword.startsWith("@");
+        String finalKeyword = isUsernameSearch ? keyword.substring(1) : keyword;
 
+        // 1. Search People (Fuzzy match based on @ prefix, excluding self)
         Query userQuery = NativeQuery.builder()
                 .withQuery(q -> q
                     .bool(b -> {
                         b.must(m -> m
-                            .multiMatch(mm -> mm
-                                .fields("username", "fullName")
-                                .query(keyword)
+                            .match(mm -> mm
+                                .field(isUsernameSearch ? "username" : "fullName")
+                                .query(finalKeyword)
                                 .fuzziness("AUTO")
                             )
                         );
