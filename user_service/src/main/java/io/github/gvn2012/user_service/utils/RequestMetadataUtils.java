@@ -19,6 +19,8 @@ public class RequestMetadataUtils {
             metadata.put("referer", request.getHeader("Referer"));
             metadata.put("origin", request.getHeader("Origin"));
             metadata.put("platform", request.getHeader("X-Platform"));
+            metadata.put("timezone", request.getHeader("X-Timezone"));
+            metadata.put("locale", request.getLocale().toString());
         }
         
         return metadata;

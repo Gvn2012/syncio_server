@@ -229,9 +229,19 @@ public class UserServiceImpl implements IUserService {
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPasswordHash(hashedPassword);
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
 
         if (request.getGender() != null) {
             user.setGender(Gender.valueOf(request.getGender().toUpperCase()));
+        }
+
+        Map<String, Object> requestMetadata = RequestMetadataUtils.extractMetadata();
+        if (requestMetadata.get("timezone") != null) {
+            user.setTimezone(requestMetadata.get("timezone").toString());
+        }
+        if (requestMetadata.get("locale") != null) {
+            user.setLocale(requestMetadata.get("locale").toString());
         }
 
         UserEmail email = new UserEmail();
@@ -250,7 +260,7 @@ public class UserServiceImpl implements IUserService {
                         });
             }
 
-            finalMetadata.putAll(RequestMetadataUtils.extractMetadata());
+            finalMetadata.putAll(requestMetadata);
 
             email.setMetadata(objectMapper.writeValueAsString(finalMetadata));
         } catch (Exception e) {

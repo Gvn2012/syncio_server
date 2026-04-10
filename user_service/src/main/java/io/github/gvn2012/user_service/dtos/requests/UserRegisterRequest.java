@@ -11,7 +11,6 @@ import java.util.UUID;
 import io.github.gvn2012.user_service.dtos.OrgRegisterDTO;
 import io.github.gvn2012.user_service.dtos.UserAddressDTO;
 import io.github.gvn2012.user_service.dtos.UserEmergencyContactDTO;
-import io.github.gvn2012.user_service.entities.enums.Gender;
 
 @Data
 @AllArgsConstructor
@@ -28,6 +27,14 @@ public class UserRegisterRequest {
     @NotBlank(message = "Email must not be blank")
     @Email(message = "Invalid email format")
     private String email;
+
+    @NotBlank(message = "First name must not be blank")
+    @Size(min = 2, max = 50, message = "First name must be between 2 and 50 characters")
+    private String firstName;
+
+    @NotBlank(message = "Last name must not be blank")
+    @Size(min = 2, max = 50, message = "Last name must be between 2 and 50 characters")
+    private String lastName;
 
     @NotNull(message = "Email verification id must not be null")
     private UUID emailVerificationId;
