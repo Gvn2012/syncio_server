@@ -36,16 +36,17 @@ public class ImageUploadConsumer {
                 picture.setBucketName(event.getBucketName());
                 picture.setFileSize(event.getSize());
                 picture.setMimeType(event.getContentType());
-                picture.setUrl(String.format("%s/%s/%s", publicUrlPrefix, event.getBucketName(), event.getObjectPath()));
+                picture.setUrl(
+                        String.format("%s/%s/%s", publicUrlPrefix, event.getBucketName(), event.getObjectPath()));
 
                 if (event.getMetadata() != null) {
                     picture.setMetadata(objectMapper.writeValueAsString(event.getMetadata()));
                 }
 
                 profilePictureRepository.save(picture);
-                log.info("Successfully finalized profile picture for imageId: {}, url: {}", event.getImageId(), picture.getUrl());
+                log.info("Successfully finalized profile picture for imageId: {}, url: {}", event.getImageId(),
+                        picture.getUrl());
 
-                // Notify Search Service
                 User user = picture.getUserProfile().getUser();
                 UserSearchEvent searchEvent = UserSearchEvent.builder()
                         .userId(user.getId())
@@ -63,7 +64,8 @@ public class ImageUploadConsumer {
                 log.error("Error processing finalized profile picture for imageId: {}", event.getImageId(), e);
             }
         }, () -> {
-            log.warn("Profile picture not found for imageId: {}. Registration might still be in progress. Retrying...", event.getImageId());
+            log.warn("Profile picture not found for imageId: {}. Registration might still be in progress. Retrying...",
+                    event.getImageId());
             throw new RuntimeException("Profile picture record not yet persistent for ID: " + event.getImageId());
         });
     }

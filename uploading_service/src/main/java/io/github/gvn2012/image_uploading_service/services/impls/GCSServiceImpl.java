@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 public class GCSServiceImpl implements GCSServiceInterface {
 
     private static final long SIGN_TTL_MINUTES = 60;
-    private static final Duration CACHE_TTL = Duration.ofMinutes(50);
+    private static final Duration CACHE_TTL = Duration.ofMinutes(55);
     private static final String CACHE_PREFIX = "signed_url:";
 
     private final StringRedisTemplate redisTemplate;
@@ -49,8 +49,7 @@ public class GCSServiceImpl implements GCSServiceInterface {
                 blobInfo,
                 15, TimeUnit.MINUTES,
                 Storage.SignUrlOption.httpMethod(HttpMethod.PUT),
-                Storage.SignUrlOption.withV4Signature()
-        );
+                Storage.SignUrlOption.withV4Signature());
     }
 
     @Override
@@ -79,7 +78,8 @@ public class GCSServiceImpl implements GCSServiceInterface {
 
         int i = 0;
         for (String objectPath : objectPaths) {
-            if (objectPath == null || objectPath.isBlank()) continue;
+            if (objectPath == null || objectPath.isBlank())
+                continue;
 
             String cachedUrl = (cached != null && i < cached.size()) ? cached.get(i) : null;
             if (cachedUrl != null) {
@@ -101,8 +101,7 @@ public class GCSServiceImpl implements GCSServiceInterface {
                 blobInfo,
                 SIGN_TTL_MINUTES, TimeUnit.MINUTES,
                 Storage.SignUrlOption.httpMethod(HttpMethod.GET),
-                Storage.SignUrlOption.withV4Signature()
-        );
+                Storage.SignUrlOption.withV4Signature());
         return url.toString();
     }
 }

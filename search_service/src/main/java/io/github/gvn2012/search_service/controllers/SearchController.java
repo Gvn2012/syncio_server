@@ -21,7 +21,7 @@ import java.util.List;
 public class SearchController {
 
     private final ElasticsearchOperations elasticsearchOperations;
-    @org.springframework.beans.factory.annotation.Value("${syncio.gateway.host:http://api-gateway:8080}")
+    @org.springframework.beans.factory.annotation.Value("${syncio.gateway.host:http://localhost:8080}")
     private String gatewayHost;
 
     @GetMapping

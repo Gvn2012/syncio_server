@@ -26,20 +26,18 @@ public class UploadController {
 
     @PostMapping
     public ResponseEntity<APIResource<UploadResponse>> sendUploadRequest(
-            @RequestBody UploadRequest uploadRequest){
+            @RequestBody UploadRequest uploadRequest) {
 
-        APIResource<UploadResponse> uploadResponse =
-                uploadService.sendUploadRequest(uploadRequest);
+        APIResource<UploadResponse> uploadResponse = uploadService.sendUploadRequest(uploadRequest);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(uploadResponse);
     }
 
     @PostMapping("/confirm")
     public ResponseEntity<APIResource<UploadConfirmResponse>> confirmUpload(
-            @RequestBody UploadConfirmRequest uploadConfirmRequest){
+            @RequestBody UploadConfirmRequest uploadConfirmRequest) {
 
-        APIResource<UploadConfirmResponse> response =
-                uploadService.confirmUpload(uploadConfirmRequest);
+        APIResource<UploadConfirmResponse> response = uploadService.confirmUpload(uploadConfirmRequest);
 
         return ResponseEntity.ok(response);
     }
@@ -76,6 +74,7 @@ public class UploadController {
         String signedUrl = uploadService.getSignedUrl(path);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header("Location", signedUrl)
+                .header("Cache-Control", "public, max-age=300")
                 .build();
     }
 }
