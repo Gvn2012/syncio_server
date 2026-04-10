@@ -1,27 +1,31 @@
 package io.github.gvn2012.notification_service.kafka;
 
+import java.util.UUID;
+
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Service;
+
 import io.github.gvn2012.notification_service.entities.Notification;
 import io.github.gvn2012.notification_service.entities.enums.NotificationType;
 import io.github.gvn2012.notification_service.repositories.NotificationRepository;
 import io.github.gvn2012.notification_service.services.impls.EmailSenderService;
-import io.github.gvn2012.shared.kafka_events.EmailVerificationEvent;
+import io.github.gvn2012.shared.kafka_events.OrgCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class EmailEventConsumer {
+public class OrgEventComsumer {
 
     private final EmailSenderService emailSenderService;
     private final NotificationRepository notificationRepository;
 
-    @KafkaListener(topics = "email-verification-v2")
-    public void consume(EmailVerificationEvent event) {
+    @KafkaListener(topics = "org.created")
+    public void consume(OrgCreatedEvent event) {
         log.info("Event get {}", event);
-        if (event == null || event.getEmail() == null || event.getEmail().isBlank()) {
+        if (event.getOwnerId() == null || event.getOwnerId().isBlank()) {
+            log.error("Invalid event: {}", event);
             return;
         }
 
@@ -31,10 +35,7 @@ public class EmailEventConsumer {
         }
 
         try {
-            emailSenderService.sendVerificationEmail(
-                    event.getEmail(),
-                    event.getVerificationLink(),
-                    event.getVerificationCode());
+            emailSenderService.sendOrganizationWelcomeEmail(event.getEmail(), event.getName(), event.getOrgId());
             saveNotification(event, "SENT");
 
         } catch (Exception e) {
@@ -43,12 +44,12 @@ public class EmailEventConsumer {
         }
     }
 
-    private void saveNotification(EmailVerificationEvent event, String status) {
+    private void saveNotification(OrgCreatedEvent event, String status) {
         Notification noti = Notification.builder()
                 .eventId(event.getEventId() != null ? event.getEventId().toString() : null)
-                .recipientId(event.getUserId())
+                .recipientId(UUID.fromString(event.getOwnerId()))
                 .email(event.getEmail())
-                .type(NotificationType.EMAIL_VERIFICATION)
+                .type(NotificationType.ORG_CREATED)
                 .status(status)
                 .build();
 

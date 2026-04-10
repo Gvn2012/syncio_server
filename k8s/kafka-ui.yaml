@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-kafka-ui
+  namespace: syncio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syncio-kafka-ui
+  template:
+    metadata:
+      labels:
+        app: syncio-kafka-ui
+    spec:
+      containers:
+        - name: kafka-ui
+          image: provectuslabs/kafka-ui:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: KAFKA_CLUSTERS_0_NAME
+              value: "syncio-kafka"
+            - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
+              value: "syncio-kafka:9092"
+            - name: KAFKA_CLUSTERS_0_ZOOKEEPER
+              value: "syncio-zookeeper:2181"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-kafka-ui
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-kafka-ui
+  ports:
+    - port: 8080
+      targetPort: 8080

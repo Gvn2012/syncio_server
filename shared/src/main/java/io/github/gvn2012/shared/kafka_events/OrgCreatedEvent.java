@@ -6,14 +6,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrgCreatedEvent implements Serializable {
+    private String eventId;
     private String orgId;
     private String ownerId;
     private String name;
+    private String email;
 }

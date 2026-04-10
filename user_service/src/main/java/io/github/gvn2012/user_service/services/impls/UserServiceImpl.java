@@ -162,7 +162,7 @@ public class UserServiceImpl implements IUserService {
         pendingEmailVerificationService.markConsumed(verification);
 
         if ("admin".equalsIgnoreCase(request.getRegistrationType()) && request.getOrganization() != null) {
-            createOrganizationForAdmin(user.getId(), request.getOrganization());
+            createOrganizationForAdmin(user.getId(), request.getOrganization(), request.getEmail());
         }
 
         permissionClient.initUserRole(user.getId().toString(),
@@ -257,8 +257,6 @@ public class UserServiceImpl implements IUserService {
             log.error("Failed to merge registration metadata", e);
         }
 
-
-
         UserPhone phone = new UserPhone();
         phone.setUser(user);
         phone.setPhoneNumber(request.getPhoneCode() + request.getPhoneNumber());
@@ -329,10 +327,11 @@ public class UserServiceImpl implements IUserService {
         }
     }
 
-    private void createOrganizationForAdmin(UUID ownerId, OrgRegisterDTO org) {
+    private void createOrganizationForAdmin(UUID ownerId, OrgRegisterDTO org, String email) {
         Map<String, Object> orgRequest = new HashMap<>();
         orgRequest.put("name", org.getName());
         orgRequest.put("ownerId", ownerId.toString());
+        orgRequest.put("email", email);
 
         if (org.getLegalName() != null && !org.getLegalName().isBlank())
             orgRequest.put("legalName", org.getLegalName());

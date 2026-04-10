@@ -72,6 +72,8 @@ public class OrganizationServiceImpl implements IOrganizationService {
                 .orgId(savedOrg.getId().toString())
                 .ownerId(requestingUserId.toString())
                 .name(savedOrg.getName())
+                .email(request.getEmail())
+                .eventId(UUID.randomUUID().toString())
                 .build();
         kafkaTemplate.send("org.created", savedOrg.getId().toString(), event);
 
