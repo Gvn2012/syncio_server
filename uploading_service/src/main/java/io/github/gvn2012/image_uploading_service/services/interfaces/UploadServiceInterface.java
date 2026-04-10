@@ -15,4 +15,5 @@ public interface UploadServiceInterface{
     APIResource<UploadConfirmResponse> confirmUpload(UploadConfirmRequest request);
     void handle(Map<String, Object> body);
     APIResource<SignedUrlResponse> getSignedUrls(SignedUrlRequest request);
+    String getSignedUrl(String path);
 }

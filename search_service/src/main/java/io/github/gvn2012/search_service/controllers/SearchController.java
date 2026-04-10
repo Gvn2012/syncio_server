@@ -21,6 +21,8 @@ import java.util.List;
 public class SearchController {
 
     private final ElasticsearchOperations elasticsearchOperations;
+    @org.springframework.beans.factory.annotation.Value("${syncio.gateway.host:http://api-gateway:8080}")
+    private String gatewayHost;
 
     @GetMapping
     public ResponseEntity<UniversalSearchResponse> search(
@@ -61,7 +63,13 @@ public class SearchController {
 
         SearchHits<UserIndex> userHits = elasticsearchOperations.search(userQuery, UserIndex.class);
         List<UserIndex> users = userHits.getSearchHits().stream()
-                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .map(hit -> {
+                    UserIndex content = hit.getContent();
+                    if (content.getAvatarPath() != null) {
+                        content.setAvatarUrl(String.format("%s/api/v1/upload/view?path=%s", gatewayHost, content.getAvatarPath()));
+                    }
+                    return content;
+                })
                 .toList();
 
         // 2. Search Posts (Fuzzy match on content)

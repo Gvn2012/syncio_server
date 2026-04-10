@@ -32,6 +32,7 @@ public class SearchIndexingConsumer {
                     .username(event.getUsername())
                     .fullName(event.getFullName())
                     .avatarUrl(event.getAvatarUrl())
+                    .avatarPath(event.getAvatarPath())
                     .build();
             userSearchRepository.save(document);
             log.debug("Upserted user index for ID: {}", event.getUserId());

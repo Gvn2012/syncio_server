@@ -26,4 +26,7 @@ public class UserIndex {
 
     @Field(type = FieldType.Keyword)
     private String avatarUrl;
+
+    @Field(type = FieldType.Keyword)
+    private String avatarPath;
 }

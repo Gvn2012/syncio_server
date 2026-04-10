@@ -70,4 +70,12 @@ public class UploadController {
             @RequestBody SignedUrlRequest request) {
         return ResponseEntity.ok(uploadService.getSignedUrls(request));
     }
+
+    @GetMapping("/view")
+    public ResponseEntity<Void> view(@RequestParam String path) {
+        String signedUrl = uploadService.getSignedUrl(path);
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header("Location", signedUrl)
+                .build();
+    }
 }

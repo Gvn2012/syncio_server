@@ -18,5 +18,6 @@ public class UserSearchEvent {
     private String username;
     private String fullName;
     private String avatarUrl;
+    private String avatarPath;
     private OperationType operationType;
 }
