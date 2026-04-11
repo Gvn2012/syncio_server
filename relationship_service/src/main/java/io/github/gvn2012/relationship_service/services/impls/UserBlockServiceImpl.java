@@ -26,6 +26,7 @@ public class UserBlockServiceImpl implements IUserBlockService {
 
     private final UserBlockRepository blockRepository;
     private final UserRelationshipRepository relationshipRepository;
+    private final io.github.gvn2012.relationship_service.repositories.FriendRequestRepository friendRequestRepository;
     private final RelationshipEventProducer eventProducer;
 
     @Override
@@ -51,10 +52,26 @@ public class UserBlockServiceImpl implements IUserBlockService {
         severRelationships(blockerId, blockedId);
         severRelationships(blockedId, blockerId);
 
+        // Cancel pending friend requests
+        cancelPendingFriendRequests(blockerId, blockedId);
+
         eventProducer.publishEvent(
                 new RelationshipChangedEvent(blockerId, blockedId, RelationshipChangedEvent.ChangeType.BLOCK));
 
         return APIResource.message("User blocked successfully", HttpStatus.OK);
+    }
+
+    private void cancelPendingFriendRequests(UUID u1, UUID u2) {
+        friendRequestRepository.findBySenderUserIdAndReceiverUserIdAndStatus(u1, u2, io.github.gvn2012.relationship_service.entities.enums.FriendRequestStatus.PENDING)
+                .ifPresent(req -> {
+                    req.setStatus(io.github.gvn2012.relationship_service.entities.enums.FriendRequestStatus.CANCELLED);
+                    friendRequestRepository.save(req);
+                });
+        friendRequestRepository.findBySenderUserIdAndReceiverUserIdAndStatus(u2, u1, io.github.gvn2012.relationship_service.entities.enums.FriendRequestStatus.PENDING)
+                .ifPresent(req -> {
+                    req.setStatus(io.github.gvn2012.relationship_service.entities.enums.FriendRequestStatus.CANCELLED);
+                    friendRequestRepository.save(req);
+                });
     }
 
     @Override
@@ -95,5 +112,17 @@ public class UserBlockServiceImpl implements IUserBlockService {
                 .blockerId(
                         (fDirection && sDirection) ? null : (fDirection ? userIdF : (sDirection ? userIdS : null)))
                 .build();
+    }
+
+    @Override
+    public List<UUID> getBlockedList(UUID userId) {
+        return blockRepository.findAllByBlockerUserIdAndIsActiveTrue(userId)
+                .stream().map(UserBlock::getBlockedUserId).collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    public List<UUID> getBlockedByList(UUID userId) {
+        return blockRepository.findAllByBlockedUserIdAndIsActiveTrue(userId)
+                .stream().map(UserBlock::getBlockerUserId).collect(java.util.stream.Collectors.toList());
     }
 }

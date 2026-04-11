@@ -18,4 +18,8 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, UUID> {
     long countAllByBlockedUserId(UUID blockedId);
 
     boolean existsByBlockerUserIdAndBlockedUserIdAndIsActiveTrue(UUID userIdF, UUID userIdS);
+
+    java.util.List<io.github.gvn2012.relationship_service.entities.UserBlock> findAllByBlockerUserIdAndIsActiveTrue(UUID blockerId);
+
+    java.util.List<io.github.gvn2012.relationship_service.entities.UserBlock> findAllByBlockedUserIdAndIsActiveTrue(UUID blockedId);
 }

@@ -27,6 +27,7 @@ public class RelationshipServiceImpl implements IRelationshipService {
 
     private final UserRelationshipRepository relationshipRepository;
     private final UserBlockRepository userBlockRepository;
+    private final io.github.gvn2012.relationship_service.repositories.FriendRequestRepository friendRequestRepository;
     private final RelationshipMapper relationshipMapper;
     private final RelationshipEventProducer eventProducer;
 
@@ -42,6 +43,11 @@ public class RelationshipServiceImpl implements IRelationshipService {
 
         if (relationship != null && relationship.getStatus() == RelationshipStatus.ACTIVE) {
             return APIResource.error("ALREADY_FOLLOWING", "Already following this user", HttpStatus.BAD_REQUEST, null);
+        }
+
+        if (userBlockRepository.existsByBlockerUserIdAndBlockedUserId(sourceId, targetId) ||
+            userBlockRepository.existsByBlockerUserIdAndBlockedUserId(targetId, sourceId)) {
+            return APIResource.error("BLOCKED", "Cannot follow a blocked user or you are blocked", HttpStatus.BAD_REQUEST, null);
         }
 
         if (relationship == null) {
@@ -150,5 +156,44 @@ public class RelationshipServiceImpl implements IRelationshipService {
                 .collect(Collectors.toList());
 
         return APIResource.ok("Search results retrieved", responses);
+    }
+
+    @Override
+    public io.github.gvn2012.relationship_service.dtos.responses.RelationshipStatusResponse getRelationshipStatus(UUID sourceId, UUID targetId) {
+        boolean isFollowing = relationshipRepository.existsBySourceUserIdAndTargetUserIdAndRelationshipTypeAndStatus(
+                sourceId, targetId, RelationshipType.FOLLOW, RelationshipStatus.ACTIVE);
+        boolean isFollowedBy = relationshipRepository.existsBySourceUserIdAndTargetUserIdAndRelationshipTypeAndStatus(
+                targetId, sourceId, RelationshipType.FOLLOW, RelationshipStatus.ACTIVE);
+        boolean isFriend = relationshipRepository.existsBySourceUserIdAndTargetUserIdAndRelationshipTypeAndStatus(
+                sourceId, targetId, RelationshipType.FRIEND, RelationshipStatus.ACTIVE);
+        boolean isBlocking = userBlockRepository.existsByBlockerUserIdAndBlockedUserId(sourceId, targetId);
+        boolean isBlockedBy = userBlockRepository.existsByBlockerUserIdAndBlockedUserId(targetId, sourceId);
+
+        String frStatus = "NONE";
+        if (friendRequestRepository.existsBySenderUserIdAndReceiverUserIdAndStatus(sourceId, targetId, io.github.gvn2012.relationship_service.entities.enums.FriendRequestStatus.PENDING)) {
+            frStatus = "PENDING_SENT";
+        } else if (friendRequestRepository.existsBySenderUserIdAndReceiverUserIdAndStatus(targetId, sourceId, io.github.gvn2012.relationship_service.entities.enums.FriendRequestStatus.PENDING)) {
+            frStatus = "PENDING_RECEIVED";
+        }
+
+        return io.github.gvn2012.relationship_service.dtos.responses.RelationshipStatusResponse.builder()
+                .isFollowing(isFollowing)
+                .isFollowedBy(isFollowedBy)
+                .isFriend(isFriend)
+                .isBlocking(isBlocking)
+                .isBlockedBy(isBlockedBy)
+                .friendRequestStatus(frStatus)
+                .build();
+    }
+
+    @Override
+    public APIResource<List<RelationshipResponse>> getFriendList(UUID userId) {
+        List<UserRelationship> friends = relationshipRepository.findAllBySourceUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+                .stream().filter(r -> r.getRelationshipType() == RelationshipType.FRIEND)
+                .collect(Collectors.toList());
+        List<RelationshipResponse> responses = friends.stream()
+                .map(relationshipMapper::toResponse)
+                .collect(Collectors.toList());
+        return APIResource.ok("Friends retrieved", responses);
     }
 }

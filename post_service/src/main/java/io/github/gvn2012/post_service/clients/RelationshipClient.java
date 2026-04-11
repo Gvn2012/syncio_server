@@ -57,6 +57,24 @@ public class RelationshipClient extends HttpClient {
                 .onErrorReturn(false);
     }
 
+    public Mono<List<UUID>> getBlockedList(UUID userId) {
+        return get(
+                "/api/v1/relationships/blocks",
+                new ParameterizedTypeReference<APIResource<List<UUID>>>() {
+                },
+                userId.toString())
+                .flatMap(this::handleListResponse);
+    }
+
+    public Mono<List<UUID>> getBlockedByList(UUID userId) {
+        return get(
+                "/api/v1/relationships/blocked-by",
+                new ParameterizedTypeReference<APIResource<List<UUID>>>() {
+                },
+                userId.toString())
+                .flatMap(this::handleListResponse);
+    }
+
     private <T> Mono<T> handleListResponse(APIResource<T> response) {
         if (!response.isSuccess() || response.getData() == null) {
             String errorMsg = response.getError() != null ? response.getError().getMessage()

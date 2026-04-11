@@ -11,4 +11,6 @@ public interface IUserBlockService {
     APIResource<Void> unblockUser(UUID blockerId, UUID blockedId);
 
     CheckBlockStatusResponse checkBlockStatus(UUID userIdF, UUID userIdS);
+    java.util.List<UUID> getBlockedList(UUID userId);
+    java.util.List<UUID> getBlockedByList(UUID userId);
 }

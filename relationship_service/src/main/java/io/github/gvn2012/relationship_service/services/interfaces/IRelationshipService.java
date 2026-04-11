@@ -16,4 +16,6 @@ public interface IRelationshipService {
     APIResource<Boolean> isBlocked(UUID sourceId, UUID targetId);
     APIResource<List<UUID>> getMutualFriends(UUID userId, UUID targetId);
     APIResource<List<RelationshipResponse>> searchFriends(UUID userId, String query);
+    io.github.gvn2012.relationship_service.dtos.responses.RelationshipStatusResponse getRelationshipStatus(UUID sourceId, UUID targetId);
+    APIResource<List<RelationshipResponse>> getFriendList(UUID userId);
 }

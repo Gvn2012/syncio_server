@@ -16,6 +16,7 @@ import java.util.UUID;
 public class RelationshipController {
 
     private final IRelationshipService relationshipService;
+    private final io.github.gvn2012.relationship_service.services.interfaces.IUserBlockService userBlockService;
 
     @PostMapping("/follow/{tid}")
     public ResponseEntity<APIResource<RelationshipResponse>> follow(
@@ -67,5 +68,34 @@ public class RelationshipController {
         APIResource<Boolean> response = relationshipService.isBlocked(sourceId, targetId);
         return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
                 .body(response);
+    }
+
+    @GetMapping("/status/{tid}")
+    public ResponseEntity<io.github.gvn2012.relationship_service.dtos.responses.RelationshipStatusResponse> getStatus(
+            @RequestHeader("X-User-Id") UUID sourceId,
+            @PathVariable("tid") UUID targetId) {
+        return ResponseEntity.ok(relationshipService.getRelationshipStatus(sourceId, targetId));
+    }
+
+    @GetMapping("/friends/{uid}")
+    public ResponseEntity<APIResource<List<RelationshipResponse>>> getFriends(
+            @PathVariable("uid") UUID userId) {
+        APIResource<List<RelationshipResponse>> response = relationshipService.getFriendList(userId);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
+    }
+
+    @GetMapping("/blocks")
+    public ResponseEntity<APIResource<List<UUID>>> getBlocks(
+            @RequestHeader("X-User-Id") UUID userId) {
+        List<UUID> blocks = userBlockService.getBlockedList(userId);
+        return ResponseEntity.ok(APIResource.ok("Blocks retrieved", blocks));
+    }
+
+    @GetMapping("/blocked-by")
+    public ResponseEntity<APIResource<List<UUID>>> getBlockedBy(
+            @RequestHeader("X-User-Id") UUID userId) {
+        List<UUID> blockedBy = userBlockService.getBlockedByList(userId);
+        return ResponseEntity.ok(APIResource.ok("Blocked-by retrieved", blockedBy));
     }
 }

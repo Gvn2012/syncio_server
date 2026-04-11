@@ -67,8 +67,14 @@ public class FeedServiceImpl implements IFeedService {
             precomputedScores.put(post.getId(), rankingService.computeScore(post, recipientId, affinityScore));
         }
 
+        List<UUID> blockedIds = resolveBlocks(recipientId);
+        List<UUID> blockedByIds = resolveBlockedBy(recipientId);
+        Set<UUID> allBlocked = new HashSet<>(blockedIds);
+        allBlocked.addAll(blockedByIds);
+
         return deduped.values().stream()
                 .filter(this::isVisible)
+                .filter(post -> !allBlocked.contains(post.getAuthorId()))
                 .sorted((a, b) -> {
                     double scoreA = precomputedScores.getOrDefault(a.getId(), 0.0);
                     double scoreB = precomputedScores.getOrDefault(b.getId(), 0.0);
@@ -100,6 +106,28 @@ public class FeedServiceImpl implements IFeedService {
     private List<UUID> resolveFollows(UUID userId) {
         try {
             return relationshipClient.getFollowing(userId)
+                    .timeout(java.time.Duration.ofMillis(3000))
+                    .onErrorReturn(List.of())
+                    .block();
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private List<UUID> resolveBlocks(UUID userId) {
+        try {
+            return relationshipClient.getBlockedList(userId)
+                    .timeout(java.time.Duration.ofMillis(3000))
+                    .onErrorReturn(List.of())
+                    .block();
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private List<UUID> resolveBlockedBy(UUID userId) {
+        try {
+            return relationshipClient.getBlockedByList(userId)
                     .timeout(java.time.Duration.ofMillis(3000))
                     .onErrorReturn(List.of())
                     .block();
