@@ -12,9 +12,11 @@ import io.github.gvn2012.shared.kafka_events.PostSearchEvent;
 import io.github.gvn2012.shared.kafka_events.PostSearchEvent.OperationType;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
 import io.github.gvn2012.post_service.repositories.*;
+import io.github.gvn2012.post_service.dtos.mappers.*;
 import io.github.gvn2012.post_service.services.interfaces.IPostContentVersionService;
 import io.github.gvn2012.post_service.services.interfaces.IPostService;
 import io.github.gvn2012.post_service.services.kafka.PostEventProducer;
+import io.github.gvn2012.post_service.clients.UserClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
@@ -41,6 +43,18 @@ public class PostServiceImpl implements IPostService {
     private final TagRepository tagRepository;
     private final PostTagRepository postTagRepository;
 
+    private final PostEventRepository postEventRepository;
+    private final PostEventMapper postEventMapper;
+    private final PostPollRepository postPollRepository;
+    private final PollOptionRepository pollOptionRepository;
+    private final PostPollMapper postPollMapper;
+    private final PostTaskRepository postTaskRepository;
+    private final PostTaskAssigneeRepository postTaskAssigneeRepository;
+    private final PostTaskMapper postTaskMapper;
+    private final PostAnnouncementRepository postAnnouncementRepository;
+    private final PostAnnouncementMapper postAnnouncementMapper;
+    private final UserClient userClient;
+
     @Override
     @Transactional
     public PostResponse createPost(PostCreateRequest request, UUID authorId) {
@@ -55,19 +69,92 @@ public class PostServiceImpl implements IPostService {
         processMentions(saved, request.getMentions());
         processTags(saved, request.getTags());
         processAttachments(saved, request.getAttachments());
+        processSubtypes(saved, request);
 
         contentVersionService.captureNewVersion(saved, saved.getAuthorId(), saved.getContent());
-        postEventProducer.publishPostCreated(saved.getId(), saved.getAuthorId());
-        postEventProducer.publishPostSearchIndexing(PostSearchEvent.builder()
-                .postId(saved.getId())
-                .authorId(saved.getAuthorId())
-                .content(saved.getContent())
-                .publishedAt(saved.getPublishedAt())
-                .status(saved.getStatus().name())
-                .operationType(OperationType.UPSERT)
-                .build());
+        
+        enrichAndPublish(saved);
+        
         eventPublisher.publishEvent(new FeedFanoutWorker.PostCreatedEvent(saved));
         return postMapper.toResponse(saved);
+    }
+
+    private void processSubtypes(Post post, PostCreateRequest request) {
+        switch (post.getPostCategory()) {
+            case EVENT -> {
+                if (request.getEvent() != null) {
+                    PostEvent event = postEventMapper.toEntity(request.getEvent());
+                    event.setPost(post);
+                    event.setPostId(post.getId());
+                    postEventRepository.save(event);
+                    post.setEvent(event);
+                }
+            }
+            case POLL -> {
+                if (request.getPoll() != null) {
+                    PostPoll poll = postPollMapper.toEntity(request.getPoll());
+                    poll.setPost(post);
+                    poll.setPostId(post.getId());
+                    PostPoll savedPoll = postPollRepository.save(poll);
+                    if (request.getPoll().getOptions() != null) {
+                        List<PollOption> options = request.getPoll().getOptions().stream()
+                                .map(optReq -> {
+                                    PollOption opt = postPollMapper.toOptionEntity(optReq);
+                                    opt.setPoll(savedPoll);
+                                    return opt;
+                                }).toList();
+                        if (!options.isEmpty()) {
+                            pollOptionRepository.saveAll(options);
+                            savedPoll.setOptions(new java.util.LinkedHashSet<>(options));
+                        }
+                    }
+                    post.setPoll(savedPoll);
+                }
+            }
+            case TASK -> {
+                if (request.getTask() != null) {
+                    PostTask task = postTaskMapper.toEntity(request.getTask());
+                    task.setPost(post);
+                    task.setPostId(post.getId());
+                    PostTask savedTask = postTaskRepository.save(task);
+                    if (request.getTask().getAssignees() != null) {
+                        List<PostTaskAssignee> assignees = request.getTask().getAssignees().stream()
+                                .map(uid -> new PostTaskAssignee(null, savedTask, uid, 
+                                        LocalDateTime.now()))
+                                .toList();
+                        if (!assignees.isEmpty()) {
+                            postTaskAssigneeRepository.saveAll(assignees);
+                            savedTask.setAssignees(new java.util.LinkedHashSet<>(assignees));
+                        }
+                    }
+                    post.setTask(savedTask);
+                }
+            }
+            case ANNOUNCEMENT -> {
+                if (request.getAnnouncement() != null) {
+                    PostAnnouncement announcement = postAnnouncementMapper.toEntity(request.getAnnouncement());
+                    announcement.setPost(post);
+                    announcement.setPostId(post.getId());
+                    postAnnouncementRepository.save(announcement);
+                    post.setAnnouncement(announcement);
+                }
+            }
+            default -> {}
+        }
+    }
+
+    private void enrichAndPublish(Post post) {
+        String authorName = userClient.getUserName(post.getAuthorId()).block();
+        postEventProducer.publishPostCreated(post.getId(), post.getAuthorId(), authorName, post.getPostCategory().name());
+        
+        postEventProducer.publishPostSearchIndexing(PostSearchEvent.builder()
+                .postId(post.getId())
+                .authorId(post.getAuthorId())
+                .content(post.getContent())
+                .publishedAt(post.getPublishedAt())
+                .status(post.getStatus().name())
+                .operationType(OperationType.UPSERT)
+                .build());
     }
 
     private Post fetchPostById(UUID id) {
@@ -262,7 +349,7 @@ public class PostServiceImpl implements IPostService {
         Post saved = postRepository.save(sharedPost);
         postRepository.incrementShareCount(originalPostId, 1);
 
-        postEventProducer.publishPostCreated(saved.getId(), sharerId);
+        enrichAndPublish(saved);
         postEventProducer.publishPostSearchIndexing(PostSearchEvent.builder()
                 .postId(saved.getId())
                 .authorId(saved.getAuthorId())

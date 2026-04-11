@@ -17,7 +17,13 @@ import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring", 
         unmappedTargetPolicy = ReportingPolicy.IGNORE,
-        uses = {MediaAttachmentMapper.class})
+        uses = {
+            MediaAttachmentMapper.class,
+            PostEventMapper.class,
+            PostPollMapper.class,
+            PostTaskMapper.class,
+            PostAnnouncementMapper.class
+        })
 public interface PostMapper {
 
     @Mapping(target = "parentPostId", source = "parentPost.id")

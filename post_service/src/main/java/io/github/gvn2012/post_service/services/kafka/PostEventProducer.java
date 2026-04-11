@@ -19,32 +19,32 @@ public class PostEventProducer {
     private static final String TOPIC = "post-events-v2";
     private static final String SEARCH_TOPIC = "post-search-indexing";
 
-    public void publishPostCreated(UUID postId, UUID authorId) {
-        publish(postId, authorId, authorId, ActivityType.CREATED, null);
+    public void publishPostCreated(UUID postId, UUID authorId, String authorName, String category) {
+        publish(postId, authorId, authorId, authorName, ActivityType.CREATED, category, null);
     }
 
     public void publishPostUpdated(UUID postId, UUID authorId, UUID editorId) {
-        publish(postId, authorId, editorId, ActivityType.UPDATED, null);
+        publish(postId, authorId, editorId, null, ActivityType.UPDATED, null, null);
     }
 
     public void publishPostDeleted(UUID postId, UUID authorId) {
-        publish(postId, authorId, authorId, ActivityType.DELETED, null);
+        publish(postId, authorId, authorId, null, ActivityType.DELETED, null, null);
     }
 
     public void publishPostCommented(UUID postId, UUID authorId, UUID commenterId) {
-        publish(postId, authorId, commenterId, ActivityType.COMMENTED, null);
+        publish(postId, authorId, commenterId, null, ActivityType.COMMENTED, null, null);
     }
 
     public void publishPostReacted(UUID postId, UUID authorId, UUID reactorId) {
-        publish(postId, authorId, reactorId, ActivityType.REACTED, null);
+        publish(postId, authorId, reactorId, null, ActivityType.REACTED, null, null);
     }
 
     public void publishPostShared(UUID postId, UUID authorId, UUID sharerId) {
-        publish(postId, authorId, sharerId, ActivityType.SHARED, null);
+        publish(postId, authorId, sharerId, null, ActivityType.SHARED, null, null);
     }
 
     public void publishPostReported(UUID postId, UUID authorId, UUID reporterId) {
-        publish(postId, authorId, reporterId, ActivityType.REPORTED, null);
+        publish(postId, authorId, reporterId, null, ActivityType.REPORTED, null, null);
     }
 
     public void publishPostSearchIndexing(PostSearchEvent event) {
@@ -53,8 +53,8 @@ public class PostEventProducer {
     }
 
     @SuppressWarnings("null")
-    private void publish(UUID postId, UUID authorId, UUID actorId, ActivityType type, String metadata) {
-        PostActivityEvent event = new PostActivityEvent(postId, authorId, actorId, type, metadata);
+    private void publish(UUID postId, UUID authorId, UUID actorId, String actorName, ActivityType type, String category, String metadata) {
+        PostActivityEvent event = new PostActivityEvent(postId, authorId, actorId, actorName, type, category, metadata);
         log.info("Publishing post event: {} for post: {}", type, postId);
         kafkaTemplate.send(TOPIC, postId.toString(), event);
     }

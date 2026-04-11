@@ -16,7 +16,7 @@ import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFac
 public class RelationshipClient extends HttpClient {
 
     public RelationshipClient(WebClient.Builder webClientBuilder, ReactiveCircuitBreakerFactory<?, ?> cbFactory) {
-        super(webClientBuilder, cbFactory, "http://relationship-service");
+        super(webClientBuilder, cbFactory, "http://rs");
     }
 
     public Mono<List<UUID>> getFollowers(UUID userId) {

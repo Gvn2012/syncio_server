@@ -28,4 +28,9 @@ public class PostCreateRequest {
     private List<UUID> mentions;
     private List<String> tags;
     private String metadata;
+
+    private PostEventRequest event;
+    private PostPollRequest poll;
+    private PostTaskRequest task;
+    private PostAnnouncementRequest announcement;
 }

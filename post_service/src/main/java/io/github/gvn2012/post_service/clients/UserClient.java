@@ -49,4 +49,25 @@ public class UserClient extends HttpClient {
                             .build();
                 }).onErrorReturn(new UserStatusResponse(false, false, false, true));
     }
+
+    public Mono<String> getUserName(UUID userId) {
+        return get(
+                "/api/v1/users/{userId}",
+                new ParameterizedTypeReference<APIResource<java.util.Map<String, Object>>>() {
+                },
+                userId.toString()).map(response -> {
+            if (!response.isSuccess() || response.getData() == null) {
+                return "Unknown User";
+            }
+            java.util.Map<String, Object> data = response.getData();
+            java.util.Map<String, Object> userBody = (java.util.Map<String, Object>) data.get("userResponse");
+            if (userBody == null) {
+                return "Unknown User";
+            }
+            String firstName = (String) userBody.get("firstName");
+            String lastName = (String) userBody.get("lastName");
+            if (firstName == null && lastName == null) return "Unknown User";
+            return (firstName != null ? firstName : "") + (lastName != null ? " " + lastName : "");
+        }).onErrorReturn("Unknown User");
+    }
 }

@@ -151,7 +151,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: syncio-relationship
+  name: syncio-rs
   namespace: syncio
 spec:
   replicas: 1
@@ -163,11 +163,11 @@ spec:
       maxSurge: 1
   selector:
     matchLabels:
-      app: syncio-relationship
+      app: syncio-rs
   template:
     metadata:
       labels:
-        app: syncio-relationship
+        app: syncio-rs
     spec:
       containers:
         - name: relationship
@@ -206,11 +206,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: syncio-relationship
+  name: syncio-rs
   namespace: syncio
 spec:
   selector:
-    app: syncio-relationship
+    app: syncio-rs
   ports:
     - port: 8087
 
@@ -625,7 +625,7 @@ spec:
             - name: ARGOCD_APP_NAME
               value: syncio-app
             - name: SCALABLE_DEPLOYMENTS
-              value: syncio-auth,syncio-user,syncio-relationship,syncio-post,syncio-permission,syncio-org,syncio-notification,syncio-uploading,syncio-search
+              value: syncio-auth,syncio-user,syncio-rs,syncio-post,syncio-permission,syncio-org,syncio-notification,syncio-uploading,syncio-search
             - name: GITHUB_REPO
               value: Gvn2012/syncio_server
             - name: GITHUB_BRANCH

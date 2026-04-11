@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/relationship-service/friend-requests")
+@RequestMapping("/api/v1/rs/friend-requests")
 @RequiredArgsConstructor
 public class FriendRequestController {
 

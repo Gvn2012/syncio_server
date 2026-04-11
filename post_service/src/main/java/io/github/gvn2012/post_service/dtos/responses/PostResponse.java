@@ -44,6 +44,11 @@ public class PostResponse {
     private List<UUID> mentions;
     private List<String> tags;
     private String metadata;
+
+    private PostEventResponse event;
+    private PostPollResponse poll;
+    private PostTaskResponse task;
+    private PostAnnouncementResponse announcement;
     
     private LocalDateTime publishedAt;
     private LocalDateTime createdAt;

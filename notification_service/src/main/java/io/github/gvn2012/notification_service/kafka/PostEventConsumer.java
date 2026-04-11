@@ -15,10 +15,18 @@ import org.springframework.stereotype.Service;
 public class PostEventConsumer {
 
     private final NotificationRepository notificationRepository;
+    private final io.github.gvn2012.notification_service.clients.RelationshipClient relationshipClient;
 
     @KafkaListener(topics = "post-events-v2", groupId = "notification-post-group")
     public void handlePostActivity(PostActivityEvent event) {
-        if (event == null || event.getActorId() == null || event.getAuthorId() == null)
+        if (event == null) return;
+        
+        if (event.getActivityType() == PostActivityEvent.ActivityType.CREATED) {
+            handlePostCreated(event);
+            return;
+        }
+
+        if (event.getActorId() == null || event.getAuthorId() == null)
             return;
         if (event.getActorId().equals(event.getAuthorId()))
             return;
@@ -48,6 +56,39 @@ public class PostEventConsumer {
 
         notificationRepository.save(notification);
         log.info("Created notification for user: {} for activity: {}", event.getAuthorId(), event.getActivityType());
+    }
+
+    private void handlePostCreated(PostActivityEvent event) {
+        relationshipClient.getAudience(event.getAuthorId())
+            .subscribe(audience -> {
+                audience.forEach(recipientId -> {
+                    Notification notification = Notification.builder()
+                        .eventId(event.getEventId() != null ? event.getEventId().toString() + "_" + recipientId : null)
+                        .recipientId(recipientId)
+                        .actorId(event.getAuthorId())
+                        .targetId(event.getPostId())
+                        .type(NotificationType.POST_CREATED)
+                        .title("New post from " + (event.getActorName() != null ? event.getActorName() : "a friend"))
+                        .message(formatCreatedMessage(event))
+                        .status("CREATED")
+                        .build();
+                    notificationRepository.save(notification);
+                });
+                log.info("Created {} notifications for post: {}", audience.size(), event.getPostId());
+            });
+    }
+
+    private String formatCreatedMessage(PostActivityEvent event) {
+        String actor = event.getActorName() != null ? event.getActorName() : "User";
+        String category = event.getPostCategory() != null ? event.getPostCategory().toLowerCase() : "post";
+        
+        return switch (category) {
+            case "poll" -> actor + " has started a new poll";
+            case "event" -> actor + " has scheduled an event";
+            case "task" -> actor + " has created a task";
+            case "announcement" -> actor + " has made an announcement";
+            default -> actor + " shared a new story";
+        };
     }
 
     private NotificationType mapActivityToNotificationType(PostActivityEvent.ActivityType type) {

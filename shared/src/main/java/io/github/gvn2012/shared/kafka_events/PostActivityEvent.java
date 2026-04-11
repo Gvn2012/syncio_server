@@ -13,7 +13,9 @@ public class PostActivityEvent {
     private UUID postId;
     private UUID authorId;
     private UUID actorId;
+    private String actorName;
     private ActivityType activityType;
+    private String postCategory;
     private String metadata;
     private LocalDateTime timestamp;
 
@@ -21,12 +23,14 @@ public class PostActivityEvent {
         this.eventId = UUID.randomUUID();
     }
 
-    public PostActivityEvent(UUID postId, UUID authorId, UUID actorId, ActivityType activityType, String metadata) {
+    public PostActivityEvent(UUID postId, UUID authorId, UUID actorId, String actorName, ActivityType activityType, String postCategory, String metadata) {
         this.eventId = UUID.randomUUID();
         this.postId = postId;
         this.authorId = authorId;
         this.actorId = actorId;
+        this.actorName = actorName;
         this.activityType = activityType;
+        this.postCategory = postCategory;
         this.metadata = metadata;
         this.timestamp = LocalDateTime.now();
     }
@@ -39,8 +43,12 @@ public class PostActivityEvent {
     public void setAuthorId(UUID authorId) { this.authorId = authorId; }
     public UUID getActorId() { return actorId; }
     public void setActorId(UUID actorId) { this.actorId = actorId; }
+    public String getActorName() { return actorName; }
+    public void setActorName(String actorName) { this.actorName = actorName; }
     public ActivityType getActivityType() { return activityType; }
     public void setActivityType(ActivityType activityType) { this.activityType = activityType; }
+    public String getPostCategory() { return postCategory; }
+    public void setPostCategory(String postCategory) { this.postCategory = postCategory; }
     public String getMetadata() { return metadata; }
     public void setMetadata(String metadata) { this.metadata = metadata; }
     public LocalDateTime getTimestamp() { return timestamp; }

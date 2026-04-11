@@ -258,17 +258,17 @@ services:
     networks:
       - syncio-network
 
-  relationship-service:
+  rs:
     image: vietpham18/relationship-service:latest
     build:
       context: .
       dockerfile: relationship_service/Dockerfile
-    container_name: relationship-service
+    container_name: rs
     ports:
       - "8087:8087"
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx256m -Xms128m"
-      SPRING_APPLICATION_NAME: relationship-service
+      SPRING_APPLICATION_NAME: rs
       SERVER_PORT: 8087
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
@@ -464,7 +464,7 @@ services:
         condition: service_started
       user-service:
         condition: service_started
-      relationship-service:
+      rs:
         condition: service_started
       post-service:
         condition: service_started

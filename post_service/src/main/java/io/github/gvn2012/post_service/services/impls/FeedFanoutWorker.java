@@ -101,6 +101,17 @@ public class FeedFanoutWorker {
 
     private double calculateInitialWeight(Post post, UserAffinity affinity) {
         double baseWeight = 1.0;
+        
+        // Category weight boost
+        double categoryBoost = switch (post.getPostCategory()) {
+            case ANNOUNCEMENT -> 2.0;
+            case TASK, EVENT -> 1.5;
+            case POLL -> 1.2;
+            default -> 1.0;
+        };
+        
+        baseWeight *= categoryBoost;
+
         if (affinity != null && affinity.getAffinityScore() != null) {
             baseWeight += affinity.getAffinityScore();
         }

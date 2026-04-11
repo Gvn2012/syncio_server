@@ -24,10 +24,10 @@ scrape_configs:
     static_configs:
       - targets: [ "notification-service:8083" ]
 
-  - job_name: "relationship-service"
+  - job_name: "rs"
     metrics_path: /actuator/prometheus
     static_configs:
-      - targets: [ "friend-service:8087" ]
+      - targets: [ "rs:8087" ]
 
   - job_name: "post-service"
     metrics_path: /actuator/prometheus
