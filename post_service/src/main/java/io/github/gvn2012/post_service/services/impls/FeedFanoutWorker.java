@@ -35,26 +35,27 @@ public class FeedFanoutWorker {
     @TransactionalEventListener
     public void handlePostCreated(PostCreatedEvent event) {
         Post post = event.post();
-        List<UUID> followers = lookupFollowers(post.getAuthorId());
+        List<UUID> audience = lookupAudience(post.getAuthorId());
 
-        if (followers.size() > FANOUT_THRESHOLD) {
-            log.info("Skipping fanout for high-volume author {} ({} followers)", post.getAuthorId(), followers.size());
+        if (audience.size() > FANOUT_THRESHOLD) {
+            log.info("Skipping fanout for high-volume author {} ({} audience members)", post.getAuthorId(),
+                    audience.size());
             return;
         }
 
-        Map<UUID, UserAffinity> affinities = affinityRepository.findByUserIdInAndAuthorId(followers, post.getAuthorId())
+        Map<UUID, UserAffinity> affinities = affinityRepository.findByUserIdInAndAuthorId(audience, post.getAuthorId())
                 .stream()
                 .collect(Collectors.toMap(UserAffinity::getUserId, a -> a));
 
-        List<FeedItem> feedItems = followers.stream()
-                .filter(followerId -> canViewPost(post, followerId, followers))
-                .map(followerId -> {
+        List<FeedItem> feedItems = audience.stream()
+                .filter(recipientId -> canViewPost(post, recipientId, audience))
+                .map(recipientId -> {
                     FeedItem item = new FeedItem();
-                    item.setRecipientId(followerId);
+                    item.setRecipientId(recipientId);
                     item.setSourcePost(post);
                     item.setOrgId(post.getOrgId());
-                    item.setWeightScore(calculateInitialWeight(post, affinities.get(followerId)));
-                    item.setReasonCode("follower");
+                    item.setWeightScore(calculateInitialWeight(post, affinities.get(recipientId)));
+                    item.setReasonCode("audience");
                     item.setIsRead(false);
                     item.setIsHidden(false);
                     return item;
@@ -66,19 +67,19 @@ public class FeedFanoutWorker {
         }
     }
 
-    private List<UUID> lookupFollowers(UUID authorId) {
+    private List<UUID> lookupAudience(UUID authorId) {
         try {
-            return relationshipClient.getFollowers(authorId)
+            return new java.util.ArrayList<>(relationshipClient.getAudience(authorId)
                     .timeout(java.time.Duration.ofMillis(5000))
-                    .onErrorReturn(List.of())
-                    .block();
+                    .onErrorReturn(java.util.Set.of())
+                    .block());
         } catch (Exception e) {
-            log.warn("Failed to fetch followers for {}: {}", authorId, e.getMessage());
+            log.warn("Failed to fetch audience for {}: {}", authorId, e.getMessage());
             return List.of();
         }
     }
 
-    private boolean canViewPost(Post post, UUID recipientId, List<UUID> followers) {
+    private boolean canViewPost(Post post, UUID recipientId, List<UUID> audience) {
         if (post.getAuthorId().equals(recipientId))
             return true;
 
@@ -87,7 +88,7 @@ public class FeedFanoutWorker {
                 return true;
             }
             case FOLLOWER -> {
-                // followers contains recipientId by definition here as we iterate over followers
+
                 return true;
             }
             case PRIVATE -> {
@@ -101,15 +102,14 @@ public class FeedFanoutWorker {
 
     private double calculateInitialWeight(Post post, UserAffinity affinity) {
         double baseWeight = 1.0;
-        
-        // Category weight boost
+
         double categoryBoost = switch (post.getPostCategory()) {
             case ANNOUNCEMENT -> 2.0;
             case TASK, EVENT -> 1.5;
             case POLL -> 1.2;
             default -> 1.0;
         };
-        
+
         baseWeight *= categoryBoost;
 
         if (affinity != null && affinity.getAffinityScore() != null) {

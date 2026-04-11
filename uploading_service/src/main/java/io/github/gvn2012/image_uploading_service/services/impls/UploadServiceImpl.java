@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.gvn2012.image_uploading_service.dtos.APIResource;
 import io.github.gvn2012.shared.kafka_events.ImageUploadedEvent;
 import io.github.gvn2012.image_uploading_service.dtos.requests.SignedUrlRequest;
+import io.github.gvn2012.image_uploading_service.dtos.requests.UploadBatchRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadConfirmRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadRequest;
 import io.github.gvn2012.image_uploading_service.dtos.responses.SignedUrlResponse;
+import io.github.gvn2012.image_uploading_service.dtos.responses.UploadBatchResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadResponse;
 import io.github.gvn2012.image_uploading_service.models.UploadAudit;
@@ -19,11 +21,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URL;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -44,7 +48,8 @@ public class UploadServiceImpl implements UploadServiceInterface {
     public APIResource<UploadResponse> sendUploadRequest(UploadRequest request) {
 
         String imageId = UUID.randomUUID().toString();
-        String objectPath = "prl_img/" + imageId + "-" + request.getFileName();
+        String folder = (request.getFolder() != null && !request.getFolder().isBlank()) ? request.getFolder() : "prl_img";
+        String objectPath = folder + "/" + imageId + "-" + request.getFileName();
 
         URL signedUrl = gcsService.generateUploadUrl(objectPath, request.getFileContentType());
 
@@ -67,6 +72,16 @@ public class UploadServiceImpl implements UploadServiceInterface {
                 900);
 
         return APIResource.success(response);
+    }
+
+    @Override
+    @Transactional
+    public APIResource<UploadBatchResponse> sendBatchUploadRequest(UploadBatchRequest request) {
+        List<UploadResponse> responses = request.getRequests().stream()
+                .map(req -> sendUploadRequest(req).getData())
+                .toList();
+
+        return APIResource.success(new UploadBatchResponse(responses));
     }
 
     @Override
@@ -125,7 +140,9 @@ public class UploadServiceImpl implements UploadServiceInterface {
                     .metadata(metadata)
                     .build();
 
-            kafkaTemplate.send("image.uploaded", imageId, event);
+            String topic = resolveTopicByPrefix(objectName);
+            kafkaTemplate.send(topic, imageId, event);
+            log.info("Published event to topic: {} for imageId: {}", topic, imageId);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to handle GCS event", e);
@@ -141,5 +158,11 @@ public class UploadServiceImpl implements UploadServiceInterface {
     @Override
     public String getSignedUrl(String path) {
         return gcsService.generateDownloadUrl(path).toString();
+    }
+
+    private String resolveTopicByPrefix(String objectPath) {
+        if (objectPath.startsWith("prl_img/")) return "image.uploaded.profile";
+        if (objectPath.startsWith("post_img/")) return "image.uploaded.post";
+        return "image.uploaded";
     }
 }

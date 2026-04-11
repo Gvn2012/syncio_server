@@ -20,7 +20,8 @@ import java.util.UUID;
 @Table(name = "post_media_attachments", indexes = {
                 @Index(name = "ix_post_media_post_id", columnList = "post_id"),
                 @Index(name = "ix_post_media_upload_status", columnList = "upload_status"),
-                @Index(name = "ix_post_media_type", columnList = "type")
+                @Index(name = "ix_post_media_type", columnList = "type"),
+                @Index(name = "ix_post_media_external_id", columnList = "external_id", unique = true)
 })
 public class PostMediaAttachment extends AuditableEntity {
 
@@ -31,6 +32,9 @@ public class PostMediaAttachment extends AuditableEntity {
         @Column(name = "id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
         private UUID id;
 
+        @Column(name = "external_id", length = 64)
+        private String externalId;
+
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "post_id", nullable = false)
         @NotNull
@@ -38,6 +42,18 @@ public class PostMediaAttachment extends AuditableEntity {
 
         @Column(name = "url", nullable = false)
         private String url;
+        
+        @Column(name = "object_path", length = 1024)
+        private String objectPath;
+
+        @Column(name = "bucket_name", length = 128)
+        private String bucketName;
+
+        @Column(name = "file_size")
+        private Long fileSize;
+
+        @Column(name = "metadata", columnDefinition = "json")
+        private String metadata;
 
         @Column(name = "position", nullable = false)
         private Byte position = 0;
@@ -59,14 +75,14 @@ public class PostMediaAttachment extends AuditableEntity {
         @Column(name = "type", nullable = false)
         private AttachmentType type = AttachmentType.IMAGE;
 
-        @Column(name = "mime_type", nullable = false, columnDefinition = "VARCHAR(24)")
+        @Column(name = "mime_type", nullable = false, columnDefinition = "VARCHAR(128)")
         private String mimeType = "image/png";
 
         @Column(name = "width")
         private Integer width;
 
-        @Column(name = "length")
-        private Integer length;
+        @Column(name = "height")
+        private Integer height;
 
         @Column(name = "duration")
         private Double duration;

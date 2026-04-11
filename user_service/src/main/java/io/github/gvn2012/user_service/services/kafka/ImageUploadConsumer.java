@@ -28,6 +28,10 @@ public class ImageUploadConsumer {
     @Transactional
     @KafkaListener(topics = "image.uploaded", groupId = "user-service-group")
     public void consume(ImageUploadedEvent event) {
+        if (event.getObjectPath() == null || !event.getObjectPath().startsWith("prl_img/")) {
+            log.debug("Ignoring non-profile upload event: {}", event.getImageId());
+            return;
+        }
         log.info("Received image uploaded event for imageId: {}", event.getImageId());
 
         profilePictureRepository.findByExternalId(event.getImageId()).ifPresentOrElse(picture -> {

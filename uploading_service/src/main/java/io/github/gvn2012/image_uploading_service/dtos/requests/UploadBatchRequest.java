@@ -4,12 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class UploadRequest {
-    private String fileName;
-    private String fileContentType;
-    private Long size;
-    private String folder = "prl_img";
+@AllArgsConstructor
+public class UploadBatchRequest {
+    private List<UploadRequest> requests;
 }

@@ -6,10 +6,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
 import java.util.UUID;
 import java.util.Set;
-import java.util.HashSet;
 
 import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory;
 
@@ -21,37 +19,14 @@ public class RelationshipClient extends HttpClient {
     }
 
     public Mono<Set<UUID>> getAudience(UUID userId) {
-        Mono<List<UUID>> followers = get(
-                "/api/v1/rs/relationships/followers/{uid}",
-                new ParameterizedTypeReference<APIResource<List<UUID>>>() {},
+        return get(
+                "/api/v1/rs/relationships/audience/{uid}",
+                new ParameterizedTypeReference<APIResource<Set<UUID>>>() {},
                 userId.toString())
                 .map(res -> {
-                    List<UUID> data = res.getData();
-                    return data != null ? data : List.<UUID>of();
+                    Set<UUID> data = res.getData();
+                    return data != null ? data : Set.<UUID>of();
                 })
-                .onErrorReturn(List.of());
-
-        Mono<List<java.util.Map<String, Object>>> friends = get(
-                "/api/v1/rs/relationships/friends/{uid}",
-                new ParameterizedTypeReference<APIResource<List<java.util.Map<String, Object>>>>() {},
-                userId.toString())
-                .map(res -> {
-                    List<java.util.Map<String, Object>> data = res.getData();
-                    return data != null ? data : List.<java.util.Map<String, Object>>of();
-                })
-                .onErrorReturn(List.of());
-
-        return Mono.zip(followers, friends).map(tuple -> {
-            Set<UUID> audience = new HashSet<>(tuple.getT1());
-            for (java.util.Map<String, Object> friend : tuple.getT2()) {
-                Object targetId = friend.get("targetUserId");
-                if (targetId instanceof String) {
-                    audience.add(UUID.fromString((String) targetId));
-                } else if (targetId instanceof UUID) {
-                    audience.add((UUID) targetId);
-                }
-            }
-            return audience;
-        });
+                .onErrorReturn(Set.of());
     }
 }

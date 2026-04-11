@@ -8,10 +8,14 @@ import io.github.gvn2012.image_uploading_service.dtos.responses.SignedUrlRespons
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadResponse;
 
+import io.github.gvn2012.image_uploading_service.dtos.requests.UploadBatchRequest;
+import io.github.gvn2012.image_uploading_service.dtos.responses.UploadBatchResponse;
+
 import java.util.Map;
 
 public interface UploadServiceInterface{
     APIResource<UploadResponse> sendUploadRequest(UploadRequest uploadRequest);
+    APIResource<UploadBatchResponse> sendBatchUploadRequest(UploadBatchRequest request);
     APIResource<UploadConfirmResponse> confirmUpload(UploadConfirmRequest request);
     void handle(Map<String, Object> body);
     APIResource<SignedUrlResponse> getSignedUrls(SignedUrlRequest request);

@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MediaAttachmentRequest {
+    private String externalId;
     private String url;
     private String caption;
     private String altText;

@@ -98,4 +98,12 @@ public class RelationshipController {
         List<UUID> blockedBy = userBlockService.getBlockedByList(userId);
         return ResponseEntity.ok(APIResource.ok("Blocked-by retrieved", blockedBy));
     }
+
+    @GetMapping("/audience/{uid}")
+    public ResponseEntity<APIResource<java.util.Set<UUID>>> getAudience(
+            @PathVariable("uid") UUID userId) {
+        APIResource<java.util.Set<UUID>> response = relationshipService.getAudienceIds(userId);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
+    }
 }

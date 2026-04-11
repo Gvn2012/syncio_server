@@ -8,6 +8,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory;
@@ -21,16 +22,29 @@ public class RelationshipClient extends HttpClient {
 
     public Mono<List<UUID>> getFollowers(UUID userId) {
         return get(
-                "/api/v1/relationships/followers/{userId}",
+                "/api/v1/rs/relationships/followers/{userId}",
                 new ParameterizedTypeReference<APIResource<List<UUID>>>() {
                 },
                 userId.toString())
                 .flatMap(this::handleListResponse);
     }
 
+    public Mono<Set<UUID>> getAudience(UUID userId) {
+        return get(
+                "/api/v1/rs/relationships/audience/{userId}",
+                new ParameterizedTypeReference<APIResource<Set<UUID>>>() {
+                },
+                userId.toString())
+                .map(response -> {
+                    Set<UUID> data = response.getData();
+                    return data != null ? data : Set.<UUID>of();
+                })
+                .onErrorReturn(Set.of());
+    }
+
     public Mono<List<UUID>> getFollowing(UUID userId) {
         return get(
-                "/api/v1/relationships/following/{userId}",
+                "/api/v1/rs/relationships/following/{userId}",
                 new ParameterizedTypeReference<APIResource<List<UUID>>>() {
                 },
                 userId.toString())
@@ -39,7 +53,7 @@ public class RelationshipClient extends HttpClient {
 
     public Mono<Boolean> isFollowing(UUID sourceId, UUID targetId) {
         return get(
-                "/api/v1/relationships/{sourceId}/following/{targetId}",
+                "/api/v1/rs/relationships/{sourceId}/following/{targetId}",
                 new ParameterizedTypeReference<APIResource<Boolean>>() {
                 },
                 sourceId.toString(), targetId.toString())
@@ -49,7 +63,7 @@ public class RelationshipClient extends HttpClient {
 
     public Mono<Boolean> isBlocked(UUID sourceId, UUID targetId) {
         return get(
-                "/api/v1/relationships/{sourceId}/blocked/{targetId}",
+                "/api/v1/rs/relationships/{sourceId}/blocked/{targetId}",
                 new ParameterizedTypeReference<APIResource<Boolean>>() {
                 },
                 sourceId.toString(), targetId.toString())
@@ -59,7 +73,7 @@ public class RelationshipClient extends HttpClient {
 
     public Mono<List<UUID>> getBlockedList(UUID userId) {
         return get(
-                "/api/v1/relationships/blocks",
+                "/api/v1/rs/relationships/blocks",
                 new ParameterizedTypeReference<APIResource<List<UUID>>>() {
                 },
                 userId.toString())
@@ -68,7 +82,7 @@ public class RelationshipClient extends HttpClient {
 
     public Mono<List<UUID>> getBlockedByList(UUID userId) {
         return get(
-                "/api/v1/relationships/blocked-by",
+                "/api/v1/rs/relationships/blocked-by",
                 new ParameterizedTypeReference<APIResource<List<UUID>>>() {
                 },
                 userId.toString())
