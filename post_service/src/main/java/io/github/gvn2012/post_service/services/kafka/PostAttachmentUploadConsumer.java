@@ -20,6 +20,7 @@ public class PostAttachmentUploadConsumer {
 
     private final PostMediaAttachmentRepository attachmentRepository;
     private final ObjectMapper objectMapper;
+    private final static String POST_IMAGE_PREFIX = "post_img/";
 
     @Value("${gcp.storage.public-url-prefix:https://storage.googleapis.com}")
     private String publicUrlPrefix;
@@ -27,7 +28,7 @@ public class PostAttachmentUploadConsumer {
     @Transactional
     @KafkaListener(topics = "image.uploaded", groupId = "post-service-group")
     public void consume(ImageUploadedEvent event) {
-        if (event.getObjectPath() == null || !event.getObjectPath().startsWith("post_img/")) {
+        if (event.getObjectPath() == null || !event.getObjectPath().startsWith(POST_IMAGE_PREFIX)) {
             log.debug("Ignoring non-post upload event: {}", event.getImageId());
             return;
         }

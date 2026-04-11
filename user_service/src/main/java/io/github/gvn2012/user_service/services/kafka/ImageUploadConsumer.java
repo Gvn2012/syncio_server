@@ -21,6 +21,7 @@ public class ImageUploadConsumer {
     private final UserProfilePictureRepository profilePictureRepository;
     private final ObjectMapper objectMapper;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final static String PROFILE_IMAGE_PREFIX = "prl_img/";
 
     @Value("${gcp.storage.public-url-prefix:https://storage.googleapis.com}")
     private String publicUrlPrefix;
@@ -28,7 +29,7 @@ public class ImageUploadConsumer {
     @Transactional
     @KafkaListener(topics = "image.uploaded", groupId = "user-service-group")
     public void consume(ImageUploadedEvent event) {
-        if (event.getObjectPath() == null || !event.getObjectPath().startsWith("prl_img/")) {
+        if (event.getObjectPath() == null || !event.getObjectPath().startsWith(PROFILE_IMAGE_PREFIX)) {
             log.debug("Ignoring non-profile upload event: {}", event.getImageId());
             return;
         }
