@@ -171,7 +171,7 @@ spec:
     spec:
       containers:
         - name: relationship
-          image: vietpham18/relationship-service:43469e79644ca9ee26d8a79ca88837344bdb0ad8
+          image: vietpham18/relationship-service:3713e773d3702c85b31896dc99f7b8af62adcca6
           ports:
             - containerPort: 8087
           startupProbe:
@@ -240,7 +240,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:43469e79644ca9ee26d8a79ca88837344bdb0ad8
+          image: vietpham18/post-service:3713e773d3702c85b31896dc99f7b8af62adcca6
           ports:
             - containerPort: 8085
           startupProbe:
