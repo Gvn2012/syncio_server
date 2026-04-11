@@ -24,7 +24,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -145,7 +147,22 @@ public class PostServiceImpl implements IPostService {
 
     private void enrichAndPublish(Post post) {
         String authorName = userClient.getUserName(post.getAuthorId()).block();
-        postEventProducer.publishPostCreated(post.getId(), post.getAuthorId(), authorName, post.getPostCategory().name());
+        
+        List<UUID> mentions = post.getMentions() != null ? 
+                post.getMentions().stream().map(PostMention::getUserId).toList() : 
+                Collections.emptyList();
+                
+        List<UUID> assignees = Optional.ofNullable(post.getTask())
+                .map(task -> task.getAssignees().stream().map(PostTaskAssignee::getUserId).toList())
+                .orElse(Collections.emptyList());
+
+        postEventProducer.publishPostCreated(
+                post.getId(), 
+                post.getAuthorId(), 
+                authorName, 
+                post.getPostCategory().name(), 
+                mentions, 
+                assignees);
         
         postEventProducer.publishPostSearchIndexing(PostSearchEvent.builder()
                 .postId(post.getId())

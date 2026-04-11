@@ -9,6 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -19,8 +23,9 @@ public class PostEventConsumer {
 
     @KafkaListener(topics = "post-events-v2", groupId = "notification-post-group")
     public void handlePostActivity(PostActivityEvent event) {
-        if (event == null) return;
-        
+        if (event == null)
+            return;
+
         if (event.getActivityType() == PostActivityEvent.ActivityType.CREATED) {
             handlePostCreated(event);
             return;
@@ -60,28 +65,59 @@ public class PostEventConsumer {
 
     private void handlePostCreated(PostActivityEvent event) {
         relationshipClient.getAudience(event.getAuthorId())
-            .subscribe(audience -> {
-                audience.forEach(recipientId -> {
-                    Notification notification = Notification.builder()
-                        .eventId(event.getEventId() != null ? event.getEventId().toString() + "_" + recipientId : null)
-                        .recipientId(recipientId)
-                        .actorId(event.getAuthorId())
-                        .targetId(event.getPostId())
-                        .type(NotificationType.POST_CREATED)
-                        .title("New post from " + (event.getActorName() != null ? event.getActorName() : "a friend"))
-                        .message(formatCreatedMessage(event))
-                        .status("CREATED")
-                        .build();
-                    notificationRepository.save(notification);
+                .subscribe(audience -> {
+                    List<Notification> notifications = new ArrayList<>();
+                    String actorName = event.getActorName() != null ? event.getActorName() : "A user";
+
+                    // 1. Process Audience (Follower Feeed)
+                    audience.forEach(recipientId -> {
+                        notifications.add(buildNotification(event, recipientId, NotificationType.POST_CREATED,
+                                "New post from " + actorName, formatCreatedMessage(event)));
+                    });
+
+                    // 2. Process Mentions
+                    if (event.getMentions() != null) {
+                        event.getMentions().stream()
+                                .filter(id -> !audience.contains(id)) // Avoid duplicates if already in audience
+                                .forEach(recipientId -> {
+                                    notifications.add(buildNotification(event, recipientId, NotificationType.POST_MENTION,
+                                            "New Mention", actorName + " mentioned you in a post"));
+                                });
+                    }
+
+                    // 3. Process Task Assignments
+                    if (event.getAssignees() != null) {
+                        event.getAssignees().forEach(recipientId -> {
+                            notifications.add(buildNotification(event, recipientId, NotificationType.TASK_ASSIGNED,
+                                    "New Task Assignment", actorName + " assigned you a new task"));
+                        });
+                    }
+
+                    if (!notifications.isEmpty()) {
+                        notificationRepository.saveAll(notifications);
+                        log.info("Batch created {} notifications for post: {}", notifications.size(), event.getPostId());
+                    }
                 });
-                log.info("Created {} notifications for post: {}", audience.size(), event.getPostId());
-            });
+    }
+
+    private Notification buildNotification(PostActivityEvent event, UUID recipientId, NotificationType type,
+            String title, String message) {
+        return Notification.builder()
+                .eventId(event.getEventId() != null ? event.getEventId().toString() + "_" + type + "_" + recipientId : null)
+                .recipientId(recipientId)
+                .actorId(event.getAuthorId())
+                .targetId(event.getPostId())
+                .type(type)
+                .title(title)
+                .message(message)
+                .status("CREATED")
+                .build();
     }
 
     private String formatCreatedMessage(PostActivityEvent event) {
         String actor = event.getActorName() != null ? event.getActorName() : "User";
         String category = event.getPostCategory() != null ? event.getPostCategory().toLowerCase() : "post";
-        
+
         return switch (category) {
             case "poll" -> actor + " has started a new poll";
             case "event" -> actor + " has scheduled an event";

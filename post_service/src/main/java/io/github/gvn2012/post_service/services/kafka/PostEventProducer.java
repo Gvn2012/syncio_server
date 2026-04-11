@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -19,8 +20,8 @@ public class PostEventProducer {
     private static final String TOPIC = "post-events-v2";
     private static final String SEARCH_TOPIC = "post-search-indexing";
 
-    public void publishPostCreated(UUID postId, UUID authorId, String authorName, String category) {
-        publish(postId, authorId, authorId, authorName, ActivityType.CREATED, category, null);
+    public void publishPostCreated(UUID postId, UUID authorId, String authorName, String category, List<UUID> mentions, List<UUID> assignees) {
+        publish(postId, authorId, authorId, authorName, ActivityType.CREATED, category, null, mentions, assignees);
     }
 
     public void publishPostUpdated(UUID postId, UUID authorId, UUID editorId) {
@@ -53,9 +54,16 @@ public class PostEventProducer {
     }
 
     @SuppressWarnings("null")
-    private void publish(UUID postId, UUID authorId, UUID actorId, String actorName, ActivityType type, String category, String metadata) {
+    private void publish(UUID postId, UUID authorId, UUID actorId, String actorName, ActivityType type, String category, String metadata, List<UUID> mentions, List<UUID> assignees) {
         PostActivityEvent event = new PostActivityEvent(postId, authorId, actorId, actorName, type, category, metadata);
+        event.setMentions(mentions);
+        event.setAssignees(assignees);
         log.info("Publishing post event: {} for post: {}", type, postId);
         kafkaTemplate.send(TOPIC, postId.toString(), event);
+    }
+
+    @SuppressWarnings("null")
+    private void publish(UUID postId, UUID authorId, UUID actorId, String actorName, ActivityType type, String category, String metadata) {
+        publish(postId, authorId, actorId, actorName, type, category, metadata, null, null);
     }
 }

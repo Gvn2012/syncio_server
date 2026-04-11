@@ -1,6 +1,7 @@
 package io.github.gvn2012.shared.kafka_events;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public class PostActivityEvent {
@@ -17,6 +18,8 @@ public class PostActivityEvent {
     private ActivityType activityType;
     private String postCategory;
     private String metadata;
+    private List<UUID> mentions;
+    private List<UUID> assignees;
     private LocalDateTime timestamp;
 
     public PostActivityEvent() {
@@ -34,6 +37,11 @@ public class PostActivityEvent {
         this.metadata = metadata;
         this.timestamp = LocalDateTime.now();
     }
+
+    public List<UUID> getMentions() { return mentions; }
+    public void setMentions(List<UUID> mentions) { this.mentions = mentions; }
+    public List<UUID> getAssignees() { return assignees; }
+    public void setAssignees(List<UUID> assignees) { this.assignees = assignees; }
 
     public UUID getEventId() { return eventId; }
     public void setEventId(UUID eventId) { this.eventId = eventId; }
