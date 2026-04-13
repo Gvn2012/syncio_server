@@ -85,6 +85,15 @@ public class RelationshipController {
                 .body(response);
     }
 
+    @PostMapping("/unfriend/{tid}")
+    public ResponseEntity<APIResource<Void>> unfriend(
+            @RequestHeader("X-User-Id") UUID sourceId,
+            @PathVariable("tid") UUID targetId) {
+        APIResource<Void> response = relationshipService.unfriend(sourceId, targetId);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
+    }
+
     @GetMapping("/blocks")
     public ResponseEntity<APIResource<List<UUID>>> getBlocks(
             @RequestHeader("X-User-Id") UUID userId) {

@@ -99,12 +99,51 @@ public class FriendRequestServiceImpl implements IFriendRequestService {
         createFriendRelationship(request.getSenderUserId(), request.getReceiverUserId());
         createFriendRelationship(request.getReceiverUserId(), request.getSenderUserId());
 
+        // Create bi-directional follow relationship (as requested)
+        createFollowRelationship(request.getSenderUserId(), request.getReceiverUserId());
+        createFollowRelationship(request.getReceiverUserId(), request.getSenderUserId());
+
         @SuppressWarnings("null")
         RelationshipChangedEvent event = new RelationshipChangedEvent(request.getSenderUserId(),
                 request.getReceiverUserId(), RelationshipChangedEvent.ChangeType.FRIEND_REQUEST_ACCEPTED);
         eventProducer.publishEvent(event);
 
+        // Also publish follow events
+        eventProducer.publishEvent(new RelationshipChangedEvent(request.getSenderUserId(), request.getReceiverUserId(), RelationshipChangedEvent.ChangeType.FOLLOW));
+        eventProducer.publishEvent(new RelationshipChangedEvent(request.getReceiverUserId(), request.getSenderUserId(), RelationshipChangedEvent.ChangeType.FOLLOW));
+
         return APIResource.message("Friend request accepted", HttpStatus.OK);
+    }
+
+    @Override
+    @Transactional
+    public APIResource<Void> declineFriendRequest(UUID requestId, UUID userId) {
+        FriendRequest request = friendRequestRepository.findById(requestId).orElse(null);
+        if (request == null || !request.getReceiverUserId().equals(userId)) {
+            return APIResource.error("NOT_FOUND", "Friend request not found", HttpStatus.NOT_FOUND, null);
+        }
+
+        if (request.getStatus() != FriendRequestStatus.PENDING) {
+            return APIResource.error("INVALID_STATUS", "Friend request is already processed", HttpStatus.BAD_REQUEST, null);
+        }
+
+        request.setStatus(FriendRequestStatus.DECLINED);
+        friendRequestRepository.save(request);
+
+        return APIResource.message("Friend request declined", HttpStatus.OK);
+    }
+
+    private void createFollowRelationship(UUID source, UUID target) {
+        UserRelationship rel = relationshipRepository.findBySourceUserIdAndTargetUserIdAndRelationshipType(
+                source, target, RelationshipType.FOLLOW).orElse(null);
+        if (rel == null) {
+            rel = new UserRelationship();
+            rel.setSourceUserId(source);
+            rel.setTargetUserId(target);
+            rel.setRelationshipType(RelationshipType.FOLLOW);
+        }
+        rel.setStatus(RelationshipStatus.ACTIVE);
+        relationshipRepository.save(rel);
     }
 
     private void createFriendRelationship(UUID source, UUID target) {

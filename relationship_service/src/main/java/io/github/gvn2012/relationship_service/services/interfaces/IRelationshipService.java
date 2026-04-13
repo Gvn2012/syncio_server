@@ -31,5 +31,7 @@ public interface IRelationshipService {
 
     APIResource<List<RelationshipResponse>> getFriendList(UUID userId);
 
+    APIResource<Void> unfriend(UUID sourceId, UUID targetId);
+
     APIResource<Set<UUID>> getAudienceIds(UUID userId);
 }

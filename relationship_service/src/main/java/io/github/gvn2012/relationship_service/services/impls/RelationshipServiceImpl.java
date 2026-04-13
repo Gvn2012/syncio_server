@@ -4,6 +4,7 @@ import io.github.gvn2012.relationship_service.dtos.APIResource;
 import io.github.gvn2012.relationship_service.dtos.mappers.RelationshipMapper;
 import io.github.gvn2012.relationship_service.dtos.responses.RelationshipResponse;
 import io.github.gvn2012.relationship_service.entities.UserRelationship;
+import io.github.gvn2012.relationship_service.entities.enums.FriendRequestStatus;
 import io.github.gvn2012.relationship_service.entities.enums.RelationshipStatus;
 import io.github.gvn2012.relationship_service.entities.enums.RelationshipType;
 import io.github.gvn2012.relationship_service.repositories.UserBlockRepository;
@@ -184,12 +185,21 @@ public class RelationshipServiceImpl implements IRelationshipService {
                 boolean isBlockedBy = userBlockRepository.existsByBlockerUserIdAndBlockedUserId(targetId, sourceId);
 
                 String frStatus = "NONE";
-                if (friendRequestRepository.existsBySenderUserIdAndReceiverUserIdAndStatus(sourceId, targetId,
-                                io.github.gvn2012.relationship_service.entities.enums.FriendRequestStatus.PENDING)) {
+                UUID friendRequestId = null;
+
+                var sentRequest = friendRequestRepository.findBySenderUserIdAndReceiverUserIdAndStatus(
+                                sourceId, targetId, FriendRequestStatus.PENDING);
+
+                if (sentRequest.isPresent()) {
                         frStatus = "PENDING_SENT";
-                } else if (friendRequestRepository.existsBySenderUserIdAndReceiverUserIdAndStatus(targetId, sourceId,
-                                io.github.gvn2012.relationship_service.entities.enums.FriendRequestStatus.PENDING)) {
-                        frStatus = "PENDING_RECEIVED";
+                        friendRequestId = sentRequest.get().getId();
+                } else {
+                        var receivedRequest = friendRequestRepository.findBySenderUserIdAndReceiverUserIdAndStatus(
+                                        targetId, sourceId, FriendRequestStatus.PENDING);
+                        if (receivedRequest.isPresent()) {
+                                frStatus = "PENDING_RECEIVED";
+                                friendRequestId = receivedRequest.get().getId();
+                        }
                 }
 
                 return io.github.gvn2012.relationship_service.dtos.responses.RelationshipStatusResponse.builder()
@@ -199,6 +209,7 @@ public class RelationshipServiceImpl implements IRelationshipService {
                                 .isBlocking(isBlocking)
                                 .isBlockedBy(isBlockedBy)
                                 .friendRequestStatus(frStatus)
+                                .friendRequestId(friendRequestId)
                                 .build();
         }
 
@@ -229,5 +240,28 @@ public class RelationshipServiceImpl implements IRelationshipService {
                                 .forEach(audience::add);
 
                 return APIResource.ok("Audience IDs retrieved", audience);
+        }
+
+        @Override
+        @Transactional
+        public APIResource<Void> unfriend(UUID sourceId, UUID targetId) {
+                UserRelationship rel1 = relationshipRepository.findBySourceUserIdAndTargetUserIdAndRelationshipType(
+                                sourceId, targetId, RelationshipType.FRIEND).orElse(null);
+                UserRelationship rel2 = relationshipRepository.findBySourceUserIdAndTargetUserIdAndRelationshipType(
+                                targetId, sourceId, RelationshipType.FRIEND).orElse(null);
+
+                if (rel1 != null) {
+                        rel1.setStatus(RelationshipStatus.REMOVED);
+                        relationshipRepository.save(rel1);
+                }
+                if (rel2 != null) {
+                        rel2.setStatus(RelationshipStatus.REMOVED);
+                        relationshipRepository.save(rel2);
+                }
+
+                eventProducer.publishEvent(new RelationshipChangedEvent(sourceId, targetId,
+                                RelationshipChangedEvent.ChangeType.UNFRIEND));
+
+                return APIResource.message("Unfriended successfully", HttpStatus.OK);
         }
 }

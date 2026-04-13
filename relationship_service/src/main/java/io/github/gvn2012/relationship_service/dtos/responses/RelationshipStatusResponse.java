@@ -17,5 +17,6 @@ public class RelationshipStatusResponse {
     private boolean isFriend;
     private boolean isBlocking;
     private boolean isBlockedBy;
-    private String friendRequestStatus; // PENDING_SENT, PENDING_RECEIVED, NONE
+    private String friendRequestStatus;
+    private UUID friendRequestId;
 }

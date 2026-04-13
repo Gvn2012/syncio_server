@@ -35,4 +35,13 @@ public class FriendRequestController {
         return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
                 .body(response);
     }
+
+    @PostMapping("/decline/{reqid}")
+    public ResponseEntity<APIResource<Void>> declineRequest(
+            @RequestHeader("X-User-Id") UUID userId,
+            @PathVariable("reqid") UUID requestId) {
+        APIResource<Void> response = friendRequestService.declineFriendRequest(requestId, userId);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
+    }
 }

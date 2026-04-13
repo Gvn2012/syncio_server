@@ -4,7 +4,7 @@ import java.util.UUID;
 
 public class RelationshipChangedEvent {
     public enum ChangeType {
-        FOLLOW, UNFOLLOW, FRIEND_REQUEST_SENT, FRIEND_REQUEST_ACCEPTED, BLOCK, UNBLOCK, MUTE, UNMUTE
+        FOLLOW, UNFOLLOW, FRIEND_REQUEST_SENT, FRIEND_REQUEST_ACCEPTED, UNFRIEND, BLOCK, UNBLOCK, MUTE, UNMUTE
     }
 
     private UUID eventId;
