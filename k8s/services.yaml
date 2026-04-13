@@ -742,7 +742,7 @@ spec:
     spec:
       containers:
         - name: search
-          image: vietpham18/search-service:f23026053781dda463a0df388b27baa547c82e79
+          image: vietpham18/search-service:c3e1bd23f4399eeaf3f931aab907d4bfde0460f7
           ports:
             - containerPort: 8086
           startupProbe:
