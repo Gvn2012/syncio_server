@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: vietpham18/api-gateway:62d0d5b2b885eb270869cc345d145ba5103412dd
+          image: vietpham18/api-gateway:f23026053781dda463a0df388b27baa547c82e79
           ports:
             - containerPort: 8080
           resources:
