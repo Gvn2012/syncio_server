@@ -1,7 +1,10 @@
 package io.github.gvn2012.relationship_service.controllers;
 
 import io.github.gvn2012.relationship_service.dtos.APIResource;
+import io.github.gvn2012.relationship_service.dtos.requests.PendingRequestDirection;
 import io.github.gvn2012.relationship_service.dtos.requests.SendFriendRequest;
+import io.github.gvn2012.relationship_service.dtos.responses.PageResponse;
+import io.github.gvn2012.relationship_service.dtos.responses.PendingFriendRequestResponse;
 import io.github.gvn2012.relationship_service.services.interfaces.IFriendRequestService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +44,18 @@ public class FriendRequestController {
             @RequestHeader("X-User-Id") UUID userId,
             @PathVariable("reqid") UUID requestId) {
         APIResource<Void> response = friendRequestService.declineFriendRequest(requestId, userId);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
+    }
+
+    @GetMapping("/pending")
+    public ResponseEntity<APIResource<PageResponse<PendingFriendRequestResponse>>> getPendingRequests(
+            @RequestHeader("X-User-Id") UUID userId,
+            @RequestParam(defaultValue = "ALL") PendingRequestDirection direction,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        APIResource<PageResponse<PendingFriendRequestResponse>> response =
+                friendRequestService.getPendingFriendRequests(userId, direction, page, size);
         return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
                 .body(response);
     }

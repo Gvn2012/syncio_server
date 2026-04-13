@@ -1,7 +1,9 @@
 package io.github.gvn2012.relationship_service.services.interfaces;
 
 import io.github.gvn2012.relationship_service.dtos.APIResource;
+import io.github.gvn2012.relationship_service.dtos.responses.PageResponse;
 import io.github.gvn2012.relationship_service.dtos.responses.RelationshipResponse;
+import io.github.gvn2012.relationship_service.dtos.responses.RelationshipUserSummaryResponse;
 
 import java.util.List;
 import java.util.Set;
@@ -30,6 +32,10 @@ public interface IRelationshipService {
             UUID sourceId, UUID targetId);
 
     APIResource<List<RelationshipResponse>> getFriendList(UUID userId);
+
+    APIResource<PageResponse<RelationshipUserSummaryResponse>> getFriendList(UUID userId, int page, int size);
+
+    APIResource<PageResponse<RelationshipUserSummaryResponse>> getFollowerList(UUID userId, int page, int size);
 
     APIResource<Void> unfriend(UUID sourceId, UUID targetId);
 

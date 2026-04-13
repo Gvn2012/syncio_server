@@ -1,23 +1,42 @@
 package io.github.gvn2012.relationship_service.services.impls;
 
+import io.github.gvn2012.relationship_service.clients.UserProfileClient;
 import io.github.gvn2012.relationship_service.dtos.APIResource;
-import io.github.gvn2012.relationship_service.dtos.mappers.RelationshipMapper;
+import io.github.gvn2012.relationship_service.dtos.responses.PageResponse;
 import io.github.gvn2012.relationship_service.dtos.responses.RelationshipResponse;
-import io.github.gvn2012.relationship_service.entities.UserRelationship;
+import io.github.gvn2012.relationship_service.dtos.responses.RelationshipStatusResponse;
+import io.github.gvn2012.relationship_service.dtos.responses.RelationshipUserSummaryResponse;
+import io.github.gvn2012.relationship_service.dtos.responses.UserProfileSummary;
+import io.github.gvn2012.relationship_service.entities.FriendRequest;
+import io.github.gvn2012.relationship_service.entities.UserFollow;
+import io.github.gvn2012.relationship_service.entities.UserFriend;
 import io.github.gvn2012.relationship_service.entities.enums.FriendRequestStatus;
 import io.github.gvn2012.relationship_service.entities.enums.RelationshipStatus;
 import io.github.gvn2012.relationship_service.entities.enums.RelationshipType;
+import io.github.gvn2012.relationship_service.repositories.FriendRequestRepository;
 import io.github.gvn2012.relationship_service.repositories.UserBlockRepository;
-import io.github.gvn2012.relationship_service.repositories.UserRelationshipRepository;
+import io.github.gvn2012.relationship_service.repositories.UserFollowRepository;
+import io.github.gvn2012.relationship_service.repositories.UserFriendRepository;
 import io.github.gvn2012.relationship_service.services.interfaces.IRelationshipService;
 import io.github.gvn2012.relationship_service.services.kafka.RelationshipEventProducer;
 import io.github.gvn2012.shared.kafka_events.RelationshipChangedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -25,243 +44,350 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RelationshipServiceImpl implements IRelationshipService {
 
-        private final UserRelationshipRepository relationshipRepository;
-        private final UserBlockRepository userBlockRepository;
-        private final io.github.gvn2012.relationship_service.repositories.FriendRequestRepository friendRequestRepository;
-        private final RelationshipMapper relationshipMapper;
-        private final RelationshipEventProducer eventProducer;
+    private final UserFollowRepository followRepository;
+    private final UserFriendRepository friendRepository;
+    private final UserBlockRepository userBlockRepository;
+    private final FriendRequestRepository friendRequestRepository;
+    private final RelationshipEventProducer eventProducer;
+    private final UserProfileClient userProfileClient;
 
-        @Override
-        @Transactional
-        public APIResource<RelationshipResponse> follow(UUID sourceId, UUID targetId) {
-                if (sourceId.equals(targetId)) {
-                        return APIResource.error("SELF_FOLLOW", "Cannot follow yourself", HttpStatus.BAD_REQUEST, null);
-                }
-
-                UserRelationship relationship = relationshipRepository
-                                .findBySourceUserIdAndTargetUserIdAndRelationshipType(
-                                                sourceId, targetId, RelationshipType.FOLLOW)
-                                .orElse(null);
-
-                if (relationship != null && relationship.getStatus() == RelationshipStatus.ACTIVE) {
-                        return APIResource.error("ALREADY_FOLLOWING", "Already following this user",
-                                        HttpStatus.BAD_REQUEST, null);
-                }
-
-                if (userBlockRepository.existsByBlockerUserIdAndBlockedUserId(sourceId, targetId) ||
-                                userBlockRepository.existsByBlockerUserIdAndBlockedUserId(targetId, sourceId)) {
-                        return APIResource.error("BLOCKED", "Cannot follow a blocked user or you are blocked",
-                                        HttpStatus.BAD_REQUEST, null);
-                }
-
-                if (relationship == null) {
-                        relationship = new UserRelationship();
-                        relationship.setSourceUserId(sourceId);
-                        relationship.setTargetUserId(targetId);
-                        relationship.setRelationshipType(RelationshipType.FOLLOW);
-                }
-
-                relationship.setStatus(RelationshipStatus.ACTIVE);
-                relationshipRepository.save(relationship);
-
-                eventProducer.publishEvent(
-                                new RelationshipChangedEvent(sourceId, targetId,
-                                                RelationshipChangedEvent.ChangeType.FOLLOW));
-
-                return APIResource.ok("Followed successfully", relationshipMapper.toResponse(relationship));
+    @Override
+    @Transactional
+    public APIResource<RelationshipResponse> follow(UUID sourceId, UUID targetId) {
+        if (sourceId.equals(targetId)) {
+            return APIResource.error("SELF_FOLLOW", "Cannot follow yourself", HttpStatus.BAD_REQUEST, null);
         }
 
-        @Override
-        @Transactional
-        public APIResource<Void> unfollow(UUID sourceId, UUID targetId) {
-                UserRelationship relationship = relationshipRepository
-                                .findBySourceUserIdAndTargetUserIdAndRelationshipType(
-                                                sourceId, targetId, RelationshipType.FOLLOW)
-                                .orElse(null);
-
-                if (relationship == null || relationship.getStatus() == RelationshipStatus.REMOVED) {
-                        return APIResource.error("NOT_FOLLOWING", "Not following this user", HttpStatus.NOT_FOUND,
-                                        null);
-                }
-
-                relationship.setStatus(RelationshipStatus.REMOVED);
-                relationshipRepository.save(relationship);
-
-                eventProducer.publishEvent(
-                                new RelationshipChangedEvent(sourceId, targetId,
-                                                RelationshipChangedEvent.ChangeType.UNFOLLOW));
-
-                return APIResource.message("Unfollowed successfully", HttpStatus.OK);
+        if (isBlockedEitherDirection(sourceId, targetId)) {
+            return APIResource.error("BLOCKED", "Cannot follow a blocked user or you are blocked",
+                    HttpStatus.BAD_REQUEST, null);
         }
 
-        @Override
-        public APIResource<List<RelationshipResponse>> getFollowers(UUID userId) {
-                List<UserRelationship> followers = relationshipRepository.findAllByTargetUserIdAndStatus(userId,
-                                RelationshipStatus.ACTIVE);
-                List<RelationshipResponse> responses = followers.stream()
-                                .map(relationshipMapper::toResponse)
-                                .collect(Collectors.toList());
-                return APIResource.ok("Followers retrieved", responses);
+        UserFollow follow = followRepository.findByFollowerUserIdAndFolloweeUserId(sourceId, targetId).orElse(null);
+        if (follow != null && follow.getStatus() == RelationshipStatus.ACTIVE) {
+            return APIResource.error("ALREADY_FOLLOWING", "Already following this user", HttpStatus.BAD_REQUEST, null);
         }
 
-        @Override
-        public APIResource<List<UUID>> getFollowersIds(UUID userId) {
-                List<UUID> followers = relationshipRepository
-                                .findAllByTargetUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
-                                .stream().map(UserRelationship::getSourceUserId).collect(Collectors.toList());
-                return APIResource.ok("Follower IDs retrieved", followers);
+        if (follow == null) {
+            follow = new UserFollow();
+            follow.setFollowerUserId(sourceId);
+            follow.setFolloweeUserId(targetId);
         }
 
-        @Override
-        public APIResource<List<UUID>> getFollowingIds(UUID userId) {
-                List<UUID> following = relationshipRepository
-                                .findAllBySourceUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
-                                .stream().filter(r -> r.getRelationshipType() == RelationshipType.FOLLOW)
-                                .map(UserRelationship::getTargetUserId).collect(Collectors.toList());
-                return APIResource.ok("Following IDs retrieved", following);
+        follow.setStatus(RelationshipStatus.ACTIVE);
+        followRepository.save(follow);
+
+        eventProducer.publishEvent(new RelationshipChangedEvent(sourceId, targetId,
+                RelationshipChangedEvent.ChangeType.FOLLOW));
+
+        return APIResource.ok("Followed successfully", toFollowResponse(follow));
+    }
+
+    @Override
+    @Transactional
+    public APIResource<Void> unfollow(UUID sourceId, UUID targetId) {
+        UserFollow follow = followRepository.findByFollowerUserIdAndFolloweeUserId(sourceId, targetId).orElse(null);
+        if (follow == null || follow.getStatus() == RelationshipStatus.REMOVED) {
+            return APIResource.error("NOT_FOLLOWING", "Not following this user", HttpStatus.NOT_FOUND, null);
         }
 
-        @Override
-        public APIResource<Boolean> isFollowing(UUID sourceId, UUID targetId) {
-                boolean exists = relationshipRepository.existsBySourceUserIdAndTargetUserIdAndRelationshipTypeAndStatus(
-                                sourceId, targetId, RelationshipType.FOLLOW, RelationshipStatus.ACTIVE);
-                return APIResource.ok("Checked following status", exists);
+        follow.setStatus(RelationshipStatus.REMOVED);
+        followRepository.save(follow);
+
+        eventProducer.publishEvent(new RelationshipChangedEvent(sourceId, targetId,
+                RelationshipChangedEvent.ChangeType.UNFOLLOW));
+
+        return APIResource.message("Unfollowed successfully", HttpStatus.OK);
+    }
+
+    @Override
+    public APIResource<List<RelationshipResponse>> getFollowers(UUID userId) {
+        List<RelationshipResponse> responses = followRepository.findAllByFolloweeUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+                .stream()
+                .map(this::toFollowResponse)
+                .collect(Collectors.toList());
+        return APIResource.ok("Followers retrieved", responses);
+    }
+
+    @Override
+    public APIResource<List<UUID>> getFollowersIds(UUID userId) {
+        List<UUID> followers = followRepository.findAllByFolloweeUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+                .stream()
+                .map(UserFollow::getFollowerUserId)
+                .collect(Collectors.toList());
+        return APIResource.ok("Follower IDs retrieved", followers);
+    }
+
+    @Override
+    public APIResource<List<UUID>> getFollowingIds(UUID userId) {
+        List<UUID> following = followRepository.findAllByFollowerUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+                .stream()
+                .map(UserFollow::getFolloweeUserId)
+                .collect(Collectors.toList());
+        return APIResource.ok("Following IDs retrieved", following);
+    }
+
+    @Override
+    public APIResource<Boolean> isFollowing(UUID sourceId, UUID targetId) {
+        boolean exists = followRepository.existsByFollowerUserIdAndFolloweeUserIdAndStatus(
+                sourceId, targetId, RelationshipStatus.ACTIVE);
+        return APIResource.ok("Checked following status", exists);
+    }
+
+    @Override
+    public APIResource<Boolean> isBlocked(UUID sourceId, UUID targetId) {
+        boolean exists = userBlockRepository.existsByBlockerUserIdAndBlockedUserId(sourceId, targetId);
+        return APIResource.ok("Checked block status", exists);
+    }
+
+    @Override
+    public APIResource<List<UUID>> getMutualFriends(UUID userId, UUID targetId) {
+        Set<UUID> userFriends = new LinkedHashSet<>(getFriendIds(userId));
+        List<UUID> mutual = getFriendIds(targetId).stream()
+                .filter(userFriends::contains)
+                .collect(Collectors.toList());
+        return APIResource.ok("Mutual friends retrieved", mutual);
+    }
+
+    @Override
+    public APIResource<List<RelationshipResponse>> searchFriends(UUID userId, String query) {
+        String normalizedQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        List<RelationshipResponse> responses = friendRepository.findAllByUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+                .stream()
+                .filter(friend -> normalizedQuery.isBlank()
+                        || getOtherFriendId(friend, userId).toString().toLowerCase(Locale.ROOT).contains(normalizedQuery))
+                .map(friend -> toFriendResponse(friend, userId))
+                .collect(Collectors.toList());
+        return APIResource.ok("Search results retrieved", responses);
+    }
+
+    @Override
+    public RelationshipStatusResponse getRelationshipStatus(UUID sourceId, UUID targetId) {
+        boolean isFollowing = followRepository.existsByFollowerUserIdAndFolloweeUserIdAndStatus(
+                sourceId, targetId, RelationshipStatus.ACTIVE);
+        boolean isFollowedBy = followRepository.existsByFollowerUserIdAndFolloweeUserIdAndStatus(
+                targetId, sourceId, RelationshipStatus.ACTIVE);
+        boolean isFriend = findFriendship(sourceId, targetId)
+                .map(friend -> friend.getStatus() == RelationshipStatus.ACTIVE)
+                .orElse(false);
+        boolean isBlocking = userBlockRepository.existsByBlockerUserIdAndBlockedUserId(sourceId, targetId);
+        boolean isBlockedBy = userBlockRepository.existsByBlockerUserIdAndBlockedUserId(targetId, sourceId);
+
+        FriendRequest friendRequest = friendRequestRepository
+                .findBySenderUserIdAndReceiverUserIdAndStatus(sourceId, targetId, FriendRequestStatus.PENDING)
+                .orElseGet(() -> friendRequestRepository
+                        .findBySenderUserIdAndReceiverUserIdAndStatus(targetId, sourceId, FriendRequestStatus.PENDING)
+                        .orElse(null));
+
+        String friendRequestStatus = "NONE";
+        UUID friendRequestId = null;
+        if (friendRequest != null) {
+            friendRequestId = friendRequest.getId();
+            friendRequestStatus = friendRequest.getSenderUserId().equals(sourceId)
+                    ? "PENDING_SENT"
+                    : "PENDING_RECEIVED";
         }
 
-        @Override
-        public APIResource<Boolean> isBlocked(UUID sourceId, UUID targetId) {
-                boolean exists = userBlockRepository.existsByBlockerUserIdAndBlockedUserId(sourceId, targetId);
-                return APIResource.ok("Checked block status", exists);
+        return RelationshipStatusResponse.builder()
+                .isFollowing(isFollowing)
+                .isFollowedBy(isFollowedBy)
+                .isFriend(isFriend)
+                .isBlocking(isBlocking)
+                .isBlockedBy(isBlockedBy)
+                .friendRequestStatus(friendRequestStatus)
+                .friendRequestId(friendRequestId)
+                .build();
+    }
+
+    @Override
+    public APIResource<List<RelationshipResponse>> getFriendList(UUID userId) {
+        List<RelationshipResponse> responses = friendRepository.findAllByUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+                .stream()
+                .map(friend -> toFriendResponse(friend, userId))
+                .collect(Collectors.toList());
+        return APIResource.ok("Friends retrieved", responses);
+    }
+
+    @Override
+    public APIResource<PageResponse<RelationshipUserSummaryResponse>> getFriendList(UUID userId, int page, int size) {
+        Pageable pageable = defaultPageable(page, size);
+        Page<UserFriend> friends = friendRepository.findAllByUserIdAndStatus(userId, RelationshipStatus.ACTIVE, pageable);
+
+        Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(
+                friends.getContent().stream().map(friend -> getOtherFriendId(friend, userId)).toList());
+
+        List<RelationshipUserSummaryResponse> content = friends.getContent().stream()
+                .map(friend -> {
+                    UUID otherUserId = getOtherFriendId(friend, userId);
+                    UserProfileSummary profile = profiles.getOrDefault(otherUserId, fallbackProfile(otherUserId));
+                    return RelationshipUserSummaryResponse.builder()
+                            .relationshipId(friend.getId())
+                            .userId(otherUserId)
+                            .username(profile.getUsername())
+                            .displayName(profile.getDisplayName())
+                            .profilePictureUrl(profile.getProfilePictureUrl())
+                            .relationshipType(RelationshipType.FRIEND)
+                            .createdAt(friend.getAcceptedAt())
+                            .build();
+                })
+                .toList();
+
+        return APIResource.ok("Friends retrieved", toPageResponse(friends, content));
+    }
+
+    @Override
+    public APIResource<PageResponse<RelationshipUserSummaryResponse>> getFollowerList(UUID userId, int page, int size) {
+        Pageable pageable = defaultPageable(page, size);
+        Page<UserFollow> followers = followRepository.findAllByFolloweeUserIdAndStatus(
+                userId, RelationshipStatus.ACTIVE, pageable);
+
+        Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(
+                followers.getContent().stream().map(UserFollow::getFollowerUserId).toList());
+
+        List<RelationshipUserSummaryResponse> content = followers.getContent().stream()
+                .map(follow -> {
+                    UUID followerId = follow.getFollowerUserId();
+                    UserProfileSummary profile = profiles.getOrDefault(followerId, fallbackProfile(followerId));
+                    return RelationshipUserSummaryResponse.builder()
+                            .relationshipId(follow.getId())
+                            .userId(followerId)
+                            .username(profile.getUsername())
+                            .displayName(profile.getDisplayName())
+                            .profilePictureUrl(profile.getProfilePictureUrl())
+                            .relationshipType(RelationshipType.FOLLOW)
+                            .createdAt(toLocalDateTime(follow.getCreatedAt()))
+                            .build();
+                })
+                .toList();
+
+        return APIResource.ok("Followers retrieved", toPageResponse(followers, content));
+    }
+
+    @Override
+    public APIResource<Set<UUID>> getAudienceIds(UUID userId) {
+        Set<UUID> audience = followRepository.findAllByFolloweeUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+                .stream()
+                .map(UserFollow::getFollowerUserId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        audience.addAll(getFriendIds(userId));
+        return APIResource.ok("Audience IDs retrieved", audience);
+    }
+
+    @Override
+    @Transactional
+    public APIResource<Void> unfriend(UUID sourceId, UUID targetId) {
+        UserFriend friendship = findFriendship(sourceId, targetId).orElse(null);
+        if (friendship == null || friendship.getStatus() == RelationshipStatus.REMOVED) {
+            return APIResource.error("NOT_FRIENDS", "Users are not friends", HttpStatus.NOT_FOUND, null);
         }
 
-        @Override
-        public APIResource<List<UUID>> getMutualFriends(UUID userId, UUID targetId) {
-                List<UUID> userFriends = relationshipRepository
-                                .findAllBySourceUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
-                                .stream().filter(r -> r.getRelationshipType() == RelationshipType.FRIEND)
-                                .map(UserRelationship::getTargetUserId).toList();
+        friendship.setStatus(RelationshipStatus.REMOVED);
+        friendRepository.save(friendship);
 
-                List<UUID> targetFriends = relationshipRepository
-                                .findAllBySourceUserIdAndStatus(targetId, RelationshipStatus.ACTIVE)
-                                .stream().filter(r -> r.getRelationshipType() == RelationshipType.FRIEND)
-                                .map(UserRelationship::getTargetUserId).toList();
+        boolean removedSourceFollow = removeFollowIfActive(sourceId, targetId);
+        boolean removedTargetFollow = removeFollowIfActive(targetId, sourceId);
 
-                List<UUID> mutual = userFriends.stream()
-                                .filter(targetFriends::contains)
-                                .collect(Collectors.toList());
-
-                return APIResource.ok("Mutual friends retrieved", mutual);
+        eventProducer.publishEvent(new RelationshipChangedEvent(sourceId, targetId,
+                RelationshipChangedEvent.ChangeType.UNFRIEND));
+        if (removedSourceFollow) {
+            eventProducer.publishEvent(new RelationshipChangedEvent(sourceId, targetId,
+                    RelationshipChangedEvent.ChangeType.UNFOLLOW));
+        }
+        if (removedTargetFollow) {
+            eventProducer.publishEvent(new RelationshipChangedEvent(targetId, sourceId,
+                    RelationshipChangedEvent.ChangeType.UNFOLLOW));
         }
 
-        @Override
-        public APIResource<List<RelationshipResponse>> searchFriends(UUID userId, String query) {
-                List<UserRelationship> friends = relationshipRepository
-                                .findAllBySourceUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
-                                .stream().filter(r -> r.getRelationshipType() == RelationshipType.FRIEND)
-                                .filter(r -> r.getSourceNickname() != null
-                                                && r.getSourceNickname().toLowerCase().contains(query.toLowerCase()))
-                                .collect(Collectors.toList());
+        return APIResource.message("Unfriended successfully", HttpStatus.OK);
+    }
 
-                List<RelationshipResponse> responses = friends.stream()
-                                .map(relationshipMapper::toResponse)
-                                .collect(Collectors.toList());
+    private boolean isBlockedEitherDirection(UUID sourceId, UUID targetId) {
+        return userBlockRepository.existsByBlockerUserIdAndBlockedUserId(sourceId, targetId)
+                || userBlockRepository.existsByBlockerUserIdAndBlockedUserId(targetId, sourceId);
+    }
 
-                return APIResource.ok("Search results retrieved", responses);
+    private List<UUID> getFriendIds(UUID userId) {
+        return friendRepository.findAllByUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+                .stream()
+                .map(friend -> getOtherFriendId(friend, userId))
+                .collect(Collectors.toList());
+    }
+
+    private java.util.Optional<UserFriend> findFriendship(UUID sourceId, UUID targetId) {
+        UUID first = sourceId.compareTo(targetId) < 0 ? sourceId : targetId;
+        UUID second = sourceId.compareTo(targetId) < 0 ? targetId : sourceId;
+        return friendRepository.findByUser1IdAndUser2Id(first, second);
+    }
+
+    private UUID getOtherFriendId(UserFriend friend, UUID userId) {
+        return friend.getUser1Id().equals(userId) ? friend.getUser2Id() : friend.getUser1Id();
+    }
+
+    private boolean removeFollowIfActive(UUID followerId, UUID followeeId) {
+        UserFollow follow = followRepository.findByFollowerUserIdAndFolloweeUserId(followerId, followeeId).orElse(null);
+        if (follow == null || follow.getStatus() == RelationshipStatus.REMOVED) {
+            return false;
         }
 
-        @Override
-        public io.github.gvn2012.relationship_service.dtos.responses.RelationshipStatusResponse getRelationshipStatus(
-                        UUID sourceId, UUID targetId) {
-                boolean isFollowing = relationshipRepository
-                                .existsBySourceUserIdAndTargetUserIdAndRelationshipTypeAndStatus(
-                                                sourceId, targetId, RelationshipType.FOLLOW, RelationshipStatus.ACTIVE);
-                boolean isFollowedBy = relationshipRepository
-                                .existsBySourceUserIdAndTargetUserIdAndRelationshipTypeAndStatus(
-                                                targetId, sourceId, RelationshipType.FOLLOW, RelationshipStatus.ACTIVE);
-                boolean isFriend = relationshipRepository
-                                .existsBySourceUserIdAndTargetUserIdAndRelationshipTypeAndStatus(
-                                                sourceId, targetId, RelationshipType.FRIEND, RelationshipStatus.ACTIVE);
-                boolean isBlocking = userBlockRepository.existsByBlockerUserIdAndBlockedUserId(sourceId, targetId);
-                boolean isBlockedBy = userBlockRepository.existsByBlockerUserIdAndBlockedUserId(targetId, sourceId);
+        follow.setStatus(RelationshipStatus.REMOVED);
+        followRepository.save(follow);
+        return true;
+    }
 
-                String frStatus = "NONE";
-                UUID friendRequestId = null;
+    private RelationshipResponse toFollowResponse(UserFollow follow) {
+        return RelationshipResponse.builder()
+                .id(follow.getId())
+                .sourceUserId(follow.getFollowerUserId())
+                .targetUserId(follow.getFolloweeUserId())
+                .relationshipType(RelationshipType.FOLLOW)
+                .status(follow.getStatus())
+                .isCloseFriend(false)
+                .isFavorite(false)
+                .sourceNickname(follow.getSourceNickname())
+                .createdAt(toLocalDateTime(follow.getCreatedAt()))
+                .build();
+    }
 
-                var sentRequest = friendRequestRepository.findBySenderUserIdAndReceiverUserIdAndStatus(
-                                sourceId, targetId, FriendRequestStatus.PENDING);
+    private RelationshipResponse toFriendResponse(UserFriend friend, UUID perspectiveUserId) {
+        return RelationshipResponse.builder()
+                .id(friend.getId())
+                .sourceUserId(perspectiveUserId)
+                .targetUserId(getOtherFriendId(friend, perspectiveUserId))
+                .relationshipType(RelationshipType.FRIEND)
+                .status(friend.getStatus())
+                .isCloseFriend(false)
+                .isFavorite(false)
+                .sourceNickname(null)
+                .createdAt(toLocalDateTime(friend.getCreatedAt()))
+                .build();
+    }
 
-                if (sentRequest.isPresent()) {
-                        frStatus = "PENDING_SENT";
-                        friendRequestId = sentRequest.get().getId();
-                } else {
-                        var receivedRequest = friendRequestRepository.findBySenderUserIdAndReceiverUserIdAndStatus(
-                                        targetId, sourceId, FriendRequestStatus.PENDING);
-                        if (receivedRequest.isPresent()) {
-                                frStatus = "PENDING_RECEIVED";
-                                friendRequestId = receivedRequest.get().getId();
-                        }
-                }
+    private LocalDateTime toLocalDateTime(Instant instant) {
+        return instant == null ? null : LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+    }
 
-                return io.github.gvn2012.relationship_service.dtos.responses.RelationshipStatusResponse.builder()
-                                .isFollowing(isFollowing)
-                                .isFollowedBy(isFollowedBy)
-                                .isFriend(isFriend)
-                                .isBlocking(isBlocking)
-                                .isBlockedBy(isBlockedBy)
-                                .friendRequestStatus(frStatus)
-                                .friendRequestId(friendRequestId)
-                                .build();
-        }
+    private Pageable defaultPageable(int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = size > 0 ? Math.min(size, 100) : 20;
+        return PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+    }
 
-        @Override
-        public APIResource<List<RelationshipResponse>> getFriendList(UUID userId) {
-                List<UserRelationship> friends = relationshipRepository
-                                .findAllBySourceUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
-                                .stream().filter(r -> r.getRelationshipType() == RelationshipType.FRIEND)
-                                .collect(Collectors.toList());
-                List<RelationshipResponse> responses = friends.stream()
-                                .map(relationshipMapper::toResponse)
-                                .collect(Collectors.toList());
-                return APIResource.ok("Friends retrieved", responses);
-        }
+    private UserProfileSummary fallbackProfile(UUID userId) {
+        return UserProfileSummary.builder()
+                .userId(userId)
+                .displayName("Unknown User")
+                .build();
+    }
 
-        @Override
-        public APIResource<java.util.Set<UUID>> getAudienceIds(UUID userId) {
-                List<UserRelationship> allRelations = relationshipRepository.findAllByTargetUserIdAndStatus(userId,
-                                RelationshipStatus.ACTIVE);
-                java.util.Set<UUID> audience = allRelations.stream()
-                                .map(UserRelationship::getSourceUserId)
-                                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-
-                relationshipRepository.findAllBySourceUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
-                                .stream()
-                                .filter(r -> r.getRelationshipType() == RelationshipType.FRIEND)
-                                .map(UserRelationship::getTargetUserId)
-                                .forEach(audience::add);
-
-                return APIResource.ok("Audience IDs retrieved", audience);
-        }
-
-        @Override
-        @Transactional
-        public APIResource<Void> unfriend(UUID sourceId, UUID targetId) {
-                UserRelationship rel1 = relationshipRepository.findBySourceUserIdAndTargetUserIdAndRelationshipType(
-                                sourceId, targetId, RelationshipType.FRIEND).orElse(null);
-                UserRelationship rel2 = relationshipRepository.findBySourceUserIdAndTargetUserIdAndRelationshipType(
-                                targetId, sourceId, RelationshipType.FRIEND).orElse(null);
-
-                if (rel1 != null) {
-                        rel1.setStatus(RelationshipStatus.REMOVED);
-                        relationshipRepository.save(rel1);
-                }
-                if (rel2 != null) {
-                        rel2.setStatus(RelationshipStatus.REMOVED);
-                        relationshipRepository.save(rel2);
-                }
-
-                eventProducer.publishEvent(new RelationshipChangedEvent(sourceId, targetId,
-                                RelationshipChangedEvent.ChangeType.UNFRIEND));
-
-                return APIResource.message("Unfriended successfully", HttpStatus.OK);
-        }
+    private <T> PageResponse<T> toPageResponse(Page<?> page, List<T> content) {
+        return PageResponse.<T>builder()
+                .content(content)
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .hasNext(page.hasNext())
+                .hasPrevious(page.hasPrevious())
+                .build();
+    }
 }

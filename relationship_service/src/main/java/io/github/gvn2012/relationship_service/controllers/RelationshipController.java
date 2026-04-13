@@ -1,7 +1,9 @@
 package io.github.gvn2012.relationship_service.controllers;
 
 import io.github.gvn2012.relationship_service.dtos.APIResource;
+import io.github.gvn2012.relationship_service.dtos.responses.PageResponse;
 import io.github.gvn2012.relationship_service.dtos.responses.RelationshipResponse;
+import io.github.gvn2012.relationship_service.dtos.responses.RelationshipUserSummaryResponse;
 import io.github.gvn2012.relationship_service.services.interfaces.IRelationshipService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -81,6 +83,28 @@ public class RelationshipController {
     public ResponseEntity<APIResource<List<RelationshipResponse>>> getFriends(
             @PathVariable("uid") UUID userId) {
         APIResource<List<RelationshipResponse>> response = relationshipService.getFriendList(userId);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
+    }
+
+    @GetMapping("/friends/{uid}/page")
+    public ResponseEntity<APIResource<PageResponse<RelationshipUserSummaryResponse>>> getFriendsPage(
+            @PathVariable("uid") UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        APIResource<PageResponse<RelationshipUserSummaryResponse>> response =
+                relationshipService.getFriendList(userId, page, size);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
+    }
+
+    @GetMapping("/followers/{uid}/page")
+    public ResponseEntity<APIResource<PageResponse<RelationshipUserSummaryResponse>>> getFollowersPage(
+            @PathVariable("uid") UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        APIResource<PageResponse<RelationshipUserSummaryResponse>> response =
+                relationshipService.getFollowerList(userId, page, size);
         return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
                 .body(response);
     }

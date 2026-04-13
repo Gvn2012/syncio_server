@@ -1,12 +1,11 @@
 package io.github.gvn2012.relationship_service.services.impls;
 
 import io.github.gvn2012.relationship_service.dtos.APIResource;
+import io.github.gvn2012.relationship_service.entities.UserFollow;
 import io.github.gvn2012.relationship_service.entities.UserMute;
-import io.github.gvn2012.relationship_service.entities.UserRelationship;
 import io.github.gvn2012.relationship_service.entities.enums.MuteScope;
-import io.github.gvn2012.relationship_service.entities.enums.RelationshipStatus;
+import io.github.gvn2012.relationship_service.repositories.UserFollowRepository;
 import io.github.gvn2012.relationship_service.repositories.UserMuteRepository;
-import io.github.gvn2012.relationship_service.repositories.UserRelationshipRepository;
 import io.github.gvn2012.relationship_service.services.interfaces.IUserMuteService;
 import io.github.gvn2012.relationship_service.services.kafka.RelationshipEventProducer;
 import io.github.gvn2012.shared.kafka_events.RelationshipChangedEvent;
@@ -24,7 +23,7 @@ import java.util.UUID;
 public class UserMuteServiceImpl implements IUserMuteService {
 
     private final UserMuteRepository muteRepository;
-    private final UserRelationshipRepository relationshipRepository;
+    private final UserFollowRepository followRepository;
     private final RelationshipEventProducer eventProducer;
 
     @Override
@@ -35,7 +34,6 @@ public class UserMuteServiceImpl implements IUserMuteService {
         }
 
         UserMute mute = muteRepository.findByMuterUserIdAndMutedUserIdAndScope(muterId, mutedId, scope).orElse(null);
-
         if (mute == null) {
             mute = new UserMute();
             mute.setMuterUserId(muterId);
@@ -47,10 +45,10 @@ public class UserMuteServiceImpl implements IUserMuteService {
         mute.setExpiresAt(expiresAt);
         muteRepository.save(mute);
 
-        // Update relationship if it exists
-        updateRelationshipShowInFeed(muterId, mutedId, false);
+        updateFollowFeedVisibility(muterId, mutedId, false);
 
-        eventProducer.publishEvent(new RelationshipChangedEvent(muterId, mutedId, RelationshipChangedEvent.ChangeType.MUTE));
+        eventProducer.publishEvent(new RelationshipChangedEvent(muterId, mutedId,
+                RelationshipChangedEvent.ChangeType.MUTE));
 
         return APIResource.message("User muted successfully", HttpStatus.OK);
     }
@@ -69,20 +67,21 @@ public class UserMuteServiceImpl implements IUserMuteService {
             muteRepository.save(mute);
         }
 
-        updateRelationshipShowInFeed(muterId, mutedId, true);
+        updateFollowFeedVisibility(muterId, mutedId, true);
 
-        eventProducer.publishEvent(new RelationshipChangedEvent(muterId, mutedId, RelationshipChangedEvent.ChangeType.UNMUTE));
+        eventProducer.publishEvent(new RelationshipChangedEvent(muterId, mutedId,
+                RelationshipChangedEvent.ChangeType.UNMUTE));
 
         return APIResource.message("User unmuted successfully", HttpStatus.OK);
     }
 
-    private void updateRelationshipShowInFeed(UUID source, UUID target, boolean showInFeed) {
-        List<UserRelationship> relationships = relationshipRepository.findAllBySourceUserIdAndStatus(source, RelationshipStatus.ACTIVE);
-        for (UserRelationship rel : relationships) {
-            if (rel.getTargetUserId().equals(target)) {
-                rel.setShowInFeed(showInFeed);
-                relationshipRepository.save(rel);
-            }
+    private void updateFollowFeedVisibility(UUID followerId, UUID followeeId, boolean showInFeed) {
+        UserFollow follow = followRepository.findByFollowerUserIdAndFolloweeUserId(followerId, followeeId).orElse(null);
+        if (follow == null) {
+            return;
         }
+
+        follow.setShowInFeed(showInFeed);
+        followRepository.save(follow);
     }
 }
