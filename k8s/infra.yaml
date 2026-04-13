@@ -386,7 +386,7 @@ spec:
             - name: xpack.security.enabled
               value: "false"
             - name: ES_JAVA_OPTS
-              value: "-Xms1.5g -Xmx1.5g"
+              value: "-Xms1536m -Xmx1536m"
           volumeMounts:
             - name: elasticsearch-data
               mountPath: /usr/share/elasticsearch/data
