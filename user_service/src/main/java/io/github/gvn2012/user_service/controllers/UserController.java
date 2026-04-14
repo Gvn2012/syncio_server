@@ -17,6 +17,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -30,8 +32,8 @@ public class UserController {
     public ResponseEntity<APIResource<LoginResponse>> login(
             @Valid @RequestBody LoginRequest request) {
         APIResource<LoginResponse> response = userService.login(request);
-        org.springframework.http.HttpStatusCode status = response.getStatus();
-        if (status == null) status = org.springframework.http.HttpStatus.OK;
+        org.springframework.http.HttpStatusCode status = response.getStatus() != null ? response.getStatus()
+                : org.springframework.http.HttpStatus.OK;
         return ResponseEntity.status(status).body(response);
     }
 
@@ -39,8 +41,8 @@ public class UserController {
     public ResponseEntity<APIResource<UserRegisterResponse>> register(
             @Valid @RequestBody UserRegisterRequest request) {
         APIResource<UserRegisterResponse> response = userService.register(request);
-        org.springframework.http.HttpStatusCode status = response.getStatus();
-        if (status == null) status = org.springframework.http.HttpStatus.OK;
+        org.springframework.http.HttpStatusCode status = response.getStatus() != null ? response.getStatus()
+                : org.springframework.http.HttpStatus.OK;
         return ResponseEntity.status(status).body(response);
     }
 
@@ -48,8 +50,8 @@ public class UserController {
     public ResponseEntity<APIResource<GetUserDetailResponse>> getUserDetails(
             @Valid @PathVariable("uid") String userId) {
         APIResource<GetUserDetailResponse> response = userService.getUserDetail(userId);
-        org.springframework.http.HttpStatusCode status = response.getStatus();
-        if (status == null) status = org.springframework.http.HttpStatus.OK;
+        org.springframework.http.HttpStatusCode status = response.getStatus() != null ? response.getStatus()
+                : org.springframework.http.HttpStatus.OK;
         return ResponseEntity.status(status).body(response);
     }
 
@@ -57,17 +59,16 @@ public class UserController {
     public ResponseEntity<APIResource<GetUserDetailResponse>> getUserDetailsByQuery(
             @RequestParam String id) {
         APIResource<GetUserDetailResponse> response = userService.getUserDetail(id);
-        org.springframework.http.HttpStatusCode status = response.getStatus();
-        if (status == null) status = org.springframework.http.HttpStatus.OK;
+        HttpStatus status = response.getStatus() != null ? response.getStatus() : HttpStatus.OK;
         return ResponseEntity.status(status).body(response);
     }
 
     @PostMapping("/batch")
-    public ResponseEntity<APIResource<java.util.Map<java.util.UUID, GetUserDetailResponse>>> getUsersDetailByBatch(
-            @RequestBody java.util.Set<java.util.UUID> userIds) {
-        APIResource<java.util.Map<java.util.UUID, GetUserDetailResponse>> response = userService.getUsersDetail(userIds);
-        org.springframework.http.HttpStatusCode status = response.getStatus();
-        if (status == null) status = org.springframework.http.HttpStatus.OK;
+    public ResponseEntity<APIResource<Map<UUID, GetUserDetailResponse>>> getUsersDetailByBatch(
+            @RequestBody Set<UUID> userIds) {
+        APIResource<Map<UUID, GetUserDetailResponse>> response = userService.getUsersDetail(userIds);
+        org.springframework.http.HttpStatusCode status = response.getStatus() != null ? response.getStatus()
+                : org.springframework.http.HttpStatus.OK;
         return ResponseEntity.status(status).body(response);
     }
 
@@ -76,8 +77,8 @@ public class UserController {
             @RequestParam String email, @RequestParam String username) {
         APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse> response = userService
                 .checkAvailableEmailAndUsernameWhenRegister(email, username);
-        org.springframework.http.HttpStatusCode status = response.getStatus();
-        if (status == null) status = org.springframework.http.HttpStatus.OK;
+        org.springframework.http.HttpStatusCode status = response.getStatus() != null ? response.getStatus()
+                : org.springframework.http.HttpStatus.OK;
         return ResponseEntity.status(status).body(response);
     }
 
@@ -86,8 +87,7 @@ public class UserController {
             @PathVariable("uid") UUID userId,
             @Valid @RequestBody UpdateProfilePictureRequest request) {
         APIResource<Void> response = userProfilePictureService.updateProfilePicture(userId, request);
-        org.springframework.http.HttpStatusCode status = response.getStatus();
-        if (status == null) status = org.springframework.http.HttpStatus.OK;
+        HttpStatus status = response.getStatus() != null ? response.getStatus() : HttpStatus.OK;
         return ResponseEntity.status(status).body(response);
     }
 }
