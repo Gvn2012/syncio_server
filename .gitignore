@@ -1,10 +1,8 @@
-# Compiled class file
+
 *.class
 
-# Log files
 *.log
 
-# Package Files #
 *.jar
 *.war
 *.nar
@@ -13,10 +11,8 @@
 *.tar.gz
 *.rar
 
-# Virtual machine crash logs
 hs_err_pid*
 
-### Maven ###
 target/
 pom.xml.tag
 pom.xml.releaseBackup
@@ -41,13 +37,10 @@ out/
 !.vscode/launch.json
 !.vscode/extensions.json
 
-### Operating System ###
 .DS_Store
 Thumbs.db
 .AppleDouble
 .LSOverride
-
-### Project Specific ###
 .agents/
 .scratch/
 scratch/

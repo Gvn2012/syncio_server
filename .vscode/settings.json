@@ -1,6 +1,0 @@
-{
-  "java.configuration.updateBuildConfiguration": "automatic",
-  "java.compile.nullAnalysis.mode": "automatic",
-  "java.format.settings.url": "eclipse-formatter.xml",
-  "kafka.clusters.selected": "synciokafka-bG9jYWxob3N0OjI5MDky"
-}
