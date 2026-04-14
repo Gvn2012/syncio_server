@@ -1,6 +1,5 @@
 package io.github.gvn2012.relationship_service.clients;
 
-import io.github.gvn2012.relationship_service.dtos.APIResource;
 import io.github.gvn2012.relationship_service.dtos.responses.UserProfileSummary;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,18 +49,18 @@ public class UserProfileClient {
                     .build()
                     .toUri();
 
-            RequestEntity<java.util.Collection<UUID>> request = new RequestEntity<>(userIds, HttpMethod.POST, uri);
-            ResponseEntity<APIResource<Map<String, Object>>> response = restTemplate.exchange(
+            RequestEntity<java.util.Collection<UUID>> request = new RequestEntity<>(userIds, org.springframework.http.HttpMethod.POST, uri);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     request, new ParameterizedTypeReference<>() {});
 
-            APIResource<Map<String, Object>> body = response.getBody();
-            if (body == null || !body.isSuccess() || body.getData() == null) {
+            Map<String, Object> body = response.getBody();
+            if (body == null || !Boolean.TRUE.equals(body.get("success")) || body.get("data") == null) {
                 log.warn("Batch profile retrieval returned unsuccessful response. Falling back to individual calls or empty.");
                 return new ConcurrentHashMap<>();
             }
 
             Map<UUID, UserProfileSummary> profiles = new ConcurrentHashMap<>();
-            Map<String, Object> dataMap = body.getData();
+            Map<String, Object> dataMap = asMap(body.get("data"));
             dataMap.forEach((id, detail) -> {
                 UUID userId = UUID.fromString(id);
                 profiles.put(userId, extractSummary(userId, asMap(detail)));
@@ -81,15 +80,15 @@ public class UserProfileClient {
                     .build(userId.toString());
 
             RequestEntity<Void> request = new RequestEntity<>(HttpMethod.GET, uri);
-            ResponseEntity<APIResource<Map<String, Object>>> response = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     request, new ParameterizedTypeReference<>() {});
 
-            APIResource<Map<String, Object>> body = response.getBody();
-            if (body == null || !body.isSuccess() || body.getData() == null) {
+            Map<String, Object> body = response.getBody();
+            if (body == null || !Boolean.TRUE.equals(body.get("success")) || body.get("data") == null) {
                 return fallback(userId);
             }
 
-            return extractSummary(userId, body.getData());
+            return extractSummary(userId, asMap(body.get("data")));
         } catch (RestClientException ex) {
             log.warn("Failed to resolve user profile for {}", userId, ex);
             return fallback(userId);
