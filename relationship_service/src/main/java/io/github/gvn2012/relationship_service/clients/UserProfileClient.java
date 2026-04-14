@@ -22,12 +22,13 @@ public class UserProfileClient extends HttpClient {
     private String gatewayHost;
 
     public UserProfileClient(WebClient.Builder webClientBuilder,
-                            @Value("${syncio.user-service.base-url:http://user-service:8082}") String userServiceBaseUrl) {
+            @Value("${syncio.user-service.base-url:http://user-service}") String userServiceBaseUrl) {
         super(webClientBuilder, userServiceBaseUrl);
     }
 
     public Map<UUID, UserProfileSummary> getUserProfiles(Iterable<UUID> userIds) {
-        return getUserProfilesBatch(userIds instanceof java.util.Collection ? (java.util.Collection<UUID>) userIds : java.util.stream.StreamSupport.stream(userIds.spliterator(), false).toList());
+        return getUserProfilesBatch(userIds instanceof java.util.Collection ? (java.util.Collection<UUID>) userIds
+                : java.util.stream.StreamSupport.stream(userIds.spliterator(), false).toList());
     }
 
     public Map<UUID, UserProfileSummary> getUserProfilesBatch(java.util.Collection<UUID> userIds) {
@@ -36,12 +37,13 @@ public class UserProfileClient extends HttpClient {
         }
 
         log.info("Fetching profiles for {} users in batch from user-service using WebClient", userIds.size());
-        
+
         try {
             Map<String, Object> body = post(
                     "/api/v1/users/batch",
                     userIds,
-                    new ParameterizedTypeReference<Map<String, Object>>() {})
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    })
                     .block();
 
             if (body == null || !Boolean.TRUE.equals(body.get("success")) || body.get("data") == null) {
@@ -51,7 +53,7 @@ public class UserProfileClient extends HttpClient {
 
             Map<UUID, UserProfileSummary> profiles = new ConcurrentHashMap<>();
             Map<Object, Object> dataMap = asObjectMap(body.get("data"));
-            
+
             log.info("Successfully retrieved {} profiles in batch from user-service", dataMap.size());
             dataMap.forEach((key, detail) -> {
                 try {
@@ -78,14 +80,16 @@ public class UserProfileClient extends HttpClient {
     }
 
     public UserProfileSummary getUserProfile(UUID userId) {
-        if (userId == null) return null;
+        if (userId == null)
+            return null;
 
         log.info("Fetching profile for user {} from user-service using WebClient", userId);
-        
+
         try {
             Map<String, Object> body = get(
                     "/api/v1/users/{uid}",
-                    new ParameterizedTypeReference<Map<String, Object>>() {},
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    },
                     userId.toString())
                     .block();
 
@@ -109,33 +113,34 @@ public class UserProfileClient extends HttpClient {
         String firstName = asString(getAny(userResponse, "firstName", "first_name"));
         String middleName = asString(getAny(userResponse, "middleName", "middle_name"));
         String lastName = asString(getAny(userResponse, "lastName", "last_name"));
-        
+
         String displayName = String.join(" ",
                 filterBlank(firstName), filterBlank(middleName), filterBlank(lastName)).trim();
-        
+
         if (!StringUtils.hasText(displayName)) {
             displayName = username != null ? username : "Unknown User";
         }
 
         // Resolve profile picture from userProfilePictureResponseList
         String profilePictureUrl = null;
-        Object picturesObj = getAny(profileResponse, "userProfilePictureResponseList", "user_profile_picture_response_list");
+        Object picturesObj = getAny(profileResponse, "userProfilePictureResponseList",
+                "user_profile_picture_response_list");
         if (picturesObj instanceof java.util.Collection<?> pictures) {
             for (Object picObj : pictures) {
                 Map<String, Object> picMap = asMap(picObj);
                 Boolean isPrimary = (Boolean) getAny(picMap, "primary");
-                
+
                 // If it's primary or we don't have a picture yet, try to extract URL/path
                 if (Boolean.TRUE.equals(isPrimary) || profilePictureUrl == null) {
                     String url = asString(getAny(picMap, "url"));
                     String objectPath = asString(getAny(picMap, "objectPath", "object_path"));
-                    
+
                     if (StringUtils.hasText(objectPath)) {
                         profilePictureUrl = buildProxyUrl(objectPath);
                     } else if (StringUtils.hasText(url)) {
                         profilePictureUrl = url;
                     }
-                    
+
                     if (Boolean.TRUE.equals(isPrimary)) {
                         break;
                     }
@@ -182,15 +187,18 @@ public class UserProfileClient extends HttpClient {
     }
 
     private String asString(Object value) {
-        if (value == null) return null;
+        if (value == null)
+            return null;
         return String.valueOf(value);
     }
 
     private Object getAny(Map<String, Object> map, String... keys) {
-        if (map == null) return null;
+        if (map == null)
+            return null;
         for (String key : keys) {
             Object val = map.get(key);
-            if (val != null) return val;
+            if (val != null)
+                return val;
         }
         return null;
     }
