@@ -44,6 +44,10 @@ public class UserProfileClient extends HttpClient {
                     "/api/v1/users/batch",
                     userIds,
                     new ParameterizedTypeReference<Map<String, Object>>() {
+                    },
+                    throwable -> {
+                        log.warn("Circuit breaker fallback triggered for batch user profiles: {}", throwable.getMessage());
+                        return Mono.just(Map.of("success", true, "data", Map.of()));
                     })
                     .block();
 
@@ -76,7 +80,6 @@ public class UserProfileClient extends HttpClient {
             return profiles;
         } catch (Exception e) {
             log.warn("Failed to fetch user profiles batch via WebClient: {}", e.getMessage());
-            e.printStackTrace();
             return new ConcurrentHashMap<>();
         }
     }
@@ -88,9 +91,13 @@ public class UserProfileClient extends HttpClient {
         log.info("Fetching profile for user {} from user-service using WebClient", userId);
 
         try {
-            Map<String, Object> body = get(
+            Map<String, Object> body = getWithFallback(
                     "/api/v1/users/{uid}",
                     new ParameterizedTypeReference<Map<String, Object>>() {
+                    },
+                    throwable -> {
+                        log.warn("Circuit breaker fallback triggered for single user profile {}: {}", userId, throwable.getMessage());
+                        return Mono.just(Map.of("success", true, "data", Map.of()));
                     },
                     userId.toString())
                     .block();
