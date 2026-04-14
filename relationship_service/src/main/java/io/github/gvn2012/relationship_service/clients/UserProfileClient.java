@@ -2,6 +2,8 @@ package io.github.gvn2012.relationship_service.clients;
 
 import io.github.gvn2012.relationship_service.dtos.responses.UserProfileSummary;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -40,7 +42,7 @@ public class UserProfileClient extends HttpClient {
         log.info("Fetching profiles for {} users in batch from user-service using WebClient", userIds.size());
 
         try {
-            Map<String, Object> body = post(
+            Map<String, Object> body = postWithFallback(
                     "/api/v1/users/batch/summaries",
                     userIds,
                     new ParameterizedTypeReference<Map<String, Object>>() {

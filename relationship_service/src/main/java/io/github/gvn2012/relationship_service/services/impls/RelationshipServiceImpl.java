@@ -219,10 +219,13 @@ public class RelationshipServiceImpl implements IRelationshipService {
         log.info("Fetching profiles for {} friends of user {}", otherUserIds.size(), userId);
         Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(otherUserIds);
 
+        // Get current user's friends for mutual friends count
+        Set<UUID> userFriends = new LinkedHashSet<>(getFriendIds(userId));
+ 
         List<RelationshipUserSummaryResponse> content = friends.getContent().stream()
                 .map(friend -> {
                     UUID otherUserId = getOtherFriendId(friend, userId);
-                    return toUserSummary(friend.getId(), otherUserId, RelationshipType.FRIEND, friend.getAcceptedAt(), profiles);
+                    return toUserSummary(friend.getId(), otherUserId, RelationshipType.FRIEND, friend.getAcceptedAt(), profiles, userFriends);
                 })
                 .toList();
 
@@ -239,10 +242,12 @@ public class RelationshipServiceImpl implements IRelationshipService {
         log.info("Fetching profiles for {} followers of user {}", followerIds.size(), userId);
         Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(followerIds);
 
+        Set<UUID> userFriends = new LinkedHashSet<>(getFriendIds(userId));
+
         List<RelationshipUserSummaryResponse> content = followers.getContent().stream()
                 .map(follow -> {
                     UUID followerId = follow.getFollowerUserId();
-                    return toUserSummary(follow.getId(), followerId, RelationshipType.FOLLOW, toLocalDateTime(follow.getCreatedAt()), profiles);
+                    return toUserSummary(follow.getId(), followerId, RelationshipType.FOLLOW, toLocalDateTime(follow.getCreatedAt()), profiles, userFriends);
                 })
                 .toList();
 
@@ -371,7 +376,8 @@ public class RelationshipServiceImpl implements IRelationshipService {
             UUID userId, 
             RelationshipType type, 
             LocalDateTime createdAt, 
-            Map<UUID, UserProfileSummary> profiles) {
+            Map<UUID, UserProfileSummary> profiles,
+            Set<UUID> userFriends) {
         
         UserProfileSummary profile = profiles.get(userId);
         String username = null;
@@ -387,6 +393,15 @@ public class RelationshipServiceImpl implements IRelationshipService {
         if (profilePictureUrl == null) {
             profilePictureUrl = generateFallbackAvatar(displayName);
         }
+ 
+        // Calculate mutual friends
+        Integer mutualFriendsCount = 0;
+        if (userFriends != null && !userFriends.isEmpty()) {
+            List<UUID> targetFriends = getFriendIds(userId);
+            mutualFriendsCount = (int) targetFriends.stream()
+                    .filter(userFriends::contains)
+                    .count();
+        }
 
         return RelationshipUserSummaryResponse.builder()
                 .relationshipId(relationshipId)
@@ -395,10 +410,56 @@ public class RelationshipServiceImpl implements IRelationshipService {
                 .displayName(displayName)
                 .profilePictureUrl(profilePictureUrl)
                 .relationshipType(type)
+                .mutualFriendsCount(mutualFriendsCount)
                 .createdAt(createdAt)
                 .build();
     }
 
+    @Override
+    public APIResource<PageResponse<RelationshipUserSummaryResponse>> getFollowingList(UUID userId, int page, int size) {
+        Pageable pageable = defaultPageable(page, size);
+        Page<UserFollow> following = followRepository.findAllByFollowerUserIdAndStatus(
+                userId, RelationshipStatus.ACTIVE, pageable);
+ 
+        List<UUID> followingIds = following.getContent().stream().map(UserFollow::getFolloweeUserId).toList();
+        log.info("Fetching profiles for {} following of user {}", followingIds.size(), userId);
+        Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(followingIds);
+        
+        Set<UUID> userFriends = new LinkedHashSet<>(getFriendIds(userId));
+ 
+        List<RelationshipUserSummaryResponse> content = following.getContent().stream()
+                .map(follow -> {
+                    UUID followingId = follow.getFolloweeUserId();
+                    return toUserSummary(follow.getId(), followingId, RelationshipType.FOLLOW, toLocalDateTime(follow.getCreatedAt()), profiles, userFriends);
+                })
+                .toList();
+ 
+        return APIResource.ok("Following retrieved", toPageResponse(following, content));
+    }
+ 
+    @Override
+    public APIResource<PageResponse<RelationshipUserSummaryResponse>> getBlockedList(UUID userId, int page, int size) {
+        Pageable pageable = defaultPageable(page, size);
+        Page<io.github.gvn2012.relationship_service.entities.UserBlock> blocks = userBlockRepository.findAllByBlockerUserIdAndIsActiveTrue(userId, pageable);
+ 
+        List<UUID> blockedIds = blocks.getContent().stream().map(io.github.gvn2012.relationship_service.entities.UserBlock::getBlockedUserId).toList();
+        log.info("Fetching profiles for {} blocked users of user {}", blockedIds.size(), userId);
+        Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(blockedIds);
+        
+        Set<UUID> userFriends = new LinkedHashSet<>(getFriendIds(userId));
+ 
+        List<RelationshipUserSummaryResponse> content = blocks.getContent().stream()
+                .map(block -> {
+                    UUID blockedId = block.getBlockedUserId();
+                    // Block entity uses Instant for createdAt, convert to LocalDateTime
+                    LocalDateTime blockedAt = block.getCreatedAt() != null ? LocalDateTime.ofInstant(block.getCreatedAt(), ZoneId.systemDefault()) : null;
+                    return toUserSummary(block.getId(), blockedId, null, blockedAt, profiles, userFriends);
+                })
+                .toList();
+ 
+        return APIResource.ok("Blocked users retrieved", toPageResponse(blocks, content));
+    }
+ 
     private <T> PageResponse<T> toPageResponse(Page<?> page, List<T> content) {
         return PageResponse.<T>builder()
                 .content(content)

@@ -62,27 +62,19 @@ public abstract class HttpClient {
             @NonNull T body,
             @NonNull ParameterizedTypeReference<R> responseType
     ) {
-        return post(uri, body, responseType, null);
+        return postWithFallback(uri, body, responseType, null);
     }
 
-    protected <T, R> Mono<R> post(
+    protected <T, R> Mono<R> postWithFallback(
             @NonNull String uri,
             @NonNull T body,
             @NonNull ParameterizedTypeReference<R> responseType,
             Function<Throwable, Mono<R>> fallback
     ) {
-        ReactiveCircuitBreaker rcb = cbFactory.create("syncio-circuitbreaker");
-        Mono<R> call = buildClient().post()
-                .uri(uri)
-                .contentType(java.util.Objects.requireNonNull(MediaType.APPLICATION_JSON))
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(responseType);
-
-        return fallback != null ? rcb.run(call, fallback) : rcb.run(call);
+        return postWithFallback(uri, body, responseType, fallback, new Object[0]);
     }
 
-    protected <T, R> Mono<R> post(
+    protected <T, R> Mono<R> postWithVariables(
             @NonNull String uri,
             @NonNull T body,
             @NonNull ParameterizedTypeReference<R> responseType,

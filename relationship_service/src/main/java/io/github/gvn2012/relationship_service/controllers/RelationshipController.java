@@ -108,6 +108,28 @@ public class RelationshipController {
         return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
                 .body(response);
     }
+ 
+    @GetMapping("/following/{uid}/page")
+    public ResponseEntity<APIResource<PageResponse<RelationshipUserSummaryResponse>>> getFollowingPage(
+            @PathVariable("uid") UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        APIResource<PageResponse<RelationshipUserSummaryResponse>> response =
+                relationshipService.getFollowingList(userId, page, size);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
+    }
+ 
+    @GetMapping("/blocked/page")
+    public ResponseEntity<APIResource<PageResponse<RelationshipUserSummaryResponse>>> getBlockedPage(
+            @RequestHeader("X-User-Id") UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        APIResource<PageResponse<RelationshipUserSummaryResponse>> response =
+                relationshipService.getBlockedList(userId, page, size);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
+    }
 
     @PostMapping("/unfriend/{tid}")
     public ResponseEntity<APIResource<Void>> unfriend(

@@ -36,6 +36,10 @@ public interface IRelationshipService {
     APIResource<PageResponse<RelationshipUserSummaryResponse>> getFriendList(UUID userId, int page, int size);
 
     APIResource<PageResponse<RelationshipUserSummaryResponse>> getFollowerList(UUID userId, int page, int size);
+ 
+    APIResource<PageResponse<RelationshipUserSummaryResponse>> getFollowingList(UUID userId, int page, int size);
+ 
+    APIResource<PageResponse<RelationshipUserSummaryResponse>> getBlockedList(UUID userId, int page, int size);
 
     APIResource<Void> unfriend(UUID sourceId, UUID targetId);
 

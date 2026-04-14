@@ -22,4 +22,6 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, UUID> {
     java.util.List<io.github.gvn2012.relationship_service.entities.UserBlock> findAllByBlockerUserIdAndIsActiveTrue(UUID blockerId);
 
     java.util.List<io.github.gvn2012.relationship_service.entities.UserBlock> findAllByBlockedUserIdAndIsActiveTrue(UUID blockedId);
+ 
+    org.springframework.data.domain.Page<io.github.gvn2012.relationship_service.entities.UserBlock> findAllByBlockerUserIdAndIsActiveTrue(UUID blockerId, org.springframework.data.domain.Pageable pageable);
 }

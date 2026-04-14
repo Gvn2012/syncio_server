@@ -7,6 +7,7 @@ import io.github.gvn2012.user_service.dtos.responses.CheckAvailableEmailAndUsern
 import io.github.gvn2012.user_service.dtos.responses.GetUserDetailResponse;
 import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
 import io.github.gvn2012.user_service.dtos.responses.UserRegisterResponse;
+import io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse;
 
 import java.util.Map;
 import java.util.Set;
@@ -22,8 +23,8 @@ public interface IUserService {
 
     APIResource<Map<UUID, GetUserDetailResponse>> getUsersDetail(Set<UUID> userIds);
 
-    APIResource<Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse>> getUsersSummary(Set<UUID> userIds);
- 
+    APIResource<Map<UUID, UserSummaryResponse>> getUsersSummary(Set<UUID> userIds);
+
     APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse> checkAvailableEmailAndUsernameWhenRegister(
             String email, String username);
 }
