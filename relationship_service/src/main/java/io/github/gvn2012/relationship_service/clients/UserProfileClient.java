@@ -9,6 +9,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -21,8 +23,8 @@ public class UserProfileClient extends HttpClient {
     @Value("${syncio.gateway.host:http://localhost:8080}")
     private String gatewayHost;
 
-    public UserProfileClient(WebClient.Builder webClientBuilder) {
-        super(webClientBuilder, "http://user-service");
+    public UserProfileClient(WebClient.Builder webClientBuilder, ReactiveCircuitBreakerFactory<?, ?> cbFactory) {
+        super(webClientBuilder, cbFactory, "http://user-service");
     }
 
     public Map<UUID, UserProfileSummary> getUserProfiles(Iterable<UUID> userIds) {
