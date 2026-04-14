@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -44,26 +43,40 @@ public class UserProfileClient {
         }
 
         try {
-            URI uri = UriComponentsBuilder.fromUriString(userServiceBaseUrl)
+            URI uri = UriComponentsBuilder.fromUriString(String.valueOf(userServiceBaseUrl))
                     .path("/api/v1/users/batch")
                     .build()
                     .toUri();
 
+            log.info("Requesting batch profiles for {} IDs from user-service: {}", userIds.size(), uri);
             RequestEntity<java.util.Collection<UUID>> request = new RequestEntity<>(userIds, org.springframework.http.HttpMethod.POST, uri);
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    request, new ParameterizedTypeReference<>() {});
+                    request, new ParameterizedTypeReference<Map<String, Object>>() {});
 
             Map<String, Object> body = response.getBody();
             if (body == null || !Boolean.TRUE.equals(body.get("success")) || body.get("data") == null) {
-                log.warn("Batch profile retrieval returned unsuccessful response. Falling back to individual calls or empty.");
+                log.warn("Batch profile retrieval returned unsuccessful response or missing data. Response Code: {}, Response: {}", response.getStatusCode(), body);
                 return new ConcurrentHashMap<>();
             }
 
             Map<UUID, UserProfileSummary> profiles = new ConcurrentHashMap<>();
-            Map<String, Object> dataMap = asMap(body.get("data"));
-            dataMap.forEach((id, detail) -> {
-                UUID userId = UUID.fromString(id);
-                profiles.put(userId, extractSummary(userId, asMap(detail)));
+            Map<Object, Object> dataMap = asObjectMap(body.get("data"));
+            log.info("Successfully retrieved {} profiles in batch from user-service", dataMap.size());
+            dataMap.forEach((key, detail) -> {
+                try {
+                    UUID userId = null;
+                    if (key instanceof UUID u) {
+                        userId = u;
+                    } else if (key instanceof String s) {
+                        userId = UUID.fromString(s);
+                    }
+
+                    if (userId != null) {
+                        profiles.put(userId, extractSummary(userId, asMap(detail)));
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to parse user profile for key: {}", key, e);
+                }
             });
 
             return profiles;
@@ -75,13 +88,13 @@ public class UserProfileClient {
 
     public UserProfileSummary getUserProfile(UUID userId) {
         try {
-            URI uri = UriComponentsBuilder.fromUriString(userServiceBaseUrl)
+            URI uri = UriComponentsBuilder.fromUriString(String.valueOf(userServiceBaseUrl))
                     .path("/api/v1/users/{userId}")
                     .build(userId.toString());
 
-            RequestEntity<Void> request = new RequestEntity<>(HttpMethod.GET, uri);
+            RequestEntity<Void> request = new RequestEntity<>(org.springframework.http.HttpMethod.GET, uri);
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    request, new ParameterizedTypeReference<>() {});
+                    request, new ParameterizedTypeReference<Map<String, Object>>() {});
 
             Map<String, Object> body = response.getBody();
             if (body == null || !Boolean.TRUE.equals(body.get("success")) || body.get("data") == null) {
@@ -149,6 +162,13 @@ public class UserProfileClient {
     }
 
     @SuppressWarnings("unchecked")
+    private Map<Object, Object> asObjectMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return (Map<Object, Object>) map;
+        }
+        return new LinkedHashMap<>();
+    }
+
     private Map<String, Object> asMap(Object value) {
         if (value instanceof Map<?, ?> map) {
             return (Map<String, Object>) map;

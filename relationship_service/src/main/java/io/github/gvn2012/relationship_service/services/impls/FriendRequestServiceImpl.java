@@ -19,6 +19,7 @@ import io.github.gvn2012.relationship_service.services.interfaces.IFriendRequest
 import io.github.gvn2012.relationship_service.services.kafka.RelationshipEventProducer;
 import io.github.gvn2012.shared.kafka_events.RelationshipChangedEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FriendRequestServiceImpl implements IFriendRequestService {
@@ -158,12 +160,14 @@ public class FriendRequestServiceImpl implements IFriendRequestService {
                     userId, FriendRequestStatus.PENDING, pageable);
         };
 
-        Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(
-                requests.getContent().stream()
-                        .map(request -> request.getSenderUserId().equals(userId)
-                                ? request.getReceiverUserId()
-                                : request.getSenderUserId())
-                        .toList());
+        List<UUID> otherUserIds = requests.getContent().stream()
+                .map(request -> request.getSenderUserId().equals(userId)
+                        ? request.getReceiverUserId()
+                        : request.getSenderUserId())
+                .toList();
+
+        log.info("Fetching profiles for {} pending friend requests for user {}", otherUserIds.size(), userId);
+        Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(otherUserIds);
 
         List<PendingFriendRequestResponse> content = requests.getContent().stream()
                 .map(request -> {

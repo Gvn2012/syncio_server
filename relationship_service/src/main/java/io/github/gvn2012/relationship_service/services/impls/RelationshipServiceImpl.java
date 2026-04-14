@@ -21,6 +21,7 @@ import io.github.gvn2012.relationship_service.services.interfaces.IRelationshipS
 import io.github.gvn2012.relationship_service.services.kafka.RelationshipEventProducer;
 import io.github.gvn2012.shared.kafka_events.RelationshipChangedEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +41,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RelationshipServiceImpl implements IRelationshipService {
@@ -213,8 +215,9 @@ public class RelationshipServiceImpl implements IRelationshipService {
         Pageable pageable = defaultPageable(page, size);
         Page<UserFriend> friends = friendRepository.findAllByUserIdAndStatus(userId, RelationshipStatus.ACTIVE, pageable);
 
-        Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(
-                friends.getContent().stream().map(friend -> getOtherFriendId(friend, userId)).toList());
+        List<UUID> otherUserIds = friends.getContent().stream().map(friend -> getOtherFriendId(friend, userId)).toList();
+        log.info("Fetching profiles for {} friends of user {}", otherUserIds.size(), userId);
+        Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(otherUserIds);
 
         List<RelationshipUserSummaryResponse> content = friends.getContent().stream()
                 .map(friend -> {
@@ -232,8 +235,9 @@ public class RelationshipServiceImpl implements IRelationshipService {
         Page<UserFollow> followers = followRepository.findAllByFolloweeUserIdAndStatus(
                 userId, RelationshipStatus.ACTIVE, pageable);
 
-        Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(
-                followers.getContent().stream().map(UserFollow::getFollowerUserId).toList());
+        List<UUID> followerIds = followers.getContent().stream().map(UserFollow::getFollowerUserId).toList();
+        log.info("Fetching profiles for {} followers of user {}", followerIds.size(), userId);
+        Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(followerIds);
 
         List<RelationshipUserSummaryResponse> content = followers.getContent().stream()
                 .map(follow -> {
