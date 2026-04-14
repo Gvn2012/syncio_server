@@ -72,6 +72,15 @@ public class UserController {
         return ResponseEntity.status(status).body(response);
     }
 
+    @PostMapping("/batch/summaries")
+    public ResponseEntity<APIResource<Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse>>> getUsersSummary(
+            @RequestBody Set<UUID> userIds) {
+        APIResource<Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse>> response = userService.getUsersSummary(userIds);
+        org.springframework.http.HttpStatusCode status = response.getStatus() != null ? response.getStatus()
+                : org.springframework.http.HttpStatus.OK;
+        return ResponseEntity.status(status).body(response);
+    }
+ 
     @GetMapping("/check-username-email-availability")
     public ResponseEntity<APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse>> checkUsernameEmailAvailability(
             @RequestParam String email, @RequestParam String username) {

@@ -41,12 +41,12 @@ public class UserProfileClient extends HttpClient {
 
         try {
             Map<String, Object> body = post(
-                    "/api/v1/users/batch",
+                    "/api/v1/users/batch/summaries",
                     userIds,
                     new ParameterizedTypeReference<Map<String, Object>>() {
                     },
                     throwable -> {
-                        log.warn("Circuit breaker fallback triggered for batch user profiles: {}", throwable.getMessage());
+                        log.warn("Circuit breaker fallback triggered for batch user summaries: {}", throwable.getMessage());
                         return Mono.just(Map.of("success", true, "data", Map.of()));
                     })
                     .block();
@@ -70,7 +70,7 @@ public class UserProfileClient extends HttpClient {
                     }
 
                     if (userId != null) {
-                        profiles.put(userId, extractSummary(userId, asMap(detail)));
+                        profiles.put(userId, mapSummary(userId, asMap(detail)));
                     }
                 } catch (Exception e) {
                     log.warn("Failed to parse user profile for key: {}", key, e);
@@ -84,6 +84,30 @@ public class UserProfileClient extends HttpClient {
         }
     }
 
+    private UserProfileSummary mapSummary(UUID userId, Map<String, Object> data) {
+        String username = asString(data.get("username"));
+        String displayName = asString(data.get("displayName"));
+        String avatarUrl = asString(data.get("avatarUrl"));
+        String avatarPath = asString(data.get("avatarPath"));
+ 
+        // Preference: Use Proxy URL if path is available, else use resolved URL
+        String finalAvatarUrl = avatarUrl;
+        if (org.springframework.util.StringUtils.hasText(avatarPath)) {
+            finalAvatarUrl = buildProxyUrl(avatarPath);
+        }
+ 
+        if (!org.springframework.util.StringUtils.hasText(displayName)) {
+            displayName = username != null ? username : "Unknown User";
+        }
+ 
+        return UserProfileSummary.builder()
+                .userId(userId)
+                .username(username)
+                .displayName(displayName)
+                .profilePictureUrl(finalAvatarUrl)
+                .build();
+    }
+ 
     public UserProfileSummary getUserProfile(UUID userId) {
         if (userId == null)
             return null;

@@ -22,6 +22,8 @@ public interface IUserService {
 
     APIResource<Map<UUID, GetUserDetailResponse>> getUsersDetail(Set<UUID> userIds);
 
+    APIResource<Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse>> getUsersSummary(Set<UUID> userIds);
+ 
     APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse> checkAvailableEmailAndUsernameWhenRegister(
             String email, String username);
 }

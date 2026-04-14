@@ -42,4 +42,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Transactional()
     Boolean existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse (String username);
+
+    @org.springframework.data.jpa.repository.Query("SELECT u FROM User u " +
+            "LEFT JOIN FETCH u.profile p " +
+            "LEFT JOIN FETCH p.pictures pic " +
+            "WHERE u.id IN :userIds AND (pic IS NULL OR pic.primary = true OR pic.deleted = false)")
+    java.util.List<User> findSummariesByIdIn(@org.springframework.data.repository.query.Param("userIds") java.util.Collection<UUID> userIds);
 }

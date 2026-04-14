@@ -169,6 +169,66 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public APIResource<Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse>> getUsersSummary(java.util.Set<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return APIResource.ok("No users requested", new HashMap<>());
+        }
+ 
+        List<User> users = userRepository.findSummariesByIdIn(userIds);
+        
+        // Collect object paths for primary avatars to get signed URLs
+        java.util.Set<String> objectPaths = users.stream()
+                .filter(u -> u.getProfile() != null && !u.getProfile().getPictures().isEmpty())
+                .flatMap(u -> u.getProfile().getPictures().stream())
+                .filter(p -> Boolean.TRUE.equals(p.getPrimary()) && !Boolean.TRUE.equals(p.getDeleted()))
+                .map(UserProfilePicture::getObjectPath)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+ 
+        Map<String, String> signedUrls = Map.of();
+        if (!objectPaths.isEmpty()) {
+            try {
+                signedUrls = uploadClient.getSignedUrls(objectPaths).block(Duration.ofSeconds(5));
+                if (signedUrls == null) signedUrls = Map.of();
+            } catch (Exception e) {
+                log.warn("Failed to resolve signed URLs for batch summary", e);
+            }
+        }
+ 
+        Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse> responseMap = new HashMap<>();
+        Map<String, String> finalSignedUrls = signedUrls;
+ 
+        for (User user : users) {
+            String avatarUrl = null;
+            String avatarPath = null;
+            if (user.getProfile() != null) {
+                UserProfilePicture primaryPic = user.getProfile().getPictures().stream()
+                        .filter(p -> Boolean.TRUE.equals(p.getPrimary()) && !Boolean.TRUE.equals(p.getDeleted()))
+                        .findFirst()
+                        .orElse(null);
+                
+                if (primaryPic != null) {
+                    avatarPath = primaryPic.getObjectPath();
+                    avatarUrl = primaryPic.getObjectPath() != null 
+                            ? finalSignedUrls.get(primaryPic.getObjectPath()) 
+                            : primaryPic.getUrl();
+                }
+            }
+ 
+            responseMap.put(user.getId(), io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse.builder()
+                    .userId(user.getId())
+                    .username(user.getUsername())
+                    .displayName(user.getFirstName() + " " + user.getLastName())
+                    .avatarUrl(avatarUrl)
+                    .avatarPath(avatarPath)
+                    .build());
+        }
+ 
+        return APIResource.ok("Batch user summaries retrieved successfully", responseMap);
+    }
+ 
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public APIResource<UserRegisterResponse> register(UserRegisterRequest request) {
         validateRegisterRequest(request);
