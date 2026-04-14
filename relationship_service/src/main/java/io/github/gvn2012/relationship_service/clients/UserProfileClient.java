@@ -36,16 +36,47 @@ public class UserProfileClient {
     private final RestTemplate restTemplate = buildRestTemplate();
 
     public Map<UUID, UserProfileSummary> getUserProfiles(Iterable<UUID> userIds) {
-        Map<UUID, UserProfileSummary> profiles = new ConcurrentHashMap<>();
-        for (UUID userId : userIds) {
-            profiles.put(userId, getUserProfile(userId));
+        return getUserProfilesBatch(userIds instanceof java.util.Collection ? (java.util.Collection<UUID>) userIds : java.util.stream.StreamSupport.stream(userIds.spliterator(), false).toList());
+    }
+
+    public Map<UUID, UserProfileSummary> getUserProfilesBatch(java.util.Collection<UUID> userIds) {
+        if (userIds == null || !userIds.iterator().hasNext()) {
+            return new ConcurrentHashMap<>();
         }
-        return profiles;
+
+        try {
+            URI uri = UriComponentsBuilder.fromUriString(userServiceBaseUrl)
+                    .path("/api/v1/users/batch")
+                    .build()
+                    .toUri();
+
+            RequestEntity<java.util.Collection<UUID>> request = new RequestEntity<>(userIds, HttpMethod.POST, uri);
+            ResponseEntity<APIResource<Map<String, Object>>> response = restTemplate.exchange(
+                    request, new ParameterizedTypeReference<>() {});
+
+            APIResource<Map<String, Object>> body = response.getBody();
+            if (body == null || !body.isSuccess() || body.getData() == null) {
+                log.warn("Batch profile retrieval returned unsuccessful response. Falling back to individual calls or empty.");
+                return new ConcurrentHashMap<>();
+            }
+
+            Map<UUID, UserProfileSummary> profiles = new ConcurrentHashMap<>();
+            Map<String, Object> dataMap = body.getData();
+            dataMap.forEach((id, detail) -> {
+                UUID userId = UUID.fromString(id);
+                profiles.put(userId, extractSummary(userId, asMap(detail)));
+            });
+
+            return profiles;
+        } catch (Exception ex) {
+            log.warn("Failed to retrieve user profiles in batch", ex);
+            return new ConcurrentHashMap<>();
+        }
     }
 
     public UserProfileSummary getUserProfile(UUID userId) {
         try {
-            URI uri = UriComponentsBuilder.fromHttpUrl(userServiceBaseUrl)
+            URI uri = UriComponentsBuilder.fromUriString(userServiceBaseUrl)
                     .path("/api/v1/users/{userId}")
                     .build(userId.toString());
 
@@ -104,7 +135,7 @@ public class UserProfileClient {
     }
 
     private String buildProxyUrl(String objectPath) {
-        return UriComponentsBuilder.fromHttpUrl(gatewayHost)
+        return UriComponentsBuilder.fromUriString(gatewayHost)
                 .path("/api/v1/upload/view")
                 .queryParam("path", objectPath)
                 .build()

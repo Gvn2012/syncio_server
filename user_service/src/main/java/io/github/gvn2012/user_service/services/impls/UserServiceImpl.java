@@ -147,6 +147,28 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public APIResource<Map<UUID, GetUserDetailResponse>> getUsersDetail(java.util.Set<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return APIResource.ok("No users requested", new HashMap<>());
+        }
+
+        List<User> users = userRepository.findDetailsByIdIn(userIds);
+        Map<UUID, GetUserDetailResponse> responseMap = new HashMap<>();
+
+        for (User user : users) {
+            try {
+                ensureUserAccessible(user);
+                responseMap.put(user.getId(), userDetailMapper.toDto(user));
+            } catch (Exception e) {
+                log.warn("User {} is not accessible or failed to map, skipping", user.getId(), e);
+            }
+        }
+
+        return APIResource.ok("Batch user details retrieved successfully", responseMap);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public APIResource<UserRegisterResponse> register(UserRegisterRequest request) {
         validateRegisterRequest(request);

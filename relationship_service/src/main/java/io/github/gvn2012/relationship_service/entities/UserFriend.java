@@ -21,7 +21,7 @@ import java.util.UUID;
         @Index(name = "ix_friend_user2_status", columnList = "user2_id, status"),
         @Index(name = "ix_friend_accepted_at", columnList = "accepted_at")
 }, uniqueConstraints = {
-        @UniqueConstraint(name = "uk_friend_user1_user2", columnNames = {"user1_id", "user2_id"})
+        @UniqueConstraint(name = "uk_friend_user1_user2", columnNames = { "user1_id", "user2_id" })
 })
 public class UserFriend extends AuditableEntity {
 
@@ -33,12 +33,10 @@ public class UserFriend extends AuditableEntity {
     private UUID id;
 
     @NotNull
-    // Canonical lower UUID of the friendship pair.
     @Column(name = "user1_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
     private UUID user1Id;
 
     @NotNull
-    // Canonical higher UUID of the friendship pair.
     @Column(name = "user2_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
     private UUID user2Id;
 

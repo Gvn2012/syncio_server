@@ -8,6 +8,10 @@ import io.github.gvn2012.user_service.dtos.responses.GetUserDetailResponse;
 import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
 import io.github.gvn2012.user_service.dtos.responses.UserRegisterResponse;
 
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 public interface IUserService {
 
     APIResource<LoginResponse> login(LoginRequest request);
@@ -15,6 +19,8 @@ public interface IUserService {
     APIResource<UserRegisterResponse> register(UserRegisterRequest request);
 
     APIResource<GetUserDetailResponse> getUserDetail(String userId);
+
+    APIResource<Map<UUID, GetUserDetailResponse>> getUsersDetail(java.util.Set<UUID> userIds);
 
     APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse> checkAvailableEmailAndUsernameWhenRegister(
             String email, String username);

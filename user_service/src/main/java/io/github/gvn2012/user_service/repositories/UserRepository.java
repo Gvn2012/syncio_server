@@ -26,6 +26,20 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Transactional(readOnly = true)
     Optional<User> findDetailById(UUID userId);
 
+    @EntityGraph(attributePaths = {
+            "profile",
+            "profile.pictures",
+            "emails",
+            "phones",
+            "addresses",
+            "emergencyContacts",
+            "employments",
+            "skills",
+            "preferences"
+    })
+    @Transactional(readOnly = true)
+    java.util.List<User> findDetailsByIdIn(java.util.Collection<UUID> userIds);
+
     @Transactional()
     Boolean existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse (String username);
 }

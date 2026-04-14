@@ -219,16 +219,7 @@ public class RelationshipServiceImpl implements IRelationshipService {
         List<RelationshipUserSummaryResponse> content = friends.getContent().stream()
                 .map(friend -> {
                     UUID otherUserId = getOtherFriendId(friend, userId);
-                    UserProfileSummary profile = profiles.getOrDefault(otherUserId, fallbackProfile(otherUserId));
-                    return RelationshipUserSummaryResponse.builder()
-                            .relationshipId(friend.getId())
-                            .userId(otherUserId)
-                            .username(profile.getUsername())
-                            .displayName(profile.getDisplayName())
-                            .profilePictureUrl(profile.getProfilePictureUrl())
-                            .relationshipType(RelationshipType.FRIEND)
-                            .createdAt(friend.getAcceptedAt())
-                            .build();
+                    return toUserSummary(friend.getId(), otherUserId, RelationshipType.FRIEND, friend.getAcceptedAt(), profiles);
                 })
                 .toList();
 
@@ -247,16 +238,7 @@ public class RelationshipServiceImpl implements IRelationshipService {
         List<RelationshipUserSummaryResponse> content = followers.getContent().stream()
                 .map(follow -> {
                     UUID followerId = follow.getFollowerUserId();
-                    UserProfileSummary profile = profiles.getOrDefault(followerId, fallbackProfile(followerId));
-                    return RelationshipUserSummaryResponse.builder()
-                            .relationshipId(follow.getId())
-                            .userId(followerId)
-                            .username(profile.getUsername())
-                            .displayName(profile.getDisplayName())
-                            .profilePictureUrl(profile.getProfilePictureUrl())
-                            .relationshipType(RelationshipType.FOLLOW)
-                            .createdAt(toLocalDateTime(follow.getCreatedAt()))
-                            .build();
+                    return toUserSummary(follow.getId(), followerId, RelationshipType.FOLLOW, toLocalDateTime(follow.getCreatedAt()), profiles);
                 })
                 .toList();
 
@@ -372,10 +354,44 @@ public class RelationshipServiceImpl implements IRelationshipService {
         return PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 
-    private UserProfileSummary fallbackProfile(UUID userId) {
-        return UserProfileSummary.builder()
+    private String generateFallbackAvatar(String name) {
+        String initial = "U";
+        if (org.springframework.util.StringUtils.hasText(name)) {
+            initial = name.substring(0, 1).toUpperCase();
+        }
+        return String.format("https://ui-avatars.com/api/?name=%s&background=random&color=fff", initial);
+    }
+
+    private RelationshipUserSummaryResponse toUserSummary(
+            UUID relationshipId, 
+            UUID userId, 
+            RelationshipType type, 
+            LocalDateTime createdAt, 
+            Map<UUID, UserProfileSummary> profiles) {
+        
+        UserProfileSummary profile = profiles.get(userId);
+        String username = null;
+        String displayName = "Unknown User";
+        String profilePictureUrl = null;
+
+        if (profile != null) {
+            username = profile.getUsername();
+            displayName = profile.getDisplayName();
+            profilePictureUrl = profile.getProfilePictureUrl();
+        }
+
+        if (profilePictureUrl == null) {
+            profilePictureUrl = generateFallbackAvatar(displayName);
+        }
+
+        return RelationshipUserSummaryResponse.builder()
+                .relationshipId(relationshipId)
                 .userId(userId)
-                .displayName("Unknown User")
+                .username(username)
+                .displayName(displayName)
+                .profilePictureUrl(profilePictureUrl)
+                .relationshipType(type)
+                .createdAt(createdAt)
                 .build();
     }
 

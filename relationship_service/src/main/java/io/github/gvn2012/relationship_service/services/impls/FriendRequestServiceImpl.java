@@ -170,21 +170,35 @@ public class FriendRequestServiceImpl implements IFriendRequestService {
                     UUID otherUserId = request.getSenderUserId().equals(userId)
                             ? request.getReceiverUserId()
                             : request.getSenderUserId();
-                    UserProfileSummary profile = profiles.getOrDefault(otherUserId,
-                            UserProfileSummary.builder().userId(otherUserId).displayName("Unknown User").build());
+                    
+                    UserProfileSummary profile = profiles.get(otherUserId);
+                    String username = null;
+                    String displayName = "Unknown User";
+                    String profilePictureUrl = null;
+
+                    if (profile != null) {
+                        username = profile.getUsername();
+                        displayName = profile.getDisplayName();
+                        profilePictureUrl = profile.getProfilePictureUrl();
+                    }
+
+                    if (profilePictureUrl == null) {
+                        profilePictureUrl = generateFallbackAvatar(displayName);
+                    }
+
                     return PendingFriendRequestResponse.builder()
                             .requestId(request.getId())
                             .senderUserId(request.getSenderUserId())
                             .receiverUserId(request.getReceiverUserId())
                             .otherUserId(otherUserId)
                             .direction(request.getSenderUserId().equals(userId) ? "SENT" : "RECEIVED")
-                            .username(profile.getUsername())
-                            .displayName(profile.getDisplayName())
-                            .profilePictureUrl(profile.getProfilePictureUrl())
+                            .username(username)
+                            .displayName(displayName)
+                            .profilePictureUrl(profilePictureUrl)
                             .message(request.getMessage())
                             .seen(request.getIsSeen())
                             .createdAt(request.getCreatedAt() == null ? null
-                                    : request.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                                     : request.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDateTime())
                             .build();
                 })
                 .toList();
@@ -198,6 +212,14 @@ public class FriendRequestServiceImpl implements IFriendRequestService {
                 .hasNext(requests.hasNext())
                 .hasPrevious(requests.hasPrevious())
                 .build());
+    }
+
+    private String generateFallbackAvatar(String name) {
+        String initial = "U";
+        if (org.springframework.util.StringUtils.hasText(name)) {
+            initial = name.substring(0, 1).toUpperCase();
+        }
+        return String.format("https://ui-avatars.com/api/?name=%s&background=random&color=fff", initial);
     }
 
     private boolean isBlockedEitherDirection(UUID userA, UUID userB) {
