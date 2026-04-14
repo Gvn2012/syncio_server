@@ -109,29 +109,41 @@ public class UserProfileClient {
     }
 
     private UserProfileSummary extractSummary(UUID userId, Map<String, Object> data) {
-        Map<String, Object> userResponse = asMap(data.get("userResponse"));
-        Map<String, Object> profileResponse = asMap(data.get("userProfileResponse"));
+        Map<String, Object> userResponse = asMap(getAny(data, "userResponse", "user_response"));
+        Map<String, Object> profileResponse = asMap(getAny(data, "userProfileResponse", "user_profile_response"));
 
-        String username = asString(userResponse.get("username"));
-        String firstName = asString(userResponse.get("firstName"));
-        String middleName = asString(userResponse.get("middleName"));
-        String lastName = asString(userResponse.get("lastName"));
+        String username = asString(getAny(userResponse, "username"));
+        String firstName = asString(getAny(userResponse, "firstName", "first_name"));
+        String middleName = asString(getAny(userResponse, "middleName", "middle_name"));
+        String lastName = asString(getAny(userResponse, "lastName", "last_name"));
+        
         String displayName = String.join(" ",
                 filterBlank(firstName), filterBlank(middleName), filterBlank(lastName)).trim();
+        
         if (!StringUtils.hasText(displayName)) {
             displayName = username != null ? username : "Unknown User";
         }
 
+        // Resolve profile picture from userProfilePictureResponseList
         String profilePictureUrl = null;
-        Object pictures = profileResponse.get("userProfilePictureResponseList");
-        if (pictures instanceof Iterable<?> iterable) {
-            for (Object item : iterable) {
-                Map<String, Object> picture = asMap(item);
-                if (Boolean.TRUE.equals(picture.get("primary")) || profilePictureUrl == null) {
-                    String objectPath = asString(picture.get("objectPath"));
-                    String url = asString(picture.get("url"));
-                    profilePictureUrl = StringUtils.hasText(objectPath) ? buildProxyUrl(objectPath) : url;
-                    if (Boolean.TRUE.equals(picture.get("primary"))) {
+        Object picturesObj = getAny(profileResponse, "userProfilePictureResponseList", "user_profile_picture_response_list");
+        if (picturesObj instanceof java.util.Collection<?> pictures) {
+            for (Object picObj : pictures) {
+                Map<String, Object> picMap = asMap(picObj);
+                Boolean isPrimary = (Boolean) getAny(picMap, "primary");
+                
+                // If it's primary or we don't have a picture yet, try to extract URL/path
+                if (Boolean.TRUE.equals(isPrimary) || profilePictureUrl == null) {
+                    String url = asString(getAny(picMap, "url"));
+                    String objectPath = asString(getAny(picMap, "objectPath", "object_path"));
+                    
+                    if (StringUtils.hasText(objectPath)) {
+                        profilePictureUrl = buildProxyUrl(objectPath);
+                    } else if (StringUtils.hasText(url)) {
+                        profilePictureUrl = url;
+                    }
+                    
+                    if (Boolean.TRUE.equals(isPrimary)) {
                         break;
                     }
                 }
@@ -177,7 +189,17 @@ public class UserProfileClient {
     }
 
     private String asString(Object value) {
-        return value instanceof String s ? s : null;
+        if (value == null) return null;
+        return String.valueOf(value);
+    }
+
+    private Object getAny(Map<String, Object> map, String... keys) {
+        if (map == null) return null;
+        for (String key : keys) {
+            Object val = map.get(key);
+            if (val != null) return val;
+        }
+        return null;
     }
 
     private String filterBlank(String value) {
