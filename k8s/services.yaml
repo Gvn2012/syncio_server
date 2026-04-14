@@ -171,7 +171,7 @@ spec:
     spec:
       containers:
         - name: relationship
-          image: vietpham18/relationship-service:f5d71e178bee21a288785d77bd2abc4a0b86d020
+          image: vietpham18/relationship-service:a13dd618a07b051f3aee1eb82a51c9d1cf49e0b5
           ports:
             - containerPort: 8087
           startupProbe:
