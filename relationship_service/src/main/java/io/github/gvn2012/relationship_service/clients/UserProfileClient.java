@@ -21,9 +21,8 @@ public class UserProfileClient extends HttpClient {
     @Value("${syncio.gateway.host:http://localhost:8080}")
     private String gatewayHost;
 
-    public UserProfileClient(WebClient.Builder webClientBuilder,
-            @Value("${syncio.user-service.base-url:http://user-service}") String userServiceBaseUrl) {
-        super(webClientBuilder, userServiceBaseUrl);
+    public UserProfileClient(WebClient.Builder webClientBuilder) {
+        super(webClientBuilder, "http://user-service");
     }
 
     public Map<UUID, UserProfileSummary> getUserProfiles(Iterable<UUID> userIds) {
