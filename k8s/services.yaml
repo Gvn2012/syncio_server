@@ -195,6 +195,8 @@ spec:
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
               value: "false"
+            - name: SYNCIO_CLIENT_USER_SERVICE_URL
+              value: "http://syncio-user:8082"
           resources:
             requests:
               cpu: "150m"
