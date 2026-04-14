@@ -1,20 +1,14 @@
 package io.github.gvn2012.relationship_service.clients;
 
 import io.github.gvn2012.relationship_service.dtos.responses.UserProfileSummary;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.RequestEntity;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URI;
-import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -22,16 +16,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class UserProfileClient {
-
-    @Value("${syncio.user-service.base-url:http://user-service:8082}")
-    private String userServiceBaseUrl;
+public class UserProfileClient extends HttpClient {
 
     @Value("${syncio.gateway.host:http://localhost:8080}")
     private String gatewayHost;
 
-    private final RestTemplate restTemplate = buildRestTemplate();
+    public UserProfileClient(WebClient.Builder webClientBuilder,
+                            @Value("${syncio.user-service.base-url:http://user-service:8082}") String userServiceBaseUrl) {
+        super(webClientBuilder, userServiceBaseUrl);
+    }
 
     public Map<UUID, UserProfileSummary> getUserProfiles(Iterable<UUID> userIds) {
         return getUserProfilesBatch(userIds instanceof java.util.Collection ? (java.util.Collection<UUID>) userIds : java.util.stream.StreamSupport.stream(userIds.spliterator(), false).toList());
@@ -42,25 +35,23 @@ public class UserProfileClient {
             return new ConcurrentHashMap<>();
         }
 
+        log.info("Fetching profiles for {} users in batch from user-service using WebClient", userIds.size());
+        
         try {
-            URI uri = UriComponentsBuilder.fromUriString(String.valueOf(userServiceBaseUrl))
-                    .path("/api/v1/users/batch")
-                    .build()
-                    .toUri();
+            Map<String, Object> body = post(
+                    "/api/v1/users/batch",
+                    userIds,
+                    new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
 
-            log.info("Requesting batch profiles for {} IDs from user-service: {}", userIds.size(), uri);
-            RequestEntity<java.util.Collection<UUID>> request = new RequestEntity<>(userIds, org.springframework.http.HttpMethod.POST, uri);
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    request, new ParameterizedTypeReference<Map<String, Object>>() {});
-
-            Map<String, Object> body = response.getBody();
             if (body == null || !Boolean.TRUE.equals(body.get("success")) || body.get("data") == null) {
-                log.warn("Batch profile retrieval returned unsuccessful response or missing data. Response Code: {}, Response: {}", response.getStatusCode(), body);
+                log.warn("Batch profile retrieval returned unsuccessful response or missing data. Response: {}", body);
                 return new ConcurrentHashMap<>();
             }
 
             Map<UUID, UserProfileSummary> profiles = new ConcurrentHashMap<>();
             Map<Object, Object> dataMap = asObjectMap(body.get("data"));
+            
             log.info("Successfully retrieved {} profiles in batch from user-service", dataMap.size());
             dataMap.forEach((key, detail) -> {
                 try {
@@ -80,30 +71,32 @@ public class UserProfileClient {
             });
 
             return profiles;
-        } catch (Exception ex) {
-            log.warn("Failed to retrieve user profiles in batch", ex);
+        } catch (Exception e) {
+            log.warn("Failed to fetch user profiles batch via WebClient: {}", e.getMessage());
             return new ConcurrentHashMap<>();
         }
     }
 
     public UserProfileSummary getUserProfile(UUID userId) {
+        if (userId == null) return null;
+
+        log.info("Fetching profile for user {} from user-service using WebClient", userId);
+        
         try {
-            URI uri = UriComponentsBuilder.fromUriString(String.valueOf(userServiceBaseUrl))
-                    .path("/api/v1/users/{userId}")
-                    .build(userId.toString());
+            Map<String, Object> body = get(
+                    "/api/v1/users/{uid}",
+                    new ParameterizedTypeReference<Map<String, Object>>() {},
+                    userId.toString())
+                    .block();
 
-            RequestEntity<Void> request = new RequestEntity<>(org.springframework.http.HttpMethod.GET, uri);
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    request, new ParameterizedTypeReference<Map<String, Object>>() {});
-
-            Map<String, Object> body = response.getBody();
             if (body == null || !Boolean.TRUE.equals(body.get("success")) || body.get("data") == null) {
+                log.warn("Single profile retrieval unsuccessful for user {}. Response: {}", userId, body);
                 return fallback(userId);
             }
 
             return extractSummary(userId, asMap(body.get("data")));
-        } catch (RestClientException ex) {
-            log.warn("Failed to resolve user profile for {}", userId, ex);
+        } catch (Exception e) {
+            log.warn("Failed to fetch user profile for {} via WebClient: {}", userId, e.getMessage());
             return fallback(userId);
         }
     }
@@ -204,12 +197,5 @@ public class UserProfileClient {
 
     private String filterBlank(String value) {
         return StringUtils.hasText(value) ? value : "";
-    }
-
-    private RestTemplate buildRestTemplate() {
-        var factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout((int) Duration.ofSeconds(3).toMillis());
-        factory.setReadTimeout((int) Duration.ofSeconds(3).toMillis());
-        return new RestTemplate(factory);
     }
 }
