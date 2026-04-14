@@ -145,6 +145,25 @@ public class FriendRequestServiceImpl implements IFriendRequestService {
     }
 
     @Override
+    @Transactional
+    public APIResource<Void> cancelFriendRequest(UUID requestId, UUID userId) {
+        FriendRequest request = friendRequestRepository.findById(requestId).orElse(null);
+        if (request == null || !userId.equals(request.getSenderUserId())) {
+            return APIResource.error("NOT_FOUND", "Friend request not found", HttpStatus.NOT_FOUND, null);
+        }
+
+        if (request.getStatus() != FriendRequestStatus.PENDING) {
+            return APIResource.error("INVALID_STATUS", "Friend request is already processed", HttpStatus.BAD_REQUEST,
+                    null);
+        }
+
+        request.setStatus(FriendRequestStatus.CANCELLED);
+        friendRequestRepository.save(request);
+
+        return APIResource.message("Friend request cancelled", HttpStatus.OK);
+    }
+
+    @Override
     public APIResource<PageResponse<PendingFriendRequestResponse>> getPendingFriendRequests(
             UUID userId, PendingRequestDirection direction, int page, int size) {
         PendingRequestDirection safeDirection = direction != null ? direction : PendingRequestDirection.ALL;

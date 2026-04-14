@@ -11,6 +11,7 @@ public interface IFriendRequestService {
     APIResource<Void> sendFriendRequest(UUID senderId, UUID receiverId, String message);
     APIResource<Void> acceptFriendRequest(UUID requestId, UUID userId);
     APIResource<Void> declineFriendRequest(UUID requestId, UUID userId);
+    APIResource<Void> cancelFriendRequest(UUID requestId, UUID userId);
     APIResource<PageResponse<PendingFriendRequestResponse>> getPendingFriendRequests(
             UUID userId, PendingRequestDirection direction, int page, int size);
 }

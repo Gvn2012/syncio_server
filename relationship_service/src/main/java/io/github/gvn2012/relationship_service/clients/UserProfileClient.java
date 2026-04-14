@@ -22,12 +22,12 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class UserProfileClient extends HttpClient {
 
-    @Value("${syncio.gateway.host:http://localhost:8080}")
+    @Value("${syncio.gateway.host:http://syncio.site}")
     private String gatewayHost;
 
-    public UserProfileClient(WebClient.Builder webClientBuilder, 
-                             ReactiveCircuitBreakerFactory<?, ?> cbFactory,
-                             @Value("${syncio.client.user-service.url:http://localhost:8082}") String baseUrl) {
+    public UserProfileClient(WebClient.Builder webClientBuilder,
+            ReactiveCircuitBreakerFactory<?, ?> cbFactory,
+            @Value("${syncio.client.user-service.url:http://localhost:8082}") String baseUrl) {
         super(webClientBuilder, cbFactory, baseUrl);
     }
 
@@ -50,7 +50,8 @@ public class UserProfileClient extends HttpClient {
                     new ParameterizedTypeReference<Map<String, Object>>() {
                     },
                     throwable -> {
-                        log.warn("Circuit breaker fallback triggered for batch user summaries: {}", throwable.getMessage());
+                        log.warn("Circuit breaker fallback triggered for batch user summaries: {}",
+                                throwable.getMessage());
                         return Mono.just(Map.of("success", true, "data", Map.of()));
                     })
                     .block();
@@ -93,17 +94,17 @@ public class UserProfileClient extends HttpClient {
         String displayName = asString(data.get("displayName"));
         String avatarUrl = asString(data.get("avatarUrl"));
         String avatarPath = asString(data.get("avatarPath"));
- 
+
         // Preference: Use Proxy URL if path is available, else use resolved URL
         String finalAvatarUrl = avatarUrl;
         if (org.springframework.util.StringUtils.hasText(avatarPath)) {
             finalAvatarUrl = buildProxyUrl(avatarPath);
         }
- 
+
         if (!org.springframework.util.StringUtils.hasText(displayName)) {
             displayName = username != null ? username : "Unknown User";
         }
- 
+
         return UserProfileSummary.builder()
                 .userId(userId)
                 .username(username)
@@ -111,7 +112,7 @@ public class UserProfileClient extends HttpClient {
                 .profilePictureUrl(finalAvatarUrl)
                 .build();
     }
- 
+
     public UserProfileSummary getUserProfile(UUID userId) {
         if (userId == null)
             return null;
@@ -124,7 +125,8 @@ public class UserProfileClient extends HttpClient {
                     new ParameterizedTypeReference<Map<String, Object>>() {
                     },
                     throwable -> {
-                        log.warn("Circuit breaker fallback triggered for single user profile {}: {}", userId, throwable.getMessage());
+                        log.warn("Circuit breaker fallback triggered for single user profile {}: {}", userId,
+                                throwable.getMessage());
                         return Mono.just(Map.of("success", true, "data", Map.of()));
                     },
                     userId.toString())

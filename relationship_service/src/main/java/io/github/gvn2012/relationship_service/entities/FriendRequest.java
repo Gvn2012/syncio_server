@@ -51,7 +51,7 @@ public class FriendRequest extends AuditableEntity {
     private FriendRequestStatus status = FriendRequestStatus.PENDING;
 
     @Column(name = "message", columnDefinition = "VARCHAR(512)")
-    private String message; // optional message with request
+    private String message;
 
     @Column(name = "mutual_friends_count")
     private Integer mutualFriendsCount;
@@ -69,7 +69,7 @@ public class FriendRequest extends AuditableEntity {
     private LocalDateTime reminderSentAt;
 
     @Column(name = "source", length = 64)
-    private String source; // where the request originated: "search", "suggestion", "mutual_friend"
+    private String source;
 
     @Column(name = "is_seen", nullable = false)
     private Boolean isSeen = false;

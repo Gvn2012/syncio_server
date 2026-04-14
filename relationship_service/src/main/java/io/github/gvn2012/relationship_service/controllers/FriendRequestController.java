@@ -48,6 +48,15 @@ public class FriendRequestController {
                 .body(response);
     }
 
+    @PostMapping("/cancel/{reqid}")
+    public ResponseEntity<APIResource<Void>> cancelRequest(
+            @RequestHeader("X-User-Id") UUID userId,
+            @PathVariable("reqid") UUID requestId) {
+        APIResource<Void> response = friendRequestService.cancelFriendRequest(requestId, userId);
+        return ResponseEntity.status(org.springframework.http.HttpStatusCode.valueOf(response.getStatus().value()))
+                .body(response);
+    }
+
     @GetMapping("/pending")
     public ResponseEntity<APIResource<PageResponse<PendingFriendRequestResponse>>> getPendingRequests(
             @RequestHeader("X-User-Id") UUID userId,

@@ -16,30 +16,30 @@ import java.util.UUID;
 @Repository
 public interface UserFriendRepository extends JpaRepository<UserFriend, UUID> {
 
-    Optional<UserFriend> findByUser1IdAndUser2Id(UUID user1Id, UUID user2Id);
+        Optional<UserFriend> findByUser1IdAndUser2Id(UUID user1Id, UUID user2Id);
 
-    @Query("""
-            select uf from UserFriend uf
-            where (uf.user1Id = :userId or uf.user2Id = :userId)
-              and uf.status = :status
-            """)
-    List<UserFriend> findAllByUserIdAndStatus(@Param("userId") UUID userId,
-                                              @Param("status") RelationshipStatus status);
+        @Query("""
+                        select uf from UserFriend uf
+                        where (uf.user1Id = :userId or uf.user2Id = :userId)
+                          and uf.status = :status
+                        """)
+        List<UserFriend> findAllByUserIdAndStatus(@Param("userId") UUID userId,
+                        @Param("status") RelationshipStatus status);
 
-    @Query("""
-            select uf from UserFriend uf
-            where (uf.user1Id = :userId or uf.user2Id = :userId)
-              and uf.status = :status
-            """)
-    Page<UserFriend> findAllByUserIdAndStatus(@Param("userId") UUID userId,
-                                              @Param("status") RelationshipStatus status,
-                                              Pageable pageable);
+        @Query("""
+                        select uf from UserFriend uf
+                        where (uf.user1Id = :userId or uf.user2Id = :userId)
+                          and uf.status = :status
+                        """)
+        Page<UserFriend> findAllByUserIdAndStatus(@Param("userId") UUID userId,
+                        @Param("status") RelationshipStatus status,
+                        Pageable pageable);
 
-    @Query("""
-            select count(uf) from UserFriend uf
-            where (uf.user1Id = :userId or uf.user2Id = :userId)
-              and uf.status = :status
-            """)
-    long countAllByUserIdAndStatus(@Param("userId") UUID userId,
-                                   @Param("status") RelationshipStatus status);
+        @Query("""
+                        select count(uf) from UserFriend uf
+                        where (uf.user1Id = :userId or uf.user2Id = :userId)
+                          and uf.status = :status
+                        """)
+        long countAllByUserIdAndStatus(@Param("userId") UUID userId,
+                        @Param("status") RelationshipStatus status);
 }
