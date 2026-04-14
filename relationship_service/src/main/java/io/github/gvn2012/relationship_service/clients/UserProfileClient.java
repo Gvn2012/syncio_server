@@ -74,6 +74,7 @@ public class UserProfileClient extends HttpClient {
             return profiles;
         } catch (Exception e) {
             log.warn("Failed to fetch user profiles batch via WebClient: {}", e.getMessage());
+            e.printStackTrace();
             return new ConcurrentHashMap<>();
         }
     }
