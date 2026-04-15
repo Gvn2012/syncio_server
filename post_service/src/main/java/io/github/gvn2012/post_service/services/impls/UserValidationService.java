@@ -30,6 +30,8 @@ public class UserValidationService {
                 .onErrorReturn(new UserStatusResponse(false, false, false, true))
                 .block();
 
+        log.info("User status: {}", status);
+
         if (status == null) {
             throw new BadRequestException("User not found");
         }

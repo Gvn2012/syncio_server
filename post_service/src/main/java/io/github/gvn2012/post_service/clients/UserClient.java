@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory;
@@ -15,7 +16,7 @@ import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFac
 public class UserClient extends HttpClient {
 
     public UserClient(WebClient.Builder webClientBuilder, ReactiveCircuitBreakerFactory<?, ?> cbFactory) {
-        super(webClientBuilder, cbFactory, "http://user-service");
+        super(webClientBuilder, cbFactory, "http://syncio-user");
     }
 
     public Mono<Boolean> userExists(UUID userId) {
@@ -30,14 +31,14 @@ public class UserClient extends HttpClient {
     public Mono<UserStatusResponse> getUserStatus(UUID userId) {
         return get(
                 "/api/v1/users/{userId}",
-                new ParameterizedTypeReference<APIResource<java.util.Map<String, Object>>>() {
+                new ParameterizedTypeReference<APIResource<Map<String, Object>>>() {
                 },
                 userId.toString()).map(response -> {
                     if (!response.isSuccess() || response.getData() == null) {
                         return new UserStatusResponse(false, false, false, true);
                     }
-                    java.util.Map<String, Object> data = response.getData();
-                    java.util.Map<String, Object> userBody = (java.util.Map<String, Object>) data.get("userResponse");
+                    Map<String, Object> data = response.getData();
+                    Map<String, Object> userBody = (Map<String, Object>) data.get("userResponse");
                     if (userBody == null) {
                         return new UserStatusResponse(false, false, false, true);
                     }
@@ -53,14 +54,14 @@ public class UserClient extends HttpClient {
     public Mono<String> getUserName(UUID userId) {
         return get(
                 "/api/v1/users/{userId}",
-                new ParameterizedTypeReference<APIResource<java.util.Map<String, Object>>>() {
+                new ParameterizedTypeReference<APIResource<Map<String, Object>>>() {
                 },
                 userId.toString()).map(response -> {
                     if (!response.isSuccess() || response.getData() == null) {
                         return "Unknown User";
                     }
-                    java.util.Map<String, Object> data = response.getData();
-                    java.util.Map<String, Object> userBody = (java.util.Map<String, Object>) data.get("userResponse");
+                    Map<String, Object> data = response.getData();
+                    Map<String, Object> userBody = (Map<String, Object>) data.get("userResponse");
                     if (userBody == null) {
                         return "Unknown User";
                     }
