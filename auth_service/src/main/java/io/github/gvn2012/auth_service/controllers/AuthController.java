@@ -2,6 +2,8 @@ package io.github.gvn2012.auth_service.controllers;
 
 import io.github.gvn2012.auth_service.dtos.APIResource;
 import io.github.gvn2012.auth_service.dtos.requests.GenerateLoginTokenRequest;
+import io.github.gvn2012.auth_service.dtos.requests.LogoutRequest;
+import io.github.gvn2012.auth_service.dtos.requests.RefreshTokenRequest;
 import io.github.gvn2012.auth_service.dtos.responses.GenerateLoginTokenResponse;
 import io.github.gvn2012.auth_service.dtos.responses.ValidateResponse;
 import io.github.gvn2012.auth_service.services.impls.AuthService;
@@ -11,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 @Slf4j
 @RestController
@@ -25,9 +28,9 @@ public class AuthController {
 
     @PostMapping("/generate-tokens")
     public ResponseEntity<APIResource<GenerateLoginTokenResponse>> generateToken(
-            @RequestBody GenerateLoginTokenRequest request) {
+            @RequestBody GenerateLoginTokenRequest request, HttpServletRequest httpRequest) {
         log.info("Generate Token Request: {}", request);
-        APIResource<GenerateLoginTokenResponse> response = authService.generateLoginToken(request);
+        APIResource<GenerateLoginTokenResponse> response = authService.generateLoginToken(request, httpRequest);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
@@ -44,5 +47,28 @@ public class AuthController {
                     .body(APIResource.error("UNAUTHORIZED", validation.getErrorMessage(), HttpStatus.UNAUTHORIZED,
                             null));
         }
+    }
+    @PostMapping("/refresh")
+    public ResponseEntity<APIResource<GenerateLoginTokenResponse>> refreshToken(
+            @RequestBody RefreshTokenRequest request, HttpServletRequest httpRequest) {
+        log.info("Refresh Token Request");
+        APIResource<GenerateLoginTokenResponse> response = authService.refreshToken(request, httpRequest);
+        return ResponseEntity.status(response.getStatus()).body(response);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<APIResource<String>> logout(
+            @RequestBody LogoutRequest request) {
+        log.info("Logout Request");
+        APIResource<String> response = authService.logout(request);
+        return ResponseEntity.status(response.getStatus()).body(response);
+    }
+
+    @PostMapping("/force-logout/{userId}")
+    public ResponseEntity<APIResource<String>> forceLogout(
+            @PathVariable String userId) {
+        log.info("Force Logout Request for User: {}", userId);
+        APIResource<String> response = authService.forceLogout(userId);
+        return ResponseEntity.status(response.getStatus()).body(response);
     }
 }

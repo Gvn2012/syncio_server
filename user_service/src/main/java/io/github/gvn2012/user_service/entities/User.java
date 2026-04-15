@@ -109,8 +109,6 @@ public class User extends AuditableEntity {
         @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
         private Set<UserSkill> skills = new LinkedHashSet<>();
 
-        @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-        private Set<UserSession> sessions = new LinkedHashSet<>();
 
         @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
         private Set<UserPreference> preferences = new LinkedHashSet<>();

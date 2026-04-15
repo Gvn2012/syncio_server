@@ -53,11 +53,11 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "200m"
+              cpu: "250m"
               memory: "768Mi"
             limits:
-              cpu: "500m"
-              memory: "1Gi"
+              cpu: "750m"
+              memory: "1280Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -128,11 +128,11 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "200m"
+              cpu: "250m"
               memory: "768Mi"
             limits:
-              cpu: "500m"
-              memory: "1Gi"
+              cpu: "750m"
+              memory: "1280Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -199,11 +199,11 @@ spec:
               value: "http://syncio-user:8082"
           resources:
             requests:
-              cpu: "150m"
-              memory: "512Mi"
-            limits:
-              cpu: "400m"
+              cpu: "200m"
               memory: "768Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
 ---
 apiVersion: v1
 kind: Service
@@ -268,11 +268,11 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "200m"
+              cpu: "250m"
               memory: "768Mi"
             limits:
-              cpu: "500m"
-              memory: "1Gi"
+              cpu: "750m"
+              memory: "1280Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -337,11 +337,11 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "100m"
-              memory: "384Mi"
+              cpu: "150m"
+              memory: "640Mi"
             limits:
-              cpu: "300m"
-              memory: "512Mi"
+              cpu: "500m"
+              memory: "1Gi"
 ---
 apiVersion: v1
 kind: Service
@@ -406,11 +406,11 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "100m"
-              memory: "384Mi"
+              cpu: "150m"
+              memory: "640Mi"
             limits:
-              cpu: "300m"
-              memory: "512Mi"
+              cpu: "500m"
+              memory: "1Gi"
 ---
 apiVersion: v1
 kind: Service
@@ -475,11 +475,11 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "100m"
-              memory: "384Mi"
+              cpu: "150m"
+              memory: "640Mi"
             limits:
-              cpu: "300m"
-              memory: "512Mi"
+              cpu: "500m"
+              memory: "1Gi"
 ---
 apiVersion: v1
 kind: Service
@@ -701,11 +701,11 @@ spec:
               value: "false"
           resources:
             requests:
-              cpu: "100m"
-              memory: "384Mi"
+              cpu: "150m"
+              memory: "640Mi"
             limits:
-              cpu: "300m"
-              memory: "512Mi"
+              cpu: "500m"
+              memory: "1Gi"
 ---
 apiVersion: v1
 kind: Service
@@ -768,11 +768,11 @@ spec:
               value: http://syncio-zipkin:9411/api/v2/spans
           resources:
             requests:
-              cpu: "150m"
-              memory: "512Mi"
-            limits:
-              cpu: "400m"
+              cpu: "200m"
               memory: "768Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
 ---
 apiVersion: v1
 kind: Service
