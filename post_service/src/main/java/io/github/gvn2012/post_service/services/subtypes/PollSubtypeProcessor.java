@@ -11,7 +11,7 @@ import io.github.gvn2012.post_service.repositories.PostPollRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.LinkedHashSet;
+
 import java.util.List;
 
 @Component
