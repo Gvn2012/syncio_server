@@ -17,7 +17,7 @@ import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFac
 public class RelationshipClient extends HttpClient {
 
     public RelationshipClient(WebClient.Builder webClientBuilder, ReactiveCircuitBreakerFactory<?, ?> cbFactory) {
-        super(webClientBuilder, cbFactory, "http://syncio-rs");
+        super(webClientBuilder, cbFactory, "http://syncio-rs:8087");
     }
 
     public Mono<List<UUID>> getFollowers(UUID userId) {

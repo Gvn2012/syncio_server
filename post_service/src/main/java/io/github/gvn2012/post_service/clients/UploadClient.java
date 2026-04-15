@@ -14,7 +14,7 @@ import java.util.Map;
 public class UploadClient extends HttpClient {
 
     public UploadClient(WebClient.Builder webClientBuilder, ReactiveCircuitBreakerFactory<?, ?> cbFactory) {
-        super(webClientBuilder, cbFactory, "http://syncio-uploading");
+        super(webClientBuilder, cbFactory, "http://syncio-uploading:8090");
     }
 
     public SignedUrlResponseDTO getSignedUrls(SignedUrlRequestDTO request) {

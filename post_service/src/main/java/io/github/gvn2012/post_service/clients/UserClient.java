@@ -16,7 +16,7 @@ import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFac
 public class UserClient extends HttpClient {
 
     public UserClient(WebClient.Builder webClientBuilder, ReactiveCircuitBreakerFactory<?, ?> cbFactory) {
-        super(webClientBuilder, cbFactory, "http://syncio-user");
+        super(webClientBuilder, cbFactory, "http://syncio-user:8082");
     }
 
     public Mono<Boolean> userExists(UUID userId) {

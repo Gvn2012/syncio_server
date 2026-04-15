@@ -8,7 +8,6 @@ import reactor.core.publisher.Mono;
 import java.util.Objects;
 
 import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory;
-import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreaker;
 
 import org.springframework.lang.NonNull;
 
