@@ -31,6 +31,9 @@ public class PollOption {
     @Column(name = "text", nullable = false)
     private String text;
 
+    @Column(name = "position")
+    private Integer position;
+
     @Column(name = "vote_count", nullable = false)
     private Integer voteCount = 0;
 }
