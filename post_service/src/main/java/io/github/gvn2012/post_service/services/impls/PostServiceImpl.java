@@ -102,7 +102,6 @@ public class PostServiceImpl implements IPostService {
                 if (request.getEvent() != null) {
                     PostEvent event = postEventMapper.toEntity(request.getEvent());
                     event.setPost(post);
-                    postEventRepository.save(event);
                     post.setEvent(event);
                 }
             }
@@ -110,51 +109,47 @@ public class PostServiceImpl implements IPostService {
                 if (request.getPoll() != null) {
                     PostPoll poll = postPollMapper.toEntity(request.getPoll());
                     poll.setPost(post);
-                    PostPoll savedPoll = postPollRepository.save(poll);
                     if (request.getPoll().getOptions() != null) {
                         List<PollOption> options = request.getPoll().getOptions().stream()
                                 .map(optReq -> {
                                     PollOption opt = postPollMapper.toOptionEntity(optReq);
-                                    opt.setPoll(savedPoll);
+                                    opt.setPoll(poll);
                                     return opt;
                                 }).toList();
                         if (!options.isEmpty()) {
-                            pollOptionRepository.saveAll(options);
-                            savedPoll.setOptions(new java.util.LinkedHashSet<>(options));
+                            poll.setOptions(new java.util.LinkedHashSet<>(options));
                         }
                     }
-                    post.setPoll(savedPoll);
+                    post.setPoll(poll);
                 }
             }
             case TASK -> {
                 if (request.getTask() != null) {
                     PostTask task = postTaskMapper.toEntity(request.getTask());
                     task.setPost(post);
-                    PostTask savedTask = postTaskRepository.save(task);
                     if (request.getTask().getAssignees() != null) {
                         List<PostTaskAssignee> assignees = request.getTask().getAssignees().stream()
-                                .map(uid -> new PostTaskAssignee(null, savedTask, uid,
+                                .map(uid -> new PostTaskAssignee(null, task, uid,
                                         LocalDateTime.now()))
                                 .toList();
                         if (!assignees.isEmpty()) {
-                            postTaskAssigneeRepository.saveAll(assignees);
-                            savedTask.setAssignees(new java.util.LinkedHashSet<>(assignees));
+                            task.setAssignees(new java.util.LinkedHashSet<>(assignees));
                         }
                     }
-                    post.setTask(savedTask);
+                    post.setTask(task);
                 }
             }
             case ANNOUNCEMENT -> {
                 if (request.getAnnouncement() != null) {
                     PostAnnouncement announcement = postAnnouncementMapper.toEntity(request.getAnnouncement());
                     announcement.setPost(post);
-                    postAnnouncementRepository.save(announcement);
                     post.setAnnouncement(announcement);
                 }
             }
             default -> {
             }
         }
+        postRepository.save(post);
     }
 
     private void enrichAndPublish(Post post) {
