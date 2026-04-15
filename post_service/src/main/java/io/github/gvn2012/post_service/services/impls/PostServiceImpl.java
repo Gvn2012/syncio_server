@@ -12,30 +12,28 @@ import io.github.gvn2012.post_service.entities.*;
 import io.github.gvn2012.post_service.entities.composite_keys.PostTagId;
 import io.github.gvn2012.post_service.entities.enums.AttachmentUploadStatus;
 import io.github.gvn2012.post_service.entities.enums.MentionStatus;
+import io.github.gvn2012.post_service.entities.enums.PostCategory;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
 import io.github.gvn2012.shared.kafka_events.PostSearchEvent;
 import io.github.gvn2012.shared.kafka_events.PostSearchEvent.OperationType;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
 import io.github.gvn2012.post_service.repositories.*;
-import io.github.gvn2012.post_service.dtos.mappers.*;
 import io.github.gvn2012.post_service.services.interfaces.IPostContentVersionService;
 import io.github.gvn2012.post_service.services.interfaces.IPostService;
 import io.github.gvn2012.post_service.services.kafka.PostEventProducer;
+import io.github.gvn2012.post_service.services.subtypes.PostSubtypeProcessor;
 import io.github.gvn2012.post_service.clients.UserClient;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class PostServiceImpl implements IPostService {
 
     private final PostRepository postRepository;
@@ -49,19 +47,42 @@ public class PostServiceImpl implements IPostService {
     private final PostMediaAttachmentRepository attachmentRepository;
     private final TagRepository tagRepository;
     private final PostTagRepository postTagRepository;
-
-    private final PostEventRepository postEventRepository;
-    private final PostEventMapper postEventMapper;
-    private final PostPollRepository postPollRepository;
-    private final PollOptionRepository pollOptionRepository;
-    private final PostPollMapper postPollMapper;
-    private final PostTaskRepository postTaskRepository;
-    private final PostTaskAssigneeRepository postTaskAssigneeRepository;
-    private final PostTaskMapper postTaskMapper;
-    private final PostAnnouncementRepository postAnnouncementRepository;
-    private final PostAnnouncementMapper postAnnouncementMapper;
     private final UserClient userClient;
     private final io.github.gvn2012.post_service.clients.UploadClient uploadClient;
+    private final Map<PostCategory, PostSubtypeProcessor> subtypeProcessors;
+
+    public PostServiceImpl(
+            PostRepository postRepository,
+            IPostContentVersionService contentVersionService,
+            PostEventProducer postEventProducer,
+            ApplicationEventPublisher eventPublisher,
+            UserValidationService userValidationService,
+            PostMapper postMapper,
+            MediaAttachmentMapper mediaAttachmentMapper,
+            PostMentionRepository mentionRepository,
+            PostMediaAttachmentRepository attachmentRepository,
+            TagRepository tagRepository,
+            PostTagRepository postTagRepository,
+            UserClient userClient,
+            io.github.gvn2012.post_service.clients.UploadClient uploadClient,
+            List<PostSubtypeProcessor> processors
+    ) {
+        this.postRepository = postRepository;
+        this.contentVersionService = contentVersionService;
+        this.postEventProducer = postEventProducer;
+        this.eventPublisher = eventPublisher;
+        this.userValidationService = userValidationService;
+        this.postMapper = postMapper;
+        this.mediaAttachmentMapper = mediaAttachmentMapper;
+        this.mentionRepository = mentionRepository;
+        this.attachmentRepository = attachmentRepository;
+        this.tagRepository = tagRepository;
+        this.postTagRepository = postTagRepository;
+        this.userClient = userClient;
+        this.uploadClient = uploadClient;
+        this.subtypeProcessors = processors.stream()
+                .collect(Collectors.toMap(PostSubtypeProcessor::supportedCategory, Function.identity()));
+    }
 
     @Override
     @Transactional
@@ -99,63 +120,10 @@ public class PostServiceImpl implements IPostService {
     }
 
     private void processSubtypes(Post post, PostCreateRequest request) {
-        switch (post.getPostCategory()) {
-            case EVENT -> {
-                if (request.getEvent() != null) {
-                    PostEvent event = postEventMapper.toEntity(request.getEvent());
-                    event.setPostId(post.getId());
-                    event.setPost(post);
-                    post.setEvent(event);
-                }
-            }
-            case POLL -> {
-                if (request.getPoll() != null) {
-                    PostPoll poll = postPollMapper.toEntity(request.getPoll());
-                    poll.setPost(post);
-                    poll.setPostId(post.getId());
-                    if (request.getPoll().getOptions() != null) {
-                        List<PollOption> options = request.getPoll().getOptions().stream()
-                                .map(optReq -> {
-                                    PollOption opt = postPollMapper.toOptionEntity(optReq);
-                                    opt.setPoll(poll);
-                                    return opt;
-                                }).toList();
-                        if (!options.isEmpty()) {
-                            poll.setOptions(new java.util.LinkedHashSet<>(options));
-                        }
-                    }
-                    post.setPoll(poll);
-                }
-            }
-            case TASK -> {
-                if (request.getTask() != null) {
-                    PostTask task = postTaskMapper.toEntity(request.getTask());
-                    task.setPost(post);
-                    task.setPostId(post.getId());
-                    if (request.getTask().getAssignees() != null) {
-                        List<PostTaskAssignee> assignees = request.getTask().getAssignees().stream()
-                                .map(uid -> new PostTaskAssignee(null, task, uid,
-                                        LocalDateTime.now()))
-                                .toList();
-                        if (!assignees.isEmpty()) {
-                            task.setAssignees(new java.util.LinkedHashSet<>(assignees));
-                        }
-                    }
-                    post.setTask(task);
-                }
-            }
-            case ANNOUNCEMENT -> {
-                if (request.getAnnouncement() != null) {
-                    PostAnnouncement announcement = postAnnouncementMapper.toEntity(request.getAnnouncement());
-                    announcement.setPost(post);
-                    announcement.setPostId(post.getId());
-                    post.setAnnouncement(announcement);
-                }
-            }
-            default -> {
-            }
+        PostSubtypeProcessor processor = subtypeProcessors.get(post.getPostCategory());
+        if (processor != null) {
+            processor.process(post, request);
         }
-        postRepository.save(post);
     }
 
     private void enrichAndPublish(Post post) {
