@@ -23,5 +23,6 @@ public interface PostPollMapper {
     PollOptionResponse toOptionResponse(PollOption option);
 
     @Mapping(target = "text", source = "optionText")
+    @Mapping(target = "voteCount", constant = "0")
     PollOption toOptionEntity(PollOptionRequest request);
 }
