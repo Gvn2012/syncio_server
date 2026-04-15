@@ -102,7 +102,6 @@ public class PostServiceImpl implements IPostService {
                 if (request.getEvent() != null) {
                     PostEvent event = postEventMapper.toEntity(request.getEvent());
                     event.setPost(post);
-                    event.setPostId(post.getId());
                     postEventRepository.save(event);
                     post.setEvent(event);
                 }
@@ -111,7 +110,6 @@ public class PostServiceImpl implements IPostService {
                 if (request.getPoll() != null) {
                     PostPoll poll = postPollMapper.toEntity(request.getPoll());
                     poll.setPost(post);
-                    poll.setPostId(post.getId());
                     PostPoll savedPoll = postPollRepository.save(poll);
                     if (request.getPoll().getOptions() != null) {
                         List<PollOption> options = request.getPoll().getOptions().stream()
@@ -132,7 +130,6 @@ public class PostServiceImpl implements IPostService {
                 if (request.getTask() != null) {
                     PostTask task = postTaskMapper.toEntity(request.getTask());
                     task.setPost(post);
-                    task.setPostId(post.getId());
                     PostTask savedTask = postTaskRepository.save(task);
                     if (request.getTask().getAssignees() != null) {
                         List<PostTaskAssignee> assignees = request.getTask().getAssignees().stream()
@@ -151,7 +148,6 @@ public class PostServiceImpl implements IPostService {
                 if (request.getAnnouncement() != null) {
                     PostAnnouncement announcement = postAnnouncementMapper.toEntity(request.getAnnouncement());
                     announcement.setPost(post);
-                    announcement.setPostId(post.getId());
                     postAnnouncementRepository.save(announcement);
                     post.setAnnouncement(announcement);
                 }

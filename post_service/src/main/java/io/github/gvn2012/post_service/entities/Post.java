@@ -41,7 +41,7 @@ public class Post extends AuditableEntity {
         @Column(name = "post_type", nullable = false)
         private PostCategory postCategory = PostCategory.NORMAL;
 
-        @Column(name = "org_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
+        @Column(name = "org_id", nullable = true, updatable = false, columnDefinition = "BINARY(16)")
         private UUID orgId;
 
         @Column(name = "author_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
