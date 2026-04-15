@@ -32,18 +32,17 @@ public class TaskSubtypeProcessor implements PostSubtypeProcessor {
     public void process(Post post, PostCreateRequest request) {
         if (request.getTask() == null) return;
         PostTask task = postTaskMapper.toEntity(request.getTask());
-        task.setPostId(post.getId());
         task.setPost(post);
-        postTaskRepository.save(task);
+        PostTask saved = postTaskRepository.save(task);
         if (request.getTask().getAssignees() != null) {
             List<PostTaskAssignee> assignees = request.getTask().getAssignees().stream()
-                    .map(uid -> new PostTaskAssignee(null, task, uid, LocalDateTime.now()))
+                    .map(uid -> new PostTaskAssignee(null, saved, uid, LocalDateTime.now()))
                     .toList();
             if (!assignees.isEmpty()) {
                 postTaskAssigneeRepository.saveAll(assignees);
-                task.setAssignees(new LinkedHashSet<>(assignees));
+                saved.setAssignees(new LinkedHashSet<>(assignees));
             }
         }
-        post.setTask(task);
+        post.setTask(saved);
     }
 }

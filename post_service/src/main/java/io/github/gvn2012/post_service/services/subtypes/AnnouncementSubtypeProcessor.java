@@ -25,9 +25,8 @@ public class AnnouncementSubtypeProcessor implements PostSubtypeProcessor {
     public void process(Post post, PostCreateRequest request) {
         if (request.getAnnouncement() == null) return;
         PostAnnouncement announcement = postAnnouncementMapper.toEntity(request.getAnnouncement());
-        announcement.setPostId(post.getId());
         announcement.setPost(post);
-        postAnnouncementRepository.save(announcement);
-        post.setAnnouncement(announcement);
+        PostAnnouncement saved = postAnnouncementRepository.save(announcement);
+        post.setAnnouncement(saved);
     }
 }

@@ -31,21 +31,20 @@ public class PollSubtypeProcessor implements PostSubtypeProcessor {
     public void process(Post post, PostCreateRequest request) {
         if (request.getPoll() == null) return;
         PostPoll poll = postPollMapper.toEntity(request.getPoll());
-        poll.setPostId(post.getId());
         poll.setPost(post);
-        postPollRepository.save(poll);
+        PostPoll saved = postPollRepository.save(poll);
         if (request.getPoll().getOptions() != null) {
             List<PollOption> options = request.getPoll().getOptions().stream()
                     .map(optReq -> {
                         PollOption opt = postPollMapper.toOptionEntity(optReq);
-                        opt.setPoll(poll);
+                        opt.setPoll(saved);
                         return opt;
                     }).toList();
             if (!options.isEmpty()) {
                 pollOptionRepository.saveAll(options);
-                poll.setOptions(new LinkedHashSet<>(options));
+                saved.setOptions(new LinkedHashSet<>(options));
             }
         }
-        post.setPoll(poll);
+        post.setPoll(saved);
     }
 }

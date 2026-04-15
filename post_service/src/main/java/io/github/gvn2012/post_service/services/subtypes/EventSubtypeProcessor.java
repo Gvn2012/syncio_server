@@ -28,12 +28,9 @@ public class EventSubtypeProcessor implements PostSubtypeProcessor {
         if (request.getEvent() == null) return;
         log.info("Processing EVENT subtype for post id={}", post.getId());
         PostEvent event = postEventMapper.toEntity(request.getEvent());
-        log.info("Mapped PostEvent: postId={}, post={}", event.getPostId(), event.getPost());
-        event.setPostId(post.getId());
         event.setPost(post);
-        log.info("Set PostEvent refs: postId={}, post.id={}", event.getPostId(), event.getPost().getId());
-        postEventRepository.save(event);
-        log.info("Saved PostEvent successfully");
-        post.setEvent(event);
+        PostEvent saved = postEventRepository.save(event);
+        post.setEvent(saved);
+        log.info("Saved PostEvent successfully, derived postId={}", saved.getPostId());
     }
 }
