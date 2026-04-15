@@ -16,6 +16,7 @@ public interface PostPollMapper {
     @Mapping(target = "postId", source = "post.id")
     PostPollResponse toResponse(PostPoll poll);
 
+    @Mapping(target = "options", ignore = true)
     PostPoll toEntity(PostPollRequest request);
 
     PollOptionResponse toOptionResponse(PollOption option);
