@@ -6,6 +6,7 @@ import io.github.gvn2012.post_service.dtos.UserStatusResponse;
 import io.github.gvn2012.post_service.exceptions.BadRequestException;
 import io.github.gvn2012.post_service.exceptions.ForbiddenException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import io.github.gvn2012.post_service.entities.Post;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +14,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserValidationService {
 
     private static final java.time.Duration TIMEOUT = java.time.Duration.ofMillis(2000);
@@ -20,6 +22,9 @@ public class UserValidationService {
     private final RelationshipClient relationshipClient;
 
     public void validateUserCanInteract(UUID userId) {
+
+        log.info("Validating user can interact: {}", userId);
+
         UserStatusResponse status = userClient.getUserStatus(userId)
                 .timeout(TIMEOUT)
                 .onErrorReturn(new UserStatusResponse(false, false, false, true))

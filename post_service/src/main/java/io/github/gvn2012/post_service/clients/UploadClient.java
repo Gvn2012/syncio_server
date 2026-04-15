@@ -14,18 +14,18 @@ import java.util.Map;
 public class UploadClient extends HttpClient {
 
     public UploadClient(WebClient.Builder webClientBuilder, ReactiveCircuitBreakerFactory<?, ?> cbFactory) {
-        super(webClientBuilder, cbFactory, "http://uploading-service");
+        super(webClientBuilder, cbFactory, "http://syncio-uploading");
     }
 
     public SignedUrlResponseDTO getSignedUrls(SignedUrlRequestDTO request) {
         return post(
                 "/api/v1/upload/internal/signed-urls",
                 request,
-                new ParameterizedTypeReference<APIResource<SignedUrlResponseDTO>>() {}
-        ).map(response -> response.isSuccess() && response.getData() != null
-                ? response.getData()
-                : new SignedUrlResponseDTO(Map.of())
-        ).onErrorReturn(new SignedUrlResponseDTO(Map.of()))
-         .block();
+                new ParameterizedTypeReference<APIResource<SignedUrlResponseDTO>>() {
+                }).map(response -> response.isSuccess() && response.getData() != null
+                        ? response.getData()
+                        : new SignedUrlResponseDTO(Map.of()))
+                .onErrorReturn(new SignedUrlResponseDTO(Map.of()))
+                .block();
     }
 }
