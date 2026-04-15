@@ -34,6 +34,10 @@ public interface PostMapper {
     @Mapping(target = "attachments", ignore = true)
     @Mapping(target = "mentions", ignore = true)
     @Mapping(target = "postTags", ignore = true)
+    @Mapping(target = "event", ignore = true)
+    @Mapping(target = "poll", ignore = true)
+    @Mapping(target = "task", ignore = true)
+    @Mapping(target = "announcement", ignore = true)
     Post toEntity(PostCreateRequest request);
 
     @Named("mapMentionsToIds")
