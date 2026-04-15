@@ -42,7 +42,7 @@ public class PollSubtypeProcessor implements PostSubtypeProcessor {
                     }).toList();
             if (!options.isEmpty()) {
                 pollOptionRepository.saveAll(options);
-                saved.setOptions(new LinkedHashSet<>(options));
+                saved.getOptions().addAll(options);
             }
         }
         post.setPoll(saved);
