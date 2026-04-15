@@ -32,7 +32,7 @@ public class PollSubtypeProcessor implements PostSubtypeProcessor {
         if (request.getPoll() == null) return;
         PostPoll poll = postPollMapper.toEntity(request.getPoll());
         poll.setPost(post);
-        PostPoll saved = postPollRepository.save(poll);
+        PostPoll saved = postPollRepository.saveAndFlush(poll);
         if (request.getPoll().getOptions() != null) {
             List<PollOption> options = request.getPoll().getOptions().stream()
                     .map(optReq -> {
