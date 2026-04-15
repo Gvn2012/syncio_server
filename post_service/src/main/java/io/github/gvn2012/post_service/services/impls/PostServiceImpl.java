@@ -5,7 +5,9 @@ import io.github.gvn2012.post_service.dtos.mappers.PostMapper;
 import io.github.gvn2012.post_service.dtos.requests.MediaAttachmentRequest;
 import io.github.gvn2012.post_service.dtos.requests.PostCreateRequest;
 import io.github.gvn2012.post_service.dtos.requests.PostUpdateRequest;
+import io.github.gvn2012.post_service.dtos.requests.SignedUrlRequestDTO;
 import io.github.gvn2012.post_service.dtos.responses.PostResponse;
+import io.github.gvn2012.post_service.dtos.responses.SignedUrlResponseDTO;
 import io.github.gvn2012.post_service.entities.*;
 import io.github.gvn2012.post_service.entities.composite_keys.PostTagId;
 import io.github.gvn2012.post_service.entities.enums.AttachmentUploadStatus;
@@ -101,6 +103,7 @@ public class PostServiceImpl implements IPostService {
             case EVENT -> {
                 if (request.getEvent() != null) {
                     PostEvent event = postEventMapper.toEntity(request.getEvent());
+                    event.setPostId(post.getId());
                     event.setPost(post);
                     post.setEvent(event);
                 }
@@ -109,6 +112,7 @@ public class PostServiceImpl implements IPostService {
                 if (request.getPoll() != null) {
                     PostPoll poll = postPollMapper.toEntity(request.getPoll());
                     poll.setPost(post);
+                    poll.setPostId(post.getId());
                     if (request.getPoll().getOptions() != null) {
                         List<PollOption> options = request.getPoll().getOptions().stream()
                                 .map(optReq -> {
@@ -127,6 +131,7 @@ public class PostServiceImpl implements IPostService {
                 if (request.getTask() != null) {
                     PostTask task = postTaskMapper.toEntity(request.getTask());
                     task.setPost(post);
+                    task.setPostId(post.getId());
                     if (request.getTask().getAssignees() != null) {
                         List<PostTaskAssignee> assignees = request.getTask().getAssignees().stream()
                                 .map(uid -> new PostTaskAssignee(null, task, uid,
@@ -143,6 +148,7 @@ public class PostServiceImpl implements IPostService {
                 if (request.getAnnouncement() != null) {
                     PostAnnouncement announcement = postAnnouncementMapper.toEntity(request.getAnnouncement());
                     announcement.setPost(post);
+                    announcement.setPostId(post.getId());
                     post.setAnnouncement(announcement);
                 }
             }
@@ -304,7 +310,7 @@ public class PostServiceImpl implements IPostService {
 
         List<PostMediaAttachment> attachments = new java.util.ArrayList<>();
         java.util.Set<String> objectPaths = new java.util.LinkedHashSet<>();
-        
+
         for (MediaAttachmentRequest req : requests) {
             String path = "posts/" + post.getId() + "/" + java.util.UUID.randomUUID();
             if (req.getFileName() != null && !req.getFileName().isEmpty()) {
@@ -313,11 +319,11 @@ public class PostServiceImpl implements IPostService {
             objectPaths.add(path);
         }
 
-        io.github.gvn2012.post_service.dtos.requests.SignedUrlRequestDTO reqDto = 
-            new io.github.gvn2012.post_service.dtos.requests.SignedUrlRequestDTO(objectPaths);
-        io.github.gvn2012.post_service.dtos.responses.SignedUrlResponseDTO resDto = uploadClient.getSignedUrls(reqDto);
-        java.util.Map<String, String> signedUrls = resDto != null && resDto.getSignedUrls() != null 
-            ? resDto.getSignedUrls() : java.util.Collections.emptyMap();
+        SignedUrlRequestDTO reqDto = new SignedUrlRequestDTO(objectPaths);
+        SignedUrlResponseDTO resDto = uploadClient.getSignedUrls(reqDto);
+        java.util.Map<String, String> signedUrls = resDto != null && resDto.getSignedUrls() != null
+                ? resDto.getSignedUrls()
+                : java.util.Collections.emptyMap();
 
         int index = 0;
         List<String> orderedUploadUrls = new java.util.ArrayList<>();
@@ -327,10 +333,10 @@ public class PostServiceImpl implements IPostService {
             PostMediaAttachment attachment = mediaAttachmentMapper.toEntity(req);
             attachment.setPost(post);
             attachment.setObjectPath(path);
-            
+
             String signedPutUrl = signedUrls.get(path);
             orderedUploadUrls.add(signedPutUrl);
-            
+
             if (signedPutUrl != null && !signedPutUrl.isEmpty()) {
                 int qm = signedPutUrl.indexOf('?');
                 attachment.setUrl(qm != -1 ? signedPutUrl.substring(0, qm) : signedPutUrl);
