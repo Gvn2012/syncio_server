@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: auth
-          image: vietpham18/auth-service:f5d71e178bee21a288785d77bd2abc4a0b86d020
+          image: vietpham18/auth-service:989091e6db748bf906ffa23ec2480ade09cdcffe
           ports:
             - containerPort: 8081
           startupProbe:
@@ -96,7 +96,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:ab14f151a8605764f3fd973043976ba267577a24
+          image: vietpham18/user-service:989091e6db748bf906ffa23ec2480ade09cdcffe
           ports:
             - containerPort: 8082
           startupProbe:
@@ -171,7 +171,7 @@ spec:
     spec:
       containers:
         - name: relationship
-          image: vietpham18/relationship-service:556ee24ae08cbfb1d955d5c50380c7d3b2693882
+          image: vietpham18/relationship-service:989091e6db748bf906ffa23ec2480ade09cdcffe
           ports:
             - containerPort: 8087
           startupProbe:
