@@ -242,7 +242,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:d8d5205221654f4024e31a7b986b70ea393cb128
+          image: vietpham18/post-service:61ec036f76bc2b4f1e7d0a87c0fd3c36756872cb
           ports:
             - containerPort: 8085
           startupProbe:
