@@ -69,10 +69,10 @@ public class FeedFanoutWorker {
 
     private List<UUID> lookupAudience(UUID authorId) {
         try {
-            return new java.util.ArrayList<>(relationshipClient.getAudience(authorId)
+            return relationshipClient.getFollowers(authorId)
                     .timeout(java.time.Duration.ofMillis(5000))
-                    .onErrorReturn(java.util.Set.of())
-                    .block());
+                    .onErrorReturn(List.of())
+                    .block();
         } catch (Exception e) {
             log.warn("Failed to fetch audience for {}: {}", authorId, e.getMessage());
             return List.of();

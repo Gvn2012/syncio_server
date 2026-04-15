@@ -38,7 +38,8 @@ public class AuthService implements AuthServiceInterface {
     private final PermissionClient permissionClient;
     private final UserSessionRepository userSessionRepository;
 
-    public AuthService(JwtConfig jwtConfig, PermissionClient permissionClient, UserSessionRepository userSessionRepository) {
+    public AuthService(JwtConfig jwtConfig, PermissionClient permissionClient,
+            UserSessionRepository userSessionRepository) {
         this.jwtConfig = jwtConfig;
         this.key = Keys.hmacShaKeyFor(jwtConfig.getSecretKey().getBytes());
         this.permissionClient = permissionClient;
@@ -52,15 +53,19 @@ public class AuthService implements AuthServiceInterface {
             StringBuilder hexString = new StringBuilder();
             for (byte b : encodedhash) {
                 String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
+                if (hex.length() == 1)
+                    hexString.append('0');
                 hexString.append(hex);
             }
             return hexString.toString();
-        } catch(Exception e) { throw new RuntimeException(e); }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private String getClientIp(HttpServletRequest request) {
-        if (request == null) return null;
+        if (request == null)
+            return null;
         String ip = request.getHeader("X-Forwarded-For");
         if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = request.getHeader("X-Real-IP");
@@ -74,25 +79,28 @@ public class AuthService implements AuthServiceInterface {
         return ip;
     }
 
-    private UserSession.UserSessionBuilder populateSessionDetails(UserSession.UserSessionBuilder builder, HttpServletRequest httpRequest) {
+    private UserSession.UserSessionBuilder populateSessionDetails(UserSession.UserSessionBuilder builder,
+            HttpServletRequest httpRequest) {
         if (httpRequest != null) {
             String ipAddress = getClientIp(httpRequest);
             builder.ipAddress(ipAddress != null && ipAddress.length() > 45 ? ipAddress.substring(0, 45) : ipAddress);
-            
+
             String userAgentString = httpRequest.getHeader("User-Agent");
             if (userAgentString != null) {
                 builder.userAgent(userAgentString.length() > 512 ? userAgentString.substring(0, 512) : userAgentString);
-                
+
                 String lowercaseUA = userAgentString.toLowerCase();
-                if (lowercaseUA.contains("mobile") || lowercaseUA.contains("android") || lowercaseUA.contains("iphone")) {
+                if (lowercaseUA.contains("mobile") || lowercaseUA.contains("android")
+                        || lowercaseUA.contains("iphone")) {
                     builder.deviceType("Mobile");
                 } else if (lowercaseUA.contains("tablet") || lowercaseUA.contains("ipad")) {
                     builder.deviceType("Tablet");
                 } else {
                     builder.deviceType("Desktop");
                 }
-                
-                builder.deviceName(userAgentString.length() > 128 ? userAgentString.substring(0, 128) : userAgentString);
+
+                builder.deviceName(
+                        userAgentString.length() > 128 ? userAgentString.substring(0, 128) : userAgentString);
             }
         }
         return builder;
@@ -195,7 +203,8 @@ public class AuthService implements AuthServiceInterface {
         }
     }
 
-    public APIResource<GenerateLoginTokenResponse> generateLoginToken(GenerateLoginTokenRequest request, HttpServletRequest httpRequest) {
+    public APIResource<GenerateLoginTokenResponse> generateLoginToken(GenerateLoginTokenRequest request,
+            HttpServletRequest httpRequest) {
         try {
             List<GetUserRoleResponse> userRoleResponse = permissionClient.getUserRole(request.getUserId()).block();
 
@@ -211,7 +220,7 @@ public class AuthService implements AuthServiceInterface {
             String accessToken = generateAccessToken(request.getUsername(), UUID.fromString(request.getUserId()),
                     userRoles);
             String refreshToken = generateRefreshToken(request.getUsername(), UUID.fromString(request.getUserId()));
-            
+
             UserSession.UserSessionBuilder sessionBuilder = UserSession.builder()
                     .id(UUID.randomUUID())
                     .userId(UUID.fromString(request.getUserId()))
@@ -219,7 +228,7 @@ public class AuthService implements AuthServiceInterface {
                     .lastActiveAt(Instant.now())
                     .expiresAt(Instant.now().plusMillis(Long.parseLong(jwtConfig.getRefreshExpirationTime())))
                     .revoked(false);
-            
+
             UserSession newSession = populateSessionDetails(sessionBuilder, httpRequest).build();
             userSessionRepository.save(newSession);
 
@@ -230,44 +239,46 @@ public class AuthService implements AuthServiceInterface {
         }
     }
 
-    public APIResource<GenerateLoginTokenResponse> refreshToken(RefreshTokenRequest request, HttpServletRequest httpRequest) {
+    public APIResource<GenerateLoginTokenResponse> refreshToken(RefreshTokenRequest request,
+            HttpServletRequest httpRequest) {
         try {
             String token = request.getRefreshToken();
             if (token == null || token.isBlank()) {
                 return APIResource.error("BAD_REQUEST", "Refresh token is missing", HttpStatus.BAD_REQUEST, null);
             }
             if (isTokenExpired(token)) {
-                 return APIResource.error("UNAUTHORIZED", "Refresh token is expired", HttpStatus.UNAUTHORIZED, null);
+                return APIResource.error("UNAUTHORIZED", "Refresh token is expired", HttpStatus.UNAUTHORIZED, null);
             }
-            
+
             Claims claims = getAllClaimsFromToken(token);
             String userId = claims.get("userId", String.class);
             String username = claims.getSubject();
-            
+
             String hashedToken = hashToken(token);
-            java.util.Optional<UserSession> sessionOpt = userSessionRepository.findBySessionTokenHashAndRevokedFalse(hashedToken);
-            
+            java.util.Optional<UserSession> sessionOpt = userSessionRepository
+                    .findBySessionTokenHashAndRevokedFalse(hashedToken);
+
             if (sessionOpt.isEmpty()) {
                 return APIResource.error("UNAUTHORIZED", "Session not found or revoked", HttpStatus.UNAUTHORIZED, null);
             }
-            
+
             UserSession session = sessionOpt.get();
             if (session.getExpiresAt().isBefore(Instant.now())) {
                 return APIResource.error("UNAUTHORIZED", "Session expired", HttpStatus.UNAUTHORIZED, null);
             }
-            
+
             session.setRevoked(true);
             session.setRevokedAt(Instant.now());
             session.setRevokedReason("ROTATED");
             userSessionRepository.save(session);
-            
+
             List<GetUserRoleResponse> userRoleResponse = permissionClient.getUserRole(userId).block();
             List<String> userRoles = userRoleResponse.stream()
                     .map(GetUserRoleResponse::getRoleName).toList();
-            
+
             String newAccessToken = generateAccessToken(username, UUID.fromString(userId), userRoles);
             String newRefreshToken = generateRefreshToken(username, UUID.fromString(userId));
-            
+
             UserSession.UserSessionBuilder sessionBuilder = UserSession.builder()
                     .id(UUID.randomUUID())
                     .userId(UUID.fromString(userId))
@@ -275,26 +286,29 @@ public class AuthService implements AuthServiceInterface {
                     .lastActiveAt(Instant.now())
                     .expiresAt(Instant.now().plusMillis(Long.parseLong(jwtConfig.getRefreshExpirationTime())))
                     .revoked(false);
-            
+
             UserSession newSession = populateSessionDetails(sessionBuilder, httpRequest).build();
             userSessionRepository.save(newSession);
-            
-            return APIResource.ok("Tokens rotated successfully", new GenerateLoginTokenResponse(newAccessToken, newRefreshToken, userRoles));
-        } catch(Exception e) {
-             return APIResource.error("BAD_REQUEST", e.getMessage(), HttpStatus.BAD_REQUEST, null);
+
+            return APIResource.ok("Tokens rotated successfully",
+                    new GenerateLoginTokenResponse(newAccessToken, newRefreshToken, userRoles));
+        } catch (Exception e) {
+            return APIResource.error("BAD_REQUEST", e.getMessage(), HttpStatus.BAD_REQUEST, null);
         }
     }
 
     public APIResource<String> logout(LogoutRequest request) {
         try {
             String token = request.getLogoutToken();
-            if (token == null || token.isBlank()) return APIResource.error("BAD_REQUEST", "Token missing", HttpStatus.BAD_REQUEST, null);
+            if (token == null || token.isBlank())
+                return APIResource.error("BAD_REQUEST", "Token missing", HttpStatus.BAD_REQUEST, null);
             String parsedToken = token;
             if (token.toLowerCase().startsWith("bearer ")) {
                 parsedToken = token.substring(7).trim();
             }
             String hashedToken = hashToken(parsedToken);
-            java.util.Optional<UserSession> sessionOpt = userSessionRepository.findBySessionTokenHashAndRevokedFalse(hashedToken);
+            java.util.Optional<UserSession> sessionOpt = userSessionRepository
+                    .findBySessionTokenHashAndRevokedFalse(hashedToken);
             if (sessionOpt.isPresent()) {
                 UserSession session = sessionOpt.get();
                 session.setRevoked(true);
@@ -303,14 +317,15 @@ public class AuthService implements AuthServiceInterface {
                 userSessionRepository.save(session);
             }
             return APIResource.ok("Logged out successfully", "Logged out");
-        } catch(Exception e) {
+        } catch (Exception e) {
             return APIResource.error("BAD_REQUEST", e.getMessage(), HttpStatus.BAD_REQUEST, null);
         }
     }
 
     public APIResource<String> forceLogout(String userId) {
         try {
-            List<UserSession> activeSessions = userSessionRepository.findByUserIdAndRevokedFalse(UUID.fromString(userId));
+            List<UserSession> activeSessions = userSessionRepository
+                    .findByUserIdAndRevokedFalse(UUID.fromString(userId));
             for (UserSession s : activeSessions) {
                 s.setRevoked(true);
                 s.setRevokedAt(Instant.now());
@@ -318,7 +333,7 @@ public class AuthService implements AuthServiceInterface {
             }
             userSessionRepository.saveAll(activeSessions);
             return APIResource.ok("Force logged out successfully", "Force logged out");
-        } catch(Exception e) {
+        } catch (Exception e) {
             return APIResource.error("BAD_REQUEST", e.getMessage(), HttpStatus.BAD_REQUEST, null);
         }
     }

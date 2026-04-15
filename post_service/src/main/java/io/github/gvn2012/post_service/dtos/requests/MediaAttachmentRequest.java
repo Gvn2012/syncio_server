@@ -18,6 +18,8 @@ public class MediaAttachmentRequest {
     private Byte position;
     private AttachmentType type;
     private String mimeType;
+    private Long sizeBytes;
+    private String fileName;
     private Integer width;
     private Integer height;
     private Double duration;

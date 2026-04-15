@@ -13,6 +13,7 @@ import java.util.UUID;
 public class MediaAttachmentResponse {
     private UUID id;
     private String url;
+    private String uploadUrl;
     private String caption;
     private String altText;
     private Byte position;

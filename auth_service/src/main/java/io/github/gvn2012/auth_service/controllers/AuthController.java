@@ -11,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -48,6 +47,7 @@ public class AuthController {
                             null));
         }
     }
+
     @PostMapping("/refresh")
     public ResponseEntity<APIResource<GenerateLoginTokenResponse>> refreshToken(
             @RequestBody RefreshTokenRequest request, HttpServletRequest httpRequest) {

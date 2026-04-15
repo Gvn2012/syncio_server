@@ -7,6 +7,9 @@ import io.github.gvn2012.post_service.dtos.requests.PostCreateRequest;
 import io.github.gvn2012.post_service.dtos.requests.PostUpdateRequest;
 import io.github.gvn2012.post_service.dtos.responses.PostResponse;
 import io.github.gvn2012.post_service.entities.*;
+import io.github.gvn2012.post_service.entities.composite_keys.PostTagId;
+import io.github.gvn2012.post_service.entities.enums.AttachmentUploadStatus;
+import io.github.gvn2012.post_service.entities.enums.MentionStatus;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
 import io.github.gvn2012.shared.kafka_events.PostSearchEvent;
 import io.github.gvn2012.shared.kafka_events.PostSearchEvent.OperationType;
@@ -56,6 +59,7 @@ public class PostServiceImpl implements IPostService {
     private final PostAnnouncementRepository postAnnouncementRepository;
     private final PostAnnouncementMapper postAnnouncementMapper;
     private final UserClient userClient;
+    private final io.github.gvn2012.post_service.clients.UploadClient uploadClient;
 
     @Override
     @Transactional
@@ -70,15 +74,26 @@ public class PostServiceImpl implements IPostService {
 
         processMentions(saved, request.getMentions());
         processTags(saved, request.getTags());
-        processAttachments(saved, request.getAttachments());
+        List<String> presignedUrls = null;
+        if (request.getAttachments() != null && !request.getAttachments().isEmpty()) {
+            presignedUrls = processAttachmentsWithPresign(saved, request.getAttachments());
+        }
         processSubtypes(saved, request);
 
         contentVersionService.captureNewVersion(saved, saved.getAuthorId(), saved.getContent());
-        
+
         enrichAndPublish(saved);
-        
+
         eventPublisher.publishEvent(new FeedFanoutWorker.PostCreatedEvent(saved));
-        return postMapper.toResponse(saved);
+
+        PostResponse response = postMapper.toResponse(saved);
+        if (presignedUrls != null && response.getAttachments() != null && !response.getAttachments().isEmpty()) {
+            int max = Math.min(presignedUrls.size(), response.getAttachments().size());
+            for (int i = 0; i < max; i++) {
+                response.getAttachments().get(i).setUploadUrl(presignedUrls.get(i));
+            }
+        }
+        return response;
     }
 
     private void processSubtypes(Post post, PostCreateRequest request) {
@@ -121,7 +136,7 @@ public class PostServiceImpl implements IPostService {
                     PostTask savedTask = postTaskRepository.save(task);
                     if (request.getTask().getAssignees() != null) {
                         List<PostTaskAssignee> assignees = request.getTask().getAssignees().stream()
-                                .map(uid -> new PostTaskAssignee(null, savedTask, uid, 
+                                .map(uid -> new PostTaskAssignee(null, savedTask, uid,
                                         LocalDateTime.now()))
                                 .toList();
                         if (!assignees.isEmpty()) {
@@ -141,29 +156,30 @@ public class PostServiceImpl implements IPostService {
                     post.setAnnouncement(announcement);
                 }
             }
-            default -> {}
+            default -> {
+            }
         }
     }
 
     private void enrichAndPublish(Post post) {
         String authorName = userClient.getUserName(post.getAuthorId()).block();
-        
-        List<UUID> mentions = post.getMentions() != null ? 
-                post.getMentions().stream().map(PostMention::getUserId).toList() : 
-                Collections.emptyList();
-                
+
+        List<UUID> mentions = post.getMentions() != null
+                ? post.getMentions().stream().map(PostMention::getUserId).toList()
+                : Collections.emptyList();
+
         List<UUID> assignees = Optional.ofNullable(post.getTask())
                 .map(task -> task.getAssignees().stream().map(PostTaskAssignee::getUserId).toList())
                 .orElse(Collections.emptyList());
 
         postEventProducer.publishPostCreated(
-                post.getId(), 
-                post.getAuthorId(), 
-                authorName, 
-                post.getPostCategory().name(), 
-                mentions, 
+                post.getId(),
+                post.getAuthorId(),
+                authorName,
+                post.getPostCategory().name(),
+                mentions,
                 assignees);
-        
+
         postEventProducer.publishPostSearchIndexing(PostSearchEvent.builder()
                 .postId(post.getId())
                 .authorId(post.getAuthorId())
@@ -229,9 +245,10 @@ public class PostServiceImpl implements IPostService {
             postTagRepository.deleteByPostId(postId);
             processTags(post, request.getTags());
         }
+        List<String> presignedUrls = null;
         if (request.getAttachments() != null) {
             attachmentRepository.deleteByPostId(postId);
-            processAttachments(post, request.getAttachments());
+            presignedUrls = processAttachmentsWithPresign(post, request.getAttachments());
         }
 
         post.setEditCount(post.getEditCount() + 1);
@@ -245,7 +262,17 @@ public class PostServiceImpl implements IPostService {
                 .status(saved.getStatus().name())
                 .operationType(OperationType.UPSERT)
                 .build());
-        return postMapper.toResponse(saved);
+
+        PostResponse response = postMapper.toResponse(saved);
+        if (presignedUrls != null && response.getAttachments() != null && !response.getAttachments().isEmpty()) {
+            int max = Math.min(presignedUrls.size(), response.getAttachments().size());
+            for (int i = 0; i < max; i++) {
+                if (presignedUrls.get(i) != null) {
+                    response.getAttachments().get(i).setUploadUrl(presignedUrls.get(i));
+                }
+            }
+        }
+        return response;
     }
 
     private void validateOwnership(Post post, UUID userId) {
@@ -260,7 +287,7 @@ public class PostServiceImpl implements IPostService {
             return;
         List<PostMention> mentions = userIds.stream()
                 .map(userId -> new PostMention(null, post, userId,
-                        io.github.gvn2012.post_service.entities.enums.MentionStatus.ACTIVE))
+                        MentionStatus.ACTIVE))
                 .toList();
         mentionRepository.saveAll(mentions);
     }
@@ -273,24 +300,59 @@ public class PostServiceImpl implements IPostService {
                     Tag tag = tagRepository.findByName(name)
                             .orElseGet(() -> tagRepository
                                     .save(new Tag(null, name, name, 0L, 0L, false, false, null, null)));
-                    return new PostTag(new io.github.gvn2012.post_service.entities.composite_keys.PostTagId(
+                    return new PostTag(new PostTagId(
                             post.getId(), tag.getId()), post, tag);
                 })
                 .toList();
         postTagRepository.saveAll(postTags);
     }
 
-    private void processAttachments(Post post, List<MediaAttachmentRequest> requests) {
+    private List<String> processAttachmentsWithPresign(Post post, List<MediaAttachmentRequest> requests) {
         if (requests == null || requests.isEmpty())
-            return;
-        List<PostMediaAttachment> attachments = requests.stream()
-                .map(req -> {
-                    PostMediaAttachment attachment = mediaAttachmentMapper.toEntity(req);
-                    attachment.setPost(post);
-                    return attachment;
-                })
-                .toList();
+            return null;
+
+        List<PostMediaAttachment> attachments = new java.util.ArrayList<>();
+        java.util.Set<String> objectPaths = new java.util.LinkedHashSet<>();
+        
+        for (MediaAttachmentRequest req : requests) {
+            String path = "posts/" + post.getId() + "/" + java.util.UUID.randomUUID();
+            if (req.getFileName() != null && !req.getFileName().isEmpty()) {
+                path += "-" + req.getFileName();
+            }
+            objectPaths.add(path);
+        }
+
+        io.github.gvn2012.post_service.dtos.requests.SignedUrlRequestDTO reqDto = 
+            new io.github.gvn2012.post_service.dtos.requests.SignedUrlRequestDTO(objectPaths);
+        io.github.gvn2012.post_service.dtos.responses.SignedUrlResponseDTO resDto = uploadClient.getSignedUrls(reqDto);
+        java.util.Map<String, String> signedUrls = resDto != null && resDto.getSignedUrls() != null 
+            ? resDto.getSignedUrls() : java.util.Collections.emptyMap();
+
+        int index = 0;
+        List<String> orderedUploadUrls = new java.util.ArrayList<>();
+
+        for (String path : objectPaths) {
+            MediaAttachmentRequest req = requests.get(index++);
+            PostMediaAttachment attachment = mediaAttachmentMapper.toEntity(req);
+            attachment.setPost(post);
+            attachment.setObjectPath(path);
+            
+            String signedPutUrl = signedUrls.get(path);
+            orderedUploadUrls.add(signedPutUrl);
+            
+            if (signedPutUrl != null && !signedPutUrl.isEmpty()) {
+                int qm = signedPutUrl.indexOf('?');
+                attachment.setUrl(qm != -1 ? signedPutUrl.substring(0, qm) : signedPutUrl);
+            } else {
+                attachment.setUrl("");
+            }
+            attachment.setUploadStatus(AttachmentUploadStatus.PENDING);
+            attachments.add(attachment);
+        }
+
         attachmentRepository.saveAll(attachments);
+        post.setAttachments(new java.util.LinkedHashSet<>(attachments));
+        return orderedUploadUrls;
     }
 
     @Override

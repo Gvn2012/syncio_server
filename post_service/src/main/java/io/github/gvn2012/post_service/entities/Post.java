@@ -155,48 +155,4 @@ public class Post extends AuditableEntity {
         @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
         private Set<PostReaction> reactions = new LinkedHashSet<>();
 
-        // ================= VALIDATION =================
-
-        @PreUpdate
-        private void validate() {
-
-                // ===== Shared post validation =====
-                if (Boolean.TRUE.equals(isShared) && parentPost == null) {
-                        throw new IllegalStateException("Shared post must have parentPost");
-                }
-
-                if (Boolean.FALSE.equals(isShared) && parentPost != null) {
-                        throw new IllegalStateException("Non-shared post cannot have parentPost");
-                }
-
-                // ===== Extension validation =====
-                switch (postCategory) {
-                        case NORMAL -> {
-                                if (event != null || poll != null || task != null || announcement != null) {
-                                        throw new IllegalStateException(
-                                                        "Normal post cannot have PostEvent, PostPoll, PostTask, or PostAnnouncement");
-                                }
-                        }
-                        case EVENT -> {
-                                if (event == null) {
-                                        throw new IllegalStateException("Event post must have PostEvent");
-                                }
-                        }
-                        case POLL -> {
-                                if (poll == null) {
-                                        throw new IllegalStateException("Poll must have PostPoll");
-                                }
-                        }
-                        case TASK -> {
-                                if (task == null) {
-                                        throw new IllegalStateException("Task post must have PostTask");
-                                }
-                        }
-                        case ANNOUNCEMENT -> {
-                                if (announcement == null) {
-                                        throw new IllegalStateException("Announcement post must have PostAnnouncement");
-                                }
-                        }
-                }
-        }
 }
