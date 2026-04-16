@@ -65,8 +65,7 @@ public class PostServiceImpl implements IPostService {
             PostTagRepository postTagRepository,
             UserClient userClient,
             io.github.gvn2012.post_service.clients.UploadClient uploadClient,
-            List<PostSubtypeProcessor> processors
-    ) {
+            List<PostSubtypeProcessor> processors) {
         this.postRepository = postRepository;
         this.contentVersionService = contentVersionService;
         this.postEventProducer = postEventProducer;
@@ -280,7 +279,7 @@ public class PostServiceImpl implements IPostService {
         java.util.Set<String> objectPaths = new java.util.LinkedHashSet<>();
 
         for (MediaAttachmentRequest req : requests) {
-            String path = "posts/" + post.getId() + "/" + java.util.UUID.randomUUID();
+            String path = "post_img/" + post.getId() + "/" + java.util.UUID.randomUUID();
             if (req.getFileName() != null && !req.getFileName().isEmpty()) {
                 path += "-" + req.getFileName();
             }

@@ -31,7 +31,7 @@ public class PostAnnouncement {
     private Post post;
 
     @Column(name = "priority", nullable = false)
-    private String priority = "NORMAL";
+    private String priority = "STANDARD";
 
     @Column(name = "is_pinned", nullable = false)
     private Boolean isPinned = false;
