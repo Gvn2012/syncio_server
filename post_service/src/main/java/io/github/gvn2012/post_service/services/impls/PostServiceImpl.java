@@ -279,11 +279,14 @@ public class PostServiceImpl implements IPostService {
         java.util.Map<String, String> pathContentTypes = new java.util.LinkedHashMap<>();
         java.util.List<String> orderedPaths = new java.util.ArrayList<>();
 
+        java.util.Map<String, String> pathToImageId = new java.util.LinkedHashMap<>();
         for (MediaAttachmentRequest req : requests) {
-            String path = "post_img/" + post.getId() + "/" + java.util.UUID.randomUUID();
+            String imageId = java.util.UUID.randomUUID().toString();
+            String path = "post_img/" + post.getId() + "/" + imageId;
             if (req.getFileName() != null && !req.getFileName().isEmpty()) {
                 path += "-" + req.getFileName();
             }
+            pathToImageId.put(path, imageId);
             pathContentTypes.put(path, req.getMimeType());
             orderedPaths.add(path);
         }
@@ -302,6 +305,7 @@ public class PostServiceImpl implements IPostService {
             PostMediaAttachment attachment = mediaAttachmentMapper.toEntity(req);
             attachment.setPost(post);
             attachment.setObjectPath(path);
+            attachment.setExternalId(pathToImageId.get(path));
 
             String signedPutUrl = signedUrls.get(path);
             orderedUploadUrls.add(signedPutUrl);

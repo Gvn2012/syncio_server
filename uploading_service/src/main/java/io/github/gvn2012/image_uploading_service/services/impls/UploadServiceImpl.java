@@ -117,13 +117,14 @@ public class UploadServiceImpl implements UploadServiceInterface {
             }
 
             String[] parts = objectName.split("/");
-            if (parts.length < 2 || parts[1].length() < 36) {
-                log.warn("Skipping object with invalid path format: {}", objectName);
+            String lastSegment = parts[parts.length - 1];
+
+            if (lastSegment.length() < 36) {
+                log.warn("Skipping object with invalid ID format in last segment: {}", objectName);
                 return;
             }
 
-            String secondPart = parts[1];
-            String imageId = secondPart.substring(0, 36);
+            String imageId = lastSegment.substring(0, 36);
             log.info("Extracted imageId: {} for object: {}", imageId, objectName);
 
             uploadAuditRepository.findByImageId(imageId).ifPresentOrElse(audit -> {
