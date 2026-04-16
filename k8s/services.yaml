@@ -96,7 +96,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:989091e6db748bf906ffa23ec2480ade09cdcffe
+          image: vietpham18/user-service:c6e59e981ad96ebb5f71c5a309e2322ff75e3bce
           ports:
             - containerPort: 8082
           startupProbe:
@@ -242,7 +242,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:6ef740ddcb861a6c435e132e96ad25e713735126
+          image: vietpham18/post-service:c6e59e981ad96ebb5f71c5a309e2322ff75e3bce
           ports:
             - containerPort: 8085
           startupProbe:
