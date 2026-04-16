@@ -27,7 +27,7 @@ public class ImageUploadConsumer {
     private String publicUrlPrefix;
 
     @Transactional
-    @KafkaListener(topics = "image.uploaded", groupId = "user-service-group")
+    @KafkaListener(topics = "image.uploaded.profile", groupId = "user-service-group")
     public void consume(ImageUploadedEvent event) {
         if (event.getObjectPath() == null || !event.getObjectPath().startsWith(PROFILE_IMAGE_PREFIX)) {
             log.debug("Ignoring non-profile upload event: {}", event.getImageId());
