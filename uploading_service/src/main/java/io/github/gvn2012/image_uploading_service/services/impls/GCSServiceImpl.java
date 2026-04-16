@@ -107,6 +107,10 @@ public class GCSServiceImpl implements GCSServiceInterface {
 
     @Override
     public Map<String, String> generateUploadUrls(Map<String, String> pathContentTypes) {
+        if (pathContentTypes == null) {
+            log.warn("generateUploadUrls called with null pathContentTypes");
+            return Collections.emptyMap();
+        }
         Map<String, String> result = new HashMap<>(pathContentTypes.size());
         for (Map.Entry<String, String> entry : pathContentTypes.entrySet()) {
             String objectPath = entry.getKey();

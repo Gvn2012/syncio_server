@@ -165,7 +165,9 @@ public class UploadServiceImpl implements UploadServiceInterface {
 
     @Override
     public APIResource<SignedUrlResponse> getSignedUrls(SignedUrlRequest request) {
+        log.info("Generating signed URLs for request: {}", request);
         Map<String, String> signedUrls = gcsService.generateUploadUrls(request.getObjectPathsWithContentType());
+        log.info("Generated {} signed URLs", signedUrls.size());
         return APIResource.success(new SignedUrlResponse(signedUrls));
     }
 

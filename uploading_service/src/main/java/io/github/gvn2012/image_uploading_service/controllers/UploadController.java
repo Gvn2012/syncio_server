@@ -74,6 +74,7 @@ public class UploadController {
     @PostMapping("/internal/signed-urls")
     public ResponseEntity<APIResource<SignedUrlResponse>> getSignedUrls(
             @RequestBody SignedUrlRequest request) {
+        log.info("Received internal signed-urls request: {}", request);
         return ResponseEntity.ok(uploadService.getSignedUrls(request));
     }
 
