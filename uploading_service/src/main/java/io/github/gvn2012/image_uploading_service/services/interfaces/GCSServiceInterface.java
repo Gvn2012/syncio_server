@@ -10,4 +10,6 @@ public interface GCSServiceInterface {
     String generateDownloadUrl(String objectPath);
 
     Map<String, String> generateDownloadUrls(Set<String> objectPaths);
+
+    Map<String, String> generateUploadUrls(Map<String, String> pathContentTypes);
 }

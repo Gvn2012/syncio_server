@@ -4,11 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Set;
+import java.util.Map;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class SignedUrlRequest {
-    private Set<String> objectPaths;
+    private Map<String, String> objectPathsWithContentType;
 }

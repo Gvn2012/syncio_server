@@ -104,4 +104,25 @@ public class GCSServiceImpl implements GCSServiceInterface {
                 Storage.SignUrlOption.withV4Signature());
         return url.toString();
     }
+
+    @Override
+    public Map<String, String> generateUploadUrls(Map<String, String> pathContentTypes) {
+        Map<String, String> result = new HashMap<>(pathContentTypes.size());
+        for (Map.Entry<String, String> entry : pathContentTypes.entrySet()) {
+            String objectPath = entry.getKey();
+            String contentType = entry.getValue();
+
+            BlobInfo blobInfo = BlobInfo.newBuilder(bucket, objectPath)
+                    .setContentType(contentType)
+                    .build();
+
+            URL url = storage.signUrl(
+                    blobInfo,
+                    15, TimeUnit.MINUTES,
+                    Storage.SignUrlOption.httpMethod(HttpMethod.PUT),
+                    Storage.SignUrlOption.withV4Signature());
+            result.put(objectPath, url.toString());
+        }
+        return result;
+    }
 }

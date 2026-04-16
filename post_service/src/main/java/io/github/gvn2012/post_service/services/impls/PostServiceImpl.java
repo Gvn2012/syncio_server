@@ -276,17 +276,19 @@ public class PostServiceImpl implements IPostService {
             return null;
 
         List<PostMediaAttachment> attachments = new java.util.ArrayList<>();
-        java.util.Set<String> objectPaths = new java.util.LinkedHashSet<>();
+        java.util.Map<String, String> pathContentTypes = new java.util.LinkedHashMap<>();
+        java.util.List<String> orderedPaths = new java.util.ArrayList<>();
 
         for (MediaAttachmentRequest req : requests) {
             String path = "post_img/" + post.getId() + "/" + java.util.UUID.randomUUID();
             if (req.getFileName() != null && !req.getFileName().isEmpty()) {
                 path += "-" + req.getFileName();
             }
-            objectPaths.add(path);
+            pathContentTypes.put(path, req.getMimeType());
+            orderedPaths.add(path);
         }
 
-        SignedUrlRequestDTO reqDto = new SignedUrlRequestDTO(objectPaths);
+        SignedUrlRequestDTO reqDto = new SignedUrlRequestDTO(pathContentTypes);
         SignedUrlResponseDTO resDto = uploadClient.getSignedUrls(reqDto);
         java.util.Map<String, String> signedUrls = resDto != null && resDto.getSignedUrls() != null
                 ? resDto.getSignedUrls()
@@ -295,7 +297,7 @@ public class PostServiceImpl implements IPostService {
         int index = 0;
         List<String> orderedUploadUrls = new java.util.ArrayList<>();
 
-        for (String path : objectPaths) {
+        for (String path : orderedPaths) {
             MediaAttachmentRequest req = requests.get(index++);
             PostMediaAttachment attachment = mediaAttachmentMapper.toEntity(req);
             attachment.setPost(post);
