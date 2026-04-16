@@ -675,7 +675,7 @@ spec:
       serviceAccountName: uploading-service-ksa
       containers:
         - name: uploading
-          image: vietpham18/uploading-service:f5d71e178bee21a288785d77bd2abc4a0b86d020
+          image: vietpham18/uploading-service:1bc5decb1643e5301c3081b5b716ef2e86583541
           ports:
             - containerPort: 8090
           startupProbe:
