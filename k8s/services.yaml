@@ -96,7 +96,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:c6e59e981ad96ebb5f71c5a309e2322ff75e3bce
+          image: vietpham18/user-service:d7521ace0ac47262eba2eeb76556edec7baccc22
           ports:
             - containerPort: 8082
           startupProbe:
@@ -744,7 +744,7 @@ spec:
     spec:
       containers:
         - name: search
-          image: vietpham18/search-service:f5d71e178bee21a288785d77bd2abc4a0b86d020
+          image: vietpham18/search-service:d7521ace0ac47262eba2eeb76556edec7baccc22
           ports:
             - containerPort: 8086
           startupProbe:
