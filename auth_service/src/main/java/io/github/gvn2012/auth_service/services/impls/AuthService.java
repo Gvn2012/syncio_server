@@ -19,6 +19,8 @@ import io.github.gvn2012.auth_service.entities.UserSession;
 import io.github.gvn2012.auth_service.repositories.UserSessionRepository;
 import io.github.gvn2012.auth_service.services.interfaces.AuthServiceInterface;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
+
 import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
 import io.jsonwebtoken.*;
@@ -109,6 +111,7 @@ public class AuthService implements AuthServiceInterface {
     public String generateAccessToken(String username, UUID userId, List<String> roles) {
         Instant now = Instant.now();
         return Jwts.builder()
+                .setId(UUID.randomUUID().toString())
                 .setSubject(username)
                 .claim("roles", roles)
                 .claim("userId", userId.toString())
@@ -121,6 +124,7 @@ public class AuthService implements AuthServiceInterface {
     public String generateRefreshToken(String username, UUID userId) {
         Instant now = Instant.now();
         return Jwts.builder()
+                .setId(UUID.randomUUID().toString())
                 .setSubject(username)
                 .claim("userId", userId.toString())
                 .claim("tokenType", "refresh")
@@ -203,6 +207,7 @@ public class AuthService implements AuthServiceInterface {
         }
     }
 
+    @Transactional
     public APIResource<GenerateLoginTokenResponse> generateLoginToken(GenerateLoginTokenRequest request,
             HttpServletRequest httpRequest) {
         try {
@@ -239,6 +244,7 @@ public class AuthService implements AuthServiceInterface {
         }
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public APIResource<GenerateLoginTokenResponse> refreshToken(RefreshTokenRequest request,
             HttpServletRequest httpRequest) {
         try {
@@ -297,6 +303,7 @@ public class AuthService implements AuthServiceInterface {
         }
     }
 
+    @Transactional
     public APIResource<String> logout(LogoutRequest request) {
         try {
             String token = request.getLogoutToken();
@@ -322,6 +329,7 @@ public class AuthService implements AuthServiceInterface {
         }
     }
 
+    @Transactional
     public APIResource<String> forceLogout(String userId) {
         try {
             List<UserSession> activeSessions = userSessionRepository
