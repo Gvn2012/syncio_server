@@ -108,9 +108,23 @@ public class UploadServiceImpl implements UploadServiceInterface {
 
             String objectName = json.get("name").asText();
             String bucketName = json.get("bucket").asText();
-            String secondPart = objectName.split("/")[1];
+
+            log.info("Processing GCS event for object: {}", objectName);
+
+            if (objectName.endsWith("/") || !objectName.contains("/")) {
+                log.info("Skipping directory or root object: {}", objectName);
+                return;
+            }
+
+            String[] parts = objectName.split("/");
+            if (parts.length < 2 || parts[1].length() < 36) {
+                log.warn("Skipping object with invalid path format: {}", objectName);
+                return;
+            }
+
+            String secondPart = parts[1];
             String imageId = secondPart.substring(0, 36);
-            log.info("Extracted imageId: {} from object: {}", imageId, objectName);
+            log.info("Extracted imageId: {} for object: {}", imageId, objectName);
 
             uploadAuditRepository.findByImageId(imageId).ifPresentOrElse(audit -> {
                 log.info("Updating audit for imageId: {}", imageId);
