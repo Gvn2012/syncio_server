@@ -29,8 +29,10 @@ import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 
 @Slf4j
+@Validated
 @Service
 public class AuthService implements AuthServiceInterface {
 
