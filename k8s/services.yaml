@@ -242,7 +242,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:77ca9b1bf354cc8ff67e6569665d7d4d52906a1b
+          image: vietpham18/post-service:6ef740ddcb861a6c435e132e96ad25e713735126
           ports:
             - containerPort: 8085
           startupProbe:
@@ -675,7 +675,7 @@ spec:
       serviceAccountName: uploading-service-ksa
       containers:
         - name: uploading
-          image: vietpham18/uploading-service:1bc5decb1643e5301c3081b5b716ef2e86583541
+          image: vietpham18/uploading-service:6ef740ddcb861a6c435e132e96ad25e713735126
           ports:
             - containerPort: 8090
           startupProbe:
