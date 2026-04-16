@@ -16,24 +16,25 @@ public class UserProfilePictureMapper implements IMapper<UserProfilePicture, Use
 
     private final ObjectMapper objectMapper;
 
-    @Value("${gcp.storage.public-url-prefix:https://storage.googleapis.com}")
-    private String publicUrlPrefix;
+    @Value("${syncio.gateway.host:http://syncio.site}")
+    private String gatewayHost;
 
     @Override
     public UserProfilePictureResponse toDto(UserProfilePicture entity) {
         String url = entity.getUrl();
-        if (entity.getObjectPath() != null && entity.getBucketName() != null) {
-            url = String.format("%s/%s/%s", publicUrlPrefix, entity.getBucketName(), entity.getObjectPath());
+        if (entity.getObjectPath() != null) {
+            url = String.format("%s/api/v1/upload/view?path=%s", gatewayHost, entity.getObjectPath());
         }
         return buildResponse(entity, url);
     }
 
     public UserProfilePictureResponse toDto(UserProfilePicture entity, String resolvedUrl) {
-        String url = resolvedUrl;
-        if (url == null || url.isBlank()) {
-            return toDto(entity);
+        // If resolvedUrl is provided (e.g. from an override), use it, otherwise use our
+        // proxy logic
+        if (resolvedUrl != null && !resolvedUrl.isBlank()) {
+            return buildResponse(entity, resolvedUrl);
         }
-        return buildResponse(entity, url);
+        return toDto(entity);
     }
 
     private UserProfilePictureResponse buildResponse(UserProfilePicture entity, String url) {

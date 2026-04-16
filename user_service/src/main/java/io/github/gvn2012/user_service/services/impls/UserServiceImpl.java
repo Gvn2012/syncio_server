@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.gvn2012.user_service.clients.AuthClient;
 import io.github.gvn2012.user_service.clients.OrgClient;
 import io.github.gvn2012.user_service.clients.PermissionClient;
-import io.github.gvn2012.user_service.clients.UploadClient;
 import io.github.gvn2012.user_service.dtos.APIResource;
 import io.github.gvn2012.user_service.dtos.OrgRegisterDTO;
 import io.github.gvn2012.user_service.dtos.UserAddressDTO;
@@ -46,7 +45,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.kafka.core.KafkaTemplate;
-
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -73,7 +72,6 @@ public class UserServiceImpl implements IUserService {
     private final AuthClient authClient;
     private final OrgClient orgClient;
     private final PermissionClient permissionClient;
-    private final UploadClient uploadClient;
 
     private final IUserEmailService userEmailService;
     private final IPendingEmailVerificationService pendingEmailVerificationService;
@@ -170,6 +168,9 @@ public class UserServiceImpl implements IUserService {
         return APIResource.ok("Batch user details retrieved successfully", responseMap);
     }
 
+    @Value("${syncio.gateway.host:http://syncio.site}")
+    private String gatewayHost;
+
     @Override
     @Transactional(readOnly = true)
     public APIResource<Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse>> getUsersSummary(java.util.Set<UUID> userIds) {
@@ -178,28 +179,7 @@ public class UserServiceImpl implements IUserService {
         }
  
         List<User> users = userRepository.findSummariesByIdIn(userIds);
-        
-        // Collect object paths for primary avatars to get signed URLs
-        java.util.Set<String> objectPaths = users.stream()
-                .filter(u -> u.getProfile() != null && !u.getProfile().getPictures().isEmpty())
-                .flatMap(u -> u.getProfile().getPictures().stream())
-                .filter(p -> Boolean.TRUE.equals(p.getPrimary()) && !Boolean.TRUE.equals(p.getDeleted()))
-                .map(UserProfilePicture::getObjectPath)
-                .filter(java.util.Objects::nonNull)
-                .collect(java.util.stream.Collectors.toSet());
- 
-        Map<String, String> signedUrls = Map.of();
-        if (!objectPaths.isEmpty()) {
-            try {
-                signedUrls = uploadClient.getSignedUrls(objectPaths).block(Duration.ofSeconds(5));
-                if (signedUrls == null) signedUrls = Map.of();
-            } catch (Exception e) {
-                log.warn("Failed to resolve signed URLs for batch summary", e);
-            }
-        }
- 
         Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse> responseMap = new HashMap<>();
-        Map<String, String> finalSignedUrls = signedUrls;
  
         for (User user : users) {
             String avatarUrl = null;
@@ -213,7 +193,7 @@ public class UserServiceImpl implements IUserService {
                 if (primaryPic != null) {
                     avatarPath = primaryPic.getObjectPath();
                     avatarUrl = primaryPic.getObjectPath() != null 
-                            ? finalSignedUrls.get(primaryPic.getObjectPath()) 
+                            ? String.format("%s/api/v1/upload/view?path=%s", gatewayHost, primaryPic.getObjectPath())
                             : primaryPic.getUrl();
                 }
             }
