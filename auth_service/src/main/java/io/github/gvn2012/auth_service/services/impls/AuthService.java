@@ -219,13 +219,15 @@ public class AuthService implements AuthServiceInterface {
             long duration = System.currentTimeMillis() - startTime;
 
             if (userRoleResponse == null) {
-                log.error("Permission service returned null or failed for userId: {} after {}ms", request.getUserId(), duration);
+                log.error("Permission service returned null or failed for userId: {} after {}ms", request.getUserId(),
+                        duration);
                 return APIResource.error("INTERNAL_SERVER_ERROR", "Permission service communication failure",
                         HttpStatus.INTERNAL_SERVER_ERROR, null);
             }
 
             if (userRoleResponse.isEmpty()) {
-                log.warn("User {} has no roles assigned in the permission database (checked in {}ms)", request.getUserId(), duration);
+                log.warn("User {} has no roles assigned in the permission database (checked in {}ms)",
+                        request.getUserId(), duration);
                 return APIResource.error("FORBIDDEN", "User has no roles assigned. Access denied.",
                         HttpStatus.FORBIDDEN, null);
             }
@@ -233,9 +235,9 @@ public class AuthService implements AuthServiceInterface {
             List<String> userRoles = userRoleResponse.stream()
                     .map(GetUserRoleResponse::getRoleName)
                     .toList();
-            
-            log.info("Successfully retrieved {} roles for user {} in {}ms: {}", 
-                userRoles.size(), request.getUserId(), duration, userRoles);
+
+            log.info("Successfully retrieved {} roles for user {} in {}ms: {}",
+                    userRoles.size(), request.getUserId(), duration, userRoles);
 
             String accessToken = generateAccessToken(request.getUsername(), UUID.fromString(request.getUserId()),
                     userRoles);
@@ -256,15 +258,16 @@ public class AuthService implements AuthServiceInterface {
                     new GenerateLoginTokenResponse(accessToken, refreshToken, userRoles));
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             log.error("Database constraint violation during session creation: {}", e.getMessage(), e);
-            return APIResource.error("CONFLICT", "Session already exists or constraint violation", HttpStatus.CONFLICT, e.getMessage());
+            return APIResource.error("CONFLICT", "Session already exists or constraint violation", HttpStatus.CONFLICT,
+                    e.getMessage());
         } catch (Exception e) {
             log.error("Unexpected error during token generation: {}", e.getMessage(), e);
-            return APIResource.error("INTERNAL_SERVER_ERROR", "Failed to generate token: " + e.getMessage(), 
+            return APIResource.error("INTERNAL_SERVER_ERROR", "Failed to generate token: " + e.getMessage(),
                     HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
 
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     public APIResource<GenerateLoginTokenResponse> refreshToken(RefreshTokenRequest request,
             HttpServletRequest httpRequest) {
         try {
@@ -300,7 +303,7 @@ public class AuthService implements AuthServiceInterface {
 
             log.info("Refreshing token: fetching roles for userId: {} from permission-service", userId);
             List<GetUserRoleResponse> userRoleResponse = permissionClient.getUserRole(userId).block();
-            
+
             if (userRoleResponse == null || userRoleResponse.isEmpty()) {
                 log.warn("Refresh failed: User {} has no roles assigned", userId);
                 return APIResource.error("FORBIDDEN", "User has no roles assigned", HttpStatus.FORBIDDEN, null);
@@ -308,7 +311,7 @@ public class AuthService implements AuthServiceInterface {
 
             List<String> userRoles = userRoleResponse.stream()
                     .map(GetUserRoleResponse::getRoleName).toList();
-            
+
             log.info("Roles retrieved for refresh (user {}): {}", userId, userRoles);
 
             String newAccessToken = generateAccessToken(username, UUID.fromString(userId), userRoles);
