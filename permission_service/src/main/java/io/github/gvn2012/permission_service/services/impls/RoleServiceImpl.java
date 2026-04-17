@@ -11,6 +11,7 @@ import io.github.gvn2012.permission_service.repositories.RoleRepository;
 import io.github.gvn2012.permission_service.repositories.UserRoleRepository;
 import io.github.gvn2012.permission_service.services.interfaces.RoleServiceInterface;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RoleServiceImpl implements RoleServiceInterface {
@@ -28,18 +30,34 @@ public class RoleServiceImpl implements RoleServiceInterface {
         private final RoleRepository roleRepository;
 
         @Override
+        @Transactional(readOnly = true)
         public APIResource<List<GetUserRoleResponse>> getUserRole(String userId) {
+                log.info("Request to get roles for user: {}", userId);
                 List<UserRole> userRoles = userRoleRepository.findAllByUserId(UUID.fromString(userId));
 
+                log.debug("Found {} raw user-role mappings for user: {}", userRoles.size(), userId);
+
                 List<GetUserRoleResponse> responses = userRoles.stream()
-                                .map(userRole -> new GetUserRoleResponse(
-                                                userRole.getRole().getId().toString(),
-                                                userRole.getRole().getCode(),
-                                                userRole.getRole().getColor(),
-                                                userRole.getRole().getIcon(),
-                                                userRole.getRole().getDisplayOrder()))
+                                .filter(userRole -> {
+                                        if (userRole.getRole() == null) {
+                                                log.error("CORRUPTION: UserRole {} for user {} has a null role reference!", 
+                                                    userRole.getId(), userId);
+                                                return false;
+                                        }
+                                        return true;
+                                })
+                                .map(userRole -> {
+                                        Role role = userRole.getRole();
+                                        return new GetUserRoleResponse(
+                                                        role.getId().toString(),
+                                                        role.getCode(),
+                                                        role.getColor(),
+                                                        role.getIcon(),
+                                                        role.getDisplayOrder());
+                                })
                                 .collect(Collectors.toList());
 
+                log.info("Returning {} active roles for user: {}", responses.size(), userId);
                 return APIResource.ok("Get user roles successfully", responses);
         }
 
