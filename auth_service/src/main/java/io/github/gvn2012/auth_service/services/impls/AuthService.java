@@ -213,16 +213,29 @@ public class AuthService implements AuthServiceInterface {
     public APIResource<GenerateLoginTokenResponse> generateLoginToken(GenerateLoginTokenRequest request,
             HttpServletRequest httpRequest) {
         try {
+            log.info("Fetching roles for userId: {} from permission-service", request.getUserId());
+            long startTime = System.currentTimeMillis();
             List<GetUserRoleResponse> userRoleResponse = permissionClient.getUserRole(request.getUserId()).block();
+            long duration = System.currentTimeMillis() - startTime;
 
-            if (userRoleResponse == null || userRoleResponse.isEmpty()) {
-                return APIResource.error("INTERNAL_SERVER_ERROR", "Permission service is not working",
+            if (userRoleResponse == null) {
+                log.error("Permission service returned null or failed for userId: {} after {}ms", request.getUserId(), duration);
+                return APIResource.error("INTERNAL_SERVER_ERROR", "Permission service communication failure",
                         HttpStatus.INTERNAL_SERVER_ERROR, null);
+            }
+
+            if (userRoleResponse.isEmpty()) {
+                log.warn("User {} has no roles assigned in the permission database (checked in {}ms)", request.getUserId(), duration);
+                return APIResource.error("FORBIDDEN", "User has no roles assigned. Access denied.",
+                        HttpStatus.FORBIDDEN, null);
             }
 
             List<String> userRoles = userRoleResponse.stream()
                     .map(GetUserRoleResponse::getRoleName)
                     .toList();
+            
+            log.info("Successfully retrieved {} roles for user {} in {}ms: {}", 
+                userRoles.size(), request.getUserId(), duration, userRoles);
 
             String accessToken = generateAccessToken(request.getUsername(), UUID.fromString(request.getUserId()),
                     userRoles);
@@ -285,9 +298,18 @@ public class AuthService implements AuthServiceInterface {
             session.setRevokedReason("ROTATED");
             userSessionRepository.save(session);
 
+            log.info("Refreshing token: fetching roles for userId: {} from permission-service", userId);
             List<GetUserRoleResponse> userRoleResponse = permissionClient.getUserRole(userId).block();
+            
+            if (userRoleResponse == null || userRoleResponse.isEmpty()) {
+                log.warn("Refresh failed: User {} has no roles assigned", userId);
+                return APIResource.error("FORBIDDEN", "User has no roles assigned", HttpStatus.FORBIDDEN, null);
+            }
+
             List<String> userRoles = userRoleResponse.stream()
                     .map(GetUserRoleResponse::getRoleName).toList();
+            
+            log.info("Roles retrieved for refresh (user {}): {}", userId, userRoles);
 
             String newAccessToken = generateAccessToken(username, UUID.fromString(userId), userRoles);
             String newRefreshToken = generateRefreshToken(username, UUID.fromString(userId));
