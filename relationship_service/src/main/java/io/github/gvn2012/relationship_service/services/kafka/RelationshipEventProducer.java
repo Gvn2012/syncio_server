@@ -14,11 +14,11 @@ public class RelationshipEventProducer {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private static final String TOPIC = "relationship-events-v2";
 
-    @SuppressWarnings("null")
     public void publishEvent(RelationshipChangedEvent event) {
-        log.info("Publishing relationship event: {} for source: {} target: {}", 
-            event.getChangeType(), event.getSourceUserId(), event.getTargetUserId());
-        String key = java.util.Objects.requireNonNull(event.getSourceUserId(), "sourceUserId must not be null").toString();
+        log.info("Publishing relationship event: {} for source: {} target: {}",
+                event.getChangeType(), event.getSourceUserId(), event.getTargetUserId());
+        String key = java.util.Objects.requireNonNull(event.getSourceUserId(), "sourceUserId must not be null")
+                .toString();
         kafkaTemplate.send(TOPIC, key, event);
     }
 }

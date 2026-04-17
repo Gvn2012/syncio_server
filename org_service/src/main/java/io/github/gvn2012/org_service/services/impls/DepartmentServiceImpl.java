@@ -10,7 +10,6 @@ import io.github.gvn2012.org_service.entities.Department;
 import io.github.gvn2012.org_service.entities.Organization;
 import io.github.gvn2012.org_service.entities.enums.DepartmentStatus;
 import io.github.gvn2012.org_service.exceptions.BadRequestException;
-import io.github.gvn2012.org_service.exceptions.ForbiddenException;
 import io.github.gvn2012.org_service.exceptions.NotFoundException;
 import io.github.gvn2012.org_service.repositories.DepartmentRepository;
 import io.github.gvn2012.org_service.repositories.OrganizationRepository;
@@ -143,15 +142,6 @@ public class DepartmentServiceImpl implements IDepartmentService {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new NotFoundException("Organization not found"));
 
-        // For Phase 1 we use owner logic only. In later phases, Orbac applies.
-        // Wait, the interceptor handles token parsing but for data retrieval we might
-        // double check.
-        // We'll trust interceptor or check owner:
-        /*
-         * if (requestingUserId != null && !org.getOwnerId().equals(requestingUserId)) {
-         * // Member check logic can be added later
-         * }
-         */
         return org;
     }
 

@@ -19,6 +19,7 @@ import io.github.gvn2012.user_service.dtos.responses.GenerateLoginTokenResponse;
 import io.github.gvn2012.user_service.dtos.responses.GetUserDetailResponse;
 import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
 import io.github.gvn2012.user_service.dtos.responses.UserRegisterResponse;
+import io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse;
 import io.github.gvn2012.user_service.entities.PendingEmailVerification;
 import io.github.gvn2012.user_service.entities.User;
 import io.github.gvn2012.user_service.entities.UserAddress;
@@ -114,8 +115,12 @@ public class UserServiceImpl implements IUserService {
                             user.getId().toString()))
                     .block(Duration.ofSeconds(5));
         } catch (Exception e) {
-            log.error("Failed to generate token", e);
-            throw new BadRequestException("Failed to generate token");
+            String errorMsg = e.getMessage();
+            if (e.getCause() != null) {
+                errorMsg = e.getCause().getMessage();
+            }
+            log.error("Failed to generate token: {}", errorMsg, e);
+            throw new BadRequestException("Failed to generate token: " + errorMsg);
         }
 
         if (tokenResponse == null) {
@@ -173,14 +178,14 @@ public class UserServiceImpl implements IUserService {
 
     @Override
     @Transactional(readOnly = true)
-    public APIResource<Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse>> getUsersSummary(java.util.Set<UUID> userIds) {
+    public APIResource<Map<UUID, UserSummaryResponse>> getUsersSummary(java.util.Set<UUID> userIds) {
         if (userIds == null || userIds.isEmpty()) {
             return APIResource.ok("No users requested", new HashMap<>());
         }
- 
+
         List<User> users = userRepository.findSummariesByIdIn(userIds);
-        Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse> responseMap = new HashMap<>();
- 
+        Map<UUID, UserSummaryResponse> responseMap = new HashMap<>();
+
         for (User user : users) {
             String avatarUrl = null;
             String avatarPath = null;
@@ -189,16 +194,16 @@ public class UserServiceImpl implements IUserService {
                         .filter(p -> Boolean.TRUE.equals(p.getPrimary()) && !Boolean.TRUE.equals(p.getDeleted()))
                         .findFirst()
                         .orElse(null);
-                
+
                 if (primaryPic != null) {
                     avatarPath = primaryPic.getObjectPath();
-                    avatarUrl = primaryPic.getObjectPath() != null 
+                    avatarUrl = primaryPic.getObjectPath() != null
                             ? String.format("%s/api/v1/upload/view?path=%s", gatewayHost, primaryPic.getObjectPath())
                             : primaryPic.getUrl();
                 }
             }
- 
-            responseMap.put(user.getId(), io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse.builder()
+
+            responseMap.put(user.getId(), UserSummaryResponse.builder()
                     .userId(user.getId())
                     .username(user.getUsername())
                     .displayName(user.getFirstName() + " " + user.getLastName())
@@ -206,10 +211,10 @@ public class UserServiceImpl implements IUserService {
                     .avatarPath(avatarPath)
                     .build());
         }
- 
+
         return APIResource.ok("Batch user summaries retrieved successfully", responseMap);
     }
- 
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public APIResource<UserRegisterResponse> register(UserRegisterRequest request) {

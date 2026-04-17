@@ -7,12 +7,10 @@ import io.github.gvn2012.org_service.dtos.responses.CreateTeamResponse;
 import io.github.gvn2012.org_service.dtos.responses.TeamDto;
 import io.github.gvn2012.org_service.dtos.responses.UpdateTeamResponse;
 import io.github.gvn2012.org_service.entities.Department;
-import io.github.gvn2012.org_service.entities.Organization;
 import io.github.gvn2012.org_service.entities.Team;
 import io.github.gvn2012.org_service.entities.enums.TeamStatus;
 import io.github.gvn2012.org_service.exceptions.NotFoundException;
 import io.github.gvn2012.org_service.repositories.DepartmentRepository;
-import io.github.gvn2012.org_service.repositories.OrganizationRepository;
 import io.github.gvn2012.org_service.repositories.TeamRepository;
 import io.github.gvn2012.org_service.services.interfaces.ITeamService;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +29,6 @@ public class TeamServiceImpl implements ITeamService {
 
     private final TeamRepository teamRepository;
     private final DepartmentRepository departmentRepository;
-    private final OrganizationRepository organizationRepository;
     private final TeamMapper teamMapper;
 
     @Override
@@ -48,7 +45,7 @@ public class TeamServiceImpl implements ITeamService {
         team.setStatus(TeamStatus.ACTIVE);
 
         Team savedTeam = teamRepository.save(team);
-        
+
         return CreateTeamResponse.builder()
                 .id(savedTeam.getId())
                 .build();
@@ -64,17 +61,22 @@ public class TeamServiceImpl implements ITeamService {
 
     @Override
     @Transactional
-    public UpdateTeamResponse updateTeam(UUID orgId, UUID deptId, UUID teamId, UUID requestingUserId, UpdateTeamRequest request) {
+    public UpdateTeamResponse updateTeam(UUID orgId, UUID deptId, UUID teamId, UUID requestingUserId,
+            UpdateTeamRequest request) {
         validateOrgAndDept(orgId, deptId, requestingUserId);
         Team team = getTeamOrThrow(teamId, deptId);
 
-        if (request.getName() != null) team.setName(request.getName());
-        if (request.getDescription() != null) team.setDescription(request.getDescription());
-        if (request.getTeamLeadId() != null) team.setTeamLeadId(request.getTeamLeadId());
-        if (request.getMaxCapacity() != null) team.setMaxCapacity(request.getMaxCapacity());
+        if (request.getName() != null)
+            team.setName(request.getName());
+        if (request.getDescription() != null)
+            team.setDescription(request.getDescription());
+        if (request.getTeamLeadId() != null)
+            team.setTeamLeadId(request.getTeamLeadId());
+        if (request.getMaxCapacity() != null)
+            team.setMaxCapacity(request.getMaxCapacity());
 
         Team updatedTeam = teamRepository.save(team);
-        
+
         return UpdateTeamResponse.builder()
                 .id(updatedTeam.getId())
                 .build();
@@ -85,7 +87,7 @@ public class TeamServiceImpl implements ITeamService {
     public void deleteTeam(UUID orgId, UUID deptId, UUID teamId, UUID requestingUserId) {
         validateOrgAndDept(orgId, deptId, requestingUserId);
         Team team = getTeamOrThrow(teamId, deptId);
-        
+
         team.setStatus(TeamStatus.INACTIVE);
         teamRepository.save(team);
     }
@@ -101,11 +103,6 @@ public class TeamServiceImpl implements ITeamService {
     }
 
     private Department validateOrgAndDept(UUID orgId, UUID deptId, UUID requestingUserId) {
-        Organization org = organizationRepository.findById(orgId)
-                .orElseThrow(() -> new NotFoundException("Organization not found"));
-                
-        // Org owner check or member check logic can be added here
-        
         return departmentRepository.findByIdAndOrganization_Id(deptId, orgId)
                 .orElseThrow(() -> new NotFoundException("Department not found in this organization"));
     }

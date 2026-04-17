@@ -3,7 +3,6 @@ package io.github.gvn2012.permission_service.entities;
 import io.github.gvn2012.permission_service.entities.enums.PermissionAuditAction;
 import io.github.gvn2012.permission_service.entities.enums.PermissionDecision;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;

@@ -4,7 +4,6 @@ import io.github.gvn2012.post_service.entities.enums.PostCategory;
 import io.github.gvn2012.post_service.entities.enums.PostModerationStatus;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
 import io.github.gvn2012.post_service.entities.enums.PostVisibility;
-import io.github.gvn2012.post_service.exceptions.IllegalStateException;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import lombok.*;

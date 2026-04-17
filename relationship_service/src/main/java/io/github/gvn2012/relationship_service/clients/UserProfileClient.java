@@ -210,7 +210,6 @@ public class UserProfileClient extends HttpClient {
                 .build();
     }
 
-    @SuppressWarnings("unchecked")
     private Map<Object, Object> asObjectMap(Object value) {
         if (value instanceof Map<?, ?> map) {
             return (Map<Object, Object>) map;

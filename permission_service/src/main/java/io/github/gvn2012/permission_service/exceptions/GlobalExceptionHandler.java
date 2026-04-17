@@ -1,9 +1,6 @@
 package io.github.gvn2012.permission_service.exceptions;
 
 import io.github.gvn2012.permission_service.dtos.APIResource;
-import io.github.gvn2012.permission_service.exceptions.BadRequestException;
-import io.github.gvn2012.permission_service.exceptions.BaseException;
-import io.github.gvn2012.permission_service.exceptions.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;

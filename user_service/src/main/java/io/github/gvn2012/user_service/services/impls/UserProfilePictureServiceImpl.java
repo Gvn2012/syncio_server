@@ -5,7 +5,6 @@ import io.github.gvn2012.user_service.dtos.requests.UpdateProfilePictureRequest;
 import io.github.gvn2012.user_service.entities.UserProfile;
 import io.github.gvn2012.user_service.entities.UserProfilePicture;
 import io.github.gvn2012.user_service.exceptions.NotFoundException;
-import io.github.gvn2012.user_service.repositories.UserProfilePictureRepository;
 import io.github.gvn2012.user_service.repositories.UserProfileRepository;
 import io.github.gvn2012.user_service.services.interfaces.IUserProfilePictureService;
 import io.github.gvn2012.shared.kafka_events.UserSearchEvent;
@@ -23,7 +22,6 @@ import java.util.UUID;
 public class UserProfilePictureServiceImpl implements IUserProfilePictureService {
 
     private final UserProfileRepository userProfileRepository;
-    private final UserProfilePictureRepository userProfilePictureRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override

@@ -1,6 +1,5 @@
 package io.github.gvn2012.permission_service.exceptions;
 
-import io.github.gvn2012.permission_service.exceptions.BaseException;
 import org.springframework.http.HttpStatus;
 
 public class NotFoundException extends BaseException {
@@ -8,8 +7,7 @@ public class NotFoundException extends BaseException {
         super(
                 "NOT_FOUND",
                 message,
-                HttpStatus.NOT_FOUND
-        );
+                HttpStatus.NOT_FOUND);
 
     }
 }

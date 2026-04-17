@@ -86,10 +86,9 @@ public class Role extends AuditableEntity {
 
         // ================= RELATIONSHIPS =================
 
-        @ToString.Exclude
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "parent_role_id")
-        private Role parentRole; // for role inheritance
+        private Role parentRole;
 
         @Builder.Default
         @OneToMany(mappedBy = "parentRole", fetch = FetchType.LAZY)

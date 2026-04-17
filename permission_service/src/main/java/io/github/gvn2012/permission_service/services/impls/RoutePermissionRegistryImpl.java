@@ -26,27 +26,41 @@ public class RoutePermissionRegistryImpl implements RoutePermissionRegistryInter
 
         rules.add(new RouteMappingRule(HttpMethod.GET, "/api/v1/users/{uid}/addresses", "user:address:read", "uid"));
         rules.add(new RouteMappingRule(HttpMethod.POST, "/api/v1/users/{uid}/addresses", "user:address:create", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/addresses/{aid}", "user:address:update", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.DELETE, "/api/v1/users/{uid}/addresses/{aid}", "user:address:delete", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/addresses/{aid}/set-primary", "user:address:set_primary", "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/addresses/{aid}", "user:address:update",
+                "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.DELETE, "/api/v1/users/{uid}/addresses/{aid}", "user:address:delete",
+                "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/addresses/{aid}/set-primary",
+                "user:address:set_primary", "uid"));
 
         rules.add(new RouteMappingRule(HttpMethod.GET, "/api/v1/users/{uid}/phones", "user:phone:read", "uid"));
         rules.add(new RouteMappingRule(HttpMethod.POST, "/api/v1/users/{uid}/phones", "user:phone:create", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/phones/{phid}", "user:phone:update", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.DELETE, "/api/v1/users/{uid}/phones/{phid}", "user:phone:delete", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/phones/{phid}/set-primary", "user:phone:set_primary", "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/phones/{phid}", "user:phone:update",
+                "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.DELETE, "/api/v1/users/{uid}/phones/{phid}", "user:phone:delete",
+                "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/phones/{phid}/set-primary",
+                "user:phone:set_primary", "uid"));
 
         rules.add(new RouteMappingRule(HttpMethod.GET, "/api/v1/users/{uid}/emails", "user:email:read", "uid"));
         rules.add(new RouteMappingRule(HttpMethod.POST, "/api/v1/users/{uid}/emails", "user:email:create", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/emails/{eid}", "user:email:update", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.DELETE, "/api/v1/users/{uid}/emails/{eid}", "user:email:delete", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/emails/{eid}/set-primary", "user:email:set_primary", "uid"));
+        rules.add(
+                new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/emails/{eid}", "user:email:update", "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.DELETE, "/api/v1/users/{uid}/emails/{eid}", "user:email:delete",
+                "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/emails/{eid}/set-primary",
+                "user:email:set_primary", "uid"));
 
-        rules.add(new RouteMappingRule(HttpMethod.GET, "/api/v1/users/{uid}/emergency-contacts", "user:contact:read", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.POST, "/api/v1/users/{uid}/emergency-contacts", "user:contact:create", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/emergency-contacts/{cid}", "user:contact:update", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.DELETE, "/api/v1/users/{uid}/emergency-contacts/{cid}", "user:contact:delete", "uid"));
-        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/emergency-contacts/{cid}/set-primary", "user:contact:set_primary", "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.GET, "/api/v1/users/{uid}/emergency-contacts", "user:contact:read",
+                "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.POST, "/api/v1/users/{uid}/emergency-contacts", "user:contact:create",
+                "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/emergency-contacts/{cid}",
+                "user:contact:update", "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.DELETE, "/api/v1/users/{uid}/emergency-contacts/{cid}",
+                "user:contact:delete", "uid"));
+        rules.add(new RouteMappingRule(HttpMethod.PATCH, "/api/v1/users/{uid}/emergency-contacts/{cid}/set-primary",
+                "user:contact:set_primary", "uid"));
 
         rules.add(new RouteMappingRule(HttpMethod.POST, "/api/v1/posts", "post:create", null));
         rules.add(new RouteMappingRule(HttpMethod.GET, "/api/v1/posts/{pid}", "post:read", "pid"));
@@ -57,7 +71,6 @@ public class RoutePermissionRegistryImpl implements RoutePermissionRegistryInter
         rules.add(new RouteMappingRule(HttpMethod.GET, "/api/v1/admin/**", "admin:access", null));
     }
 
-    @SuppressWarnings("null")
     @Override
     public Optional<ResolvedRequest> resolve(String method, String pathWithQuery) {
         String path = pathWithQuery;

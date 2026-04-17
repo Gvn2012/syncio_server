@@ -55,7 +55,6 @@ public class UserAddressServiceImpl implements IUserAddressService {
     @Override
     @Transactional
     public APIResource<AddNewAddressResponse> addNewAddress(UUID userId, AddNewAddressRequest request) {
-        @SuppressWarnings("null")
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
@@ -78,7 +77,6 @@ public class UserAddressServiceImpl implements IUserAddressService {
                 HttpStatus.CREATED);
     }
 
-    @SuppressWarnings("null")
     @Override
     @Transactional
     public APIResource<UpdateAddressResponse> updateAddress(UUID userId, UUID addressId, UpdateAddressRequest request) {
@@ -138,7 +136,6 @@ public class UserAddressServiceImpl implements IUserAddressService {
                 new DeleteAddressResponse(address.getId().toString()));
     }
 
-    @SuppressWarnings("null")
     @Override
     @Transactional
     public APIResource<SetPrimaryAddressResponse> setPrimaryAddress(UUID userId, UUID addressId) {

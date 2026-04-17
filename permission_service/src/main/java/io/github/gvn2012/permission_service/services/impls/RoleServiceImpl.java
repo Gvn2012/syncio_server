@@ -12,7 +12,6 @@ import io.github.gvn2012.permission_service.repositories.UserRoleRepository;
 import io.github.gvn2012.permission_service.services.interfaces.RoleServiceInterface;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

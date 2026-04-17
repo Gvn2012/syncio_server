@@ -4,7 +4,6 @@ import io.github.gvn2012.user_service.dtos.APIResource;
 import io.github.gvn2012.user_service.dtos.requests.AddNewEmailRequest;
 import io.github.gvn2012.user_service.dtos.requests.DeleteEmailRequest;
 import io.github.gvn2012.user_service.dtos.requests.UpdateEmailRequest;
-import io.github.gvn2012.user_service.dtos.requests.VerifyEmailRequest;
 import io.github.gvn2012.user_service.dtos.responses.*;
 
 import java.util.UUID;

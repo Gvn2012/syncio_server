@@ -1,7 +1,6 @@
 package io.github.gvn2012.api_gateway.filters;
 
 import io.github.gvn2012.api_gateway.dtos.APIResource;
-import io.github.gvn2012.api_gateway.dtos.PermissionRequest;
 import io.github.gvn2012.api_gateway.dtos.ValidateResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,15 +37,24 @@ public class AuthenticationFilter implements GlobalFilter {
                         return chain.filter(exchange);
                 }
 
-                if (!exchange.getRequest().getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
-                        log.warn("Blocked request to secured route: [{}] {} - Missing Authorization header", httpMethod,
+                String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+                
+                if (authHeader == null || authHeader.isBlank()) {
+                    var cookie = exchange.getRequest().getCookies().getFirst("accessToken");
+                    if (cookie != null) {
+                        authHeader = "Bearer " + cookie.getValue();
+                        log.debug("Extracted token from accessToken cookie for: {}", requestPath);
+                    }
+                }
+
+                if (authHeader == null || authHeader.isBlank()) {
+                        log.warn("Blocked request to secured route: [{}] {} - Missing Authorization header and accessToken cookie", httpMethod,
                                         requestPath);
                         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                         return exchange.getResponse().setComplete();
                 }
 
-                String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-                log.debug("Authorization header found, verifying token via auth-service for: {}", requestPath);
+                log.debug("Authorization token found, verifying via auth-service for: {}", requestPath);
 
                 return webClientBuilder.build()
                                 .get()
@@ -94,7 +102,8 @@ public class AuthenticationFilter implements GlobalFilter {
          * 
          * if (!exchange.getRequest().getHeaders().containsKey(HttpHeaders.
          * AUTHORIZATION)) {
-         * log.warn("Blocked request to secured route: [{}] {} - Missing Authorization header"
+         * log.
+         * warn("Blocked request to secured route: [{}] {} - Missing Authorization header"
          * , httpMethod,
          * requestPath);
          * exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
@@ -103,7 +112,8 @@ public class AuthenticationFilter implements GlobalFilter {
          * 
          * String authHeader =
          * exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-         * log.debug("Authorization header found, verifying token via auth-service for: {}"
+         * log.
+         * debug("Authorization header found, verifying token via auth-service for: {}"
          * , requestPath);
          * 
          * return webClientBuilder.build()
@@ -125,7 +135,8 @@ public class AuthenticationFilter implements GlobalFilter {
          * requestPath,
          * httpMethod);
          * 
-         * log.debug("Checking permissions via permission-service for UserID: {} to access [{}] {}"
+         * log.
+         * debug("Checking permissions via permission-service for UserID: {} to access [{}] {}"
          * ,
          * authData.getUserId(), httpMethod, requestPath);
          * 
@@ -139,7 +150,8 @@ public class AuthenticationFilter implements GlobalFilter {
          * "Access GRANTED: User {} authorized for [{}] {}",
          * authData.getUserId(), httpMethod, requestPath))
          * .flatMap(permissionResponse -> {
-         * log.debug("Mutating request: Injecting X-User-Id header ({}) into downstream request"
+         * log.
+         * debug("Mutating request: Injecting X-User-Id header ({}) into downstream request"
          * ,
          * authData.getUserId());
          * var modifiedExchange = exchange.mutate()

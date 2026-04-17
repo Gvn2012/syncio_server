@@ -10,6 +10,8 @@ import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
 import io.github.gvn2012.user_service.dtos.responses.UserRegisterResponse;
 import io.github.gvn2012.user_service.services.interfaces.IUserProfilePictureService;
 import io.github.gvn2012.user_service.services.interfaces.IUserService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,12 +32,35 @@ public class UserController {
 
     @PostMapping("/login")
     public ResponseEntity<APIResource<LoginResponse>> login(
-            @Valid @RequestBody LoginRequest request) {
+            @Valid @RequestBody LoginRequest request,
+            HttpServletResponse httpResponse) {
         APIResource<LoginResponse> response = userService.login(request);
+        
+        if (response.isSuccess() && response.getData() != null) {
+            setTokenCookies(httpResponse, response.getData().getAccessToken(), response.getData().getRefreshToken());
+        }
+
         org.springframework.http.HttpStatusCode status = response.getStatus() != null ? response.getStatus()
                 : org.springframework.http.HttpStatus.OK;
         return ResponseEntity.status(status).body(response);
     }
+
+    private void setTokenCookies(HttpServletResponse response, String accessToken, String refreshToken) {
+        Cookie accessCookie = new Cookie("accessToken", accessToken);
+        accessCookie.setHttpOnly(true);
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge(3600);
+        // accessCookie.setSecure(true); // Enable for HTTPS
+        response.addCookie(accessCookie);
+
+        Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setPath("/");
+        refreshCookie.setMaxAge(30 * 24 * 3600);
+        // refreshCookie.setSecure(true); // Enable for HTTPS
+        response.addCookie(refreshCookie);
+    }
+
 
     @PostMapping("/register")
     public ResponseEntity<APIResource<UserRegisterResponse>> register(

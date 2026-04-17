@@ -8,8 +8,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
-import org.hibernate.annotations.Where;
-
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -108,7 +106,6 @@ public class User extends AuditableEntity {
 
         @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
         private Set<UserSkill> skills = new LinkedHashSet<>();
-
 
         @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
         private Set<UserPreference> preferences = new LinkedHashSet<>();

@@ -241,8 +241,13 @@ public class AuthService implements AuthServiceInterface {
 
             return APIResource.ok("Tokens are generated successfully",
                     new GenerateLoginTokenResponse(accessToken, refreshToken, userRoles));
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            log.error("Database constraint violation during session creation: {}", e.getMessage(), e);
+            return APIResource.error("CONFLICT", "Session already exists or constraint violation", HttpStatus.CONFLICT, e.getMessage());
         } catch (Exception e) {
-            return APIResource.error("BAD_REQUEST", e.getMessage(), HttpStatus.BAD_REQUEST, e.getMessage());
+            log.error("Unexpected error during token generation: {}", e.getMessage(), e);
+            return APIResource.error("INTERNAL_SERVER_ERROR", "Failed to generate token: " + e.getMessage(), 
+                    HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
 

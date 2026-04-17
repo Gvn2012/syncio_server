@@ -13,7 +13,6 @@ import java.util.Map;
 public class UserAccessInterceptor implements HandlerInterceptor {
 
     @Override
-    @SuppressWarnings("unchecked")
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String xUserId = request.getHeader("X-User-Id");
 
