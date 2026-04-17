@@ -311,7 +311,7 @@ spec:
     spec:
       containers:
         - name: permission
-          image: vietpham18/permission-service:36fe7ac0f0c4bec84e92c400573082aeb42605f2
+          image: vietpham18/permission-service:1d5c4ae03b46a6a34a7185b6a4e35e2445e2cdc1
           ports:
             - containerPort: 8088
           startupProbe:
