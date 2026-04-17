@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: auth
-          image: vietpham18/auth-service:68fd99c273ac4f9c679fcf67a82cb3a14d6af0df
+          image: vietpham18/auth-service:36fe7ac0f0c4bec84e92c400573082aeb42605f2
           ports:
             - containerPort: 8081
           startupProbe:
@@ -96,7 +96,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:d7521ace0ac47262eba2eeb76556edec7baccc22
+          image: vietpham18/user-service:36fe7ac0f0c4bec84e92c400573082aeb42605f2
           ports:
             - containerPort: 8082
           startupProbe:
@@ -171,7 +171,7 @@ spec:
     spec:
       containers:
         - name: relationship
-          image: vietpham18/relationship-service:989091e6db748bf906ffa23ec2480ade09cdcffe
+          image: vietpham18/relationship-service:36fe7ac0f0c4bec84e92c400573082aeb42605f2
           ports:
             - containerPort: 8087
           startupProbe:
@@ -242,7 +242,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:b91a2cb6c2042aadfada9b2af0b4291725356512
+          image: vietpham18/post-service:36fe7ac0f0c4bec84e92c400573082aeb42605f2
           ports:
             - containerPort: 8085
           startupProbe:
@@ -311,7 +311,7 @@ spec:
     spec:
       containers:
         - name: permission
-          image: vietpham18/permission-service:f5d71e178bee21a288785d77bd2abc4a0b86d020
+          image: vietpham18/permission-service:36fe7ac0f0c4bec84e92c400573082aeb42605f2
           ports:
             - containerPort: 8088
           startupProbe:
@@ -380,7 +380,7 @@ spec:
     spec:
       containers:
         - name: org
-          image: vietpham18/org-service:f5d71e178bee21a288785d77bd2abc4a0b86d020
+          image: vietpham18/org-service:36fe7ac0f0c4bec84e92c400573082aeb42605f2
           ports:
             - containerPort: 8084
           startupProbe:
@@ -744,7 +744,7 @@ spec:
     spec:
       containers:
         - name: search
-          image: vietpham18/search-service:d7521ace0ac47262eba2eeb76556edec7baccc22
+          image: vietpham18/search-service:36fe7ac0f0c4bec84e92c400573082aeb42605f2
           ports:
             - containerPort: 8086
           startupProbe:
