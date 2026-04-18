@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: auth
-          image: vietpham18/auth-service:9ae36e981b8dce7de93621b7bbfdf9e531225a5f
+          image: vietpham18/auth-service:adfb37a7159e04fc4f291a96521d648c6a954361
           ports:
             - containerPort: 8081
           startupProbe:
@@ -311,7 +311,7 @@ spec:
     spec:
       containers:
         - name: permission
-          image: vietpham18/permission-service:1d5c4ae03b46a6a34a7185b6a4e35e2445e2cdc1
+          image: vietpham18/permission-service:adfb37a7159e04fc4f291a96521d648c6a954361
           ports:
             - containerPort: 8088
           startupProbe:
