@@ -219,6 +219,9 @@ public class UserServiceImpl implements IUserService {
                     .displayName(user.getFirstName() + " " + user.getLastName())
                     .avatarUrl(avatarUrl)
                     .avatarPath(avatarPath)
+                    .active(user.getActive())
+                    .suspended(user.getSuspended())
+                    .banned(user.getBanned())
                     .build());
         }
 

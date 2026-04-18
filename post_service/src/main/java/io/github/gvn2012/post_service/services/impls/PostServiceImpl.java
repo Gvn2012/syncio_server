@@ -8,6 +8,7 @@ import io.github.gvn2012.post_service.dtos.requests.PostUpdateRequest;
 import io.github.gvn2012.post_service.dtos.requests.SignedUrlRequestDTO;
 import io.github.gvn2012.post_service.dtos.responses.PostResponse;
 import io.github.gvn2012.post_service.dtos.responses.SignedUrlResponseDTO;
+import io.github.gvn2012.post_service.dtos.responses.UserSummaryResponse;
 import io.github.gvn2012.post_service.entities.*;
 import io.github.gvn2012.post_service.entities.composite_keys.PostTagId;
 import io.github.gvn2012.post_service.entities.enums.AttachmentUploadStatus;
@@ -51,6 +52,8 @@ public class PostServiceImpl implements IPostService {
     private final PostTagRepository postTagRepository;
     private final UserClient userClient;
     private final io.github.gvn2012.post_service.clients.UploadClient uploadClient;
+    private final UserSummaryService userSummaryService;
+    private final PostReactionRepository postReactionRepository;
     private final Map<PostCategory, PostSubtypeProcessor> subtypeProcessors;
 
     public PostServiceImpl(
@@ -67,6 +70,8 @@ public class PostServiceImpl implements IPostService {
             PostTagRepository postTagRepository,
             UserClient userClient,
             io.github.gvn2012.post_service.clients.UploadClient uploadClient,
+            UserSummaryService userSummaryService,
+            PostReactionRepository postReactionRepository,
             List<PostSubtypeProcessor> processors) {
         this.postRepository = postRepository;
         this.contentVersionService = contentVersionService;
@@ -81,6 +86,8 @@ public class PostServiceImpl implements IPostService {
         this.postTagRepository = postTagRepository;
         this.userClient = userClient;
         this.uploadClient = uploadClient;
+        this.userSummaryService = userSummaryService;
+        this.postReactionRepository = postReactionRepository;
         this.subtypeProcessors = processors.stream()
                 .collect(Collectors.toMap(PostSubtypeProcessor::supportedCategory, Function.identity()));
     }
@@ -128,7 +135,7 @@ public class PostServiceImpl implements IPostService {
             }
         }
         log.info("Successfully completed createPost for post: {}", saved.getId());
-        return response;
+        return enrichPost(response, authorId);
     }
 
     private void processSubtypes(Post post, PostCreateRequest request) {
@@ -176,19 +183,77 @@ public class PostServiceImpl implements IPostService {
     public PostResponse getPostById(UUID id, UUID viewerId) {
         Post post = fetchPostById(id);
         userValidationService.validateCanView(post, viewerId);
-        return postMapper.toResponse(post);
+        return enrichPost(postMapper.toResponse(post), viewerId);
     }
 
     @Override
-    public List<PostResponse> getPostsByAuthor(UUID authorId, Pageable pageable) {
-        return postRepository.findByAuthorId(authorId, pageable)
-                .stream().map(postMapper::toResponse).toList();
+    public List<PostResponse> getPostsByAuthor(UUID authorId, UUID viewerId, Pageable pageable) {
+        List<Post> posts = postRepository.findByAuthorId(authorId, pageable).stream().toList();
+        return enrichPosts(posts, viewerId);
     }
 
     @Override
-    public List<PostResponse> getPostsByStatus(PostStatus status, Pageable pageable) {
-        return postRepository.findByStatus(status, pageable)
-                .stream().map(postMapper::toResponse).toList();
+    public List<PostResponse> getPostsByStatus(PostStatus status, UUID viewerId, Pageable pageable) {
+        List<Post> posts = postRepository.findByStatus(status, pageable).stream().toList();
+        return enrichPosts(posts, viewerId);
+    }
+
+    private PostResponse enrichPost(PostResponse response, UUID viewerId) {
+        if (response == null)
+            return null;
+        
+        // 1. Author Info Enrichment
+        response.setAuthorInfo(userSummaryService.getSummary(response.getAuthorId()));
+        
+        // 2. Viewer Interaction Enrichment
+        if (viewerId != null) {
+            // Reaction check
+            postReactionRepository.findByPostIdAndUserId(response.getId(), viewerId)
+                .ifPresent(reaction -> response.setViewerReaction(reaction.getReactionType().getCode()));
+            
+            // Shared check
+            boolean isShared = postRepository.findSharedPostIdsByAuthor(viewerId, Collections.singleton(response.getId()))
+                .contains(response.getId());
+            response.setSharedByViewer(isShared);
+        }
+        
+        return response;
+    }
+
+    private List<PostResponse> enrichPosts(List<Post> posts, UUID viewerId) {
+        if (posts == null || posts.isEmpty())
+            return List.of();
+            
+        Set<UUID> postIds = posts.stream().map(Post::getId).collect(Collectors.toSet());
+        Set<UUID> authorIds = posts.stream().map(Post::getAuthorId).collect(Collectors.toSet());
+        
+        // Batch fetch author summaries
+        Map<UUID, UserSummaryResponse> summaries = userSummaryService.getSummaries(authorIds);
+        
+        // Batch fetch interactions if viewerId is present
+        Map<UUID, String> reactionsMap = new HashMap<>();
+        Set<UUID> sharedPostIds = new HashSet<>();
+        
+        if (viewerId != null) {
+            postReactionRepository.findByUserIdAndPostIdIn(viewerId, postIds)
+                .forEach(r -> reactionsMap.put(r.getPost().getId(), r.getReactionType().getCode()));
+            
+            sharedPostIds = postRepository.findSharedPostIdsByAuthor(viewerId, postIds);
+        }
+        
+        final Set<UUID> sharedIdsFinal = sharedPostIds;
+        
+        return posts.stream().map(post -> {
+            PostResponse res = postMapper.toResponse(post);
+            res.setAuthorInfo(summaries.get(post.getAuthorId()));
+            
+            if (viewerId != null) {
+                res.setViewerReaction(reactionsMap.get(post.getId()));
+                res.setSharedByViewer(sharedIdsFinal.contains(post.getId()));
+            }
+            
+            return res;
+        }).collect(Collectors.toList());
     }
 
     @Override
@@ -249,7 +314,7 @@ public class PostServiceImpl implements IPostService {
                 }
             }
         }
-        return response;
+        return enrichPost(response, editorId);
     }
 
     private void validateOwnership(Post post, UUID userId) {
@@ -378,7 +443,7 @@ public class PostServiceImpl implements IPostService {
         Post post = fetchPostById(id);
         validateOwnership(post, userId);
         post.setIsPinned(true);
-        return postMapper.toResponse(postRepository.save(post));
+        return enrichPost(postMapper.toResponse(postRepository.save(post)), userId);
     }
 
     @Override
@@ -388,7 +453,7 @@ public class PostServiceImpl implements IPostService {
         Post post = fetchPostById(id);
         validateOwnership(post, userId);
         post.setIsPinned(false);
-        return postMapper.toResponse(postRepository.save(post));
+        return enrichPost(postMapper.toResponse(postRepository.save(post)), userId);
     }
 
     @Override
@@ -420,13 +485,13 @@ public class PostServiceImpl implements IPostService {
                 .status(saved.getStatus().name())
                 .operationType(OperationType.UPSERT)
                 .build());
-        return postMapper.toResponse(saved);
+        return enrichPost(postMapper.toResponse(saved), sharerId);
     }
 
     @Override
-    public List<PostResponse> searchPosts(String keyword, Pageable pageable) {
-        return postRepository.searchByContentContaining(keyword, pageable)
-                .stream().map(postMapper::toResponse).toList();
+    public List<PostResponse> searchPosts(String keyword, UUID viewerId, Pageable pageable) {
+        List<Post> posts = postRepository.searchByContentContaining(keyword, pageable).stream().toList();
+        return enrichPosts(posts, viewerId);
     }
 
     @Override

@@ -4,6 +4,7 @@ import io.github.gvn2012.post_service.entities.PostReaction;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,6 +15,8 @@ public interface PostReactionRepository extends JpaRepository<PostReaction, UUID
     List<PostReaction> findByPostId(UUID postId);
 
     Optional<PostReaction> findByPostIdAndUserId(UUID postId, UUID userId);
+
+    List<PostReaction> findByUserIdAndPostIdIn(UUID userId, Collection<UUID> postIds);
 
     boolean existsByPostIdAndUserId(UUID postId, UUID userId);
 

@@ -2,13 +2,16 @@ package io.github.gvn2012.post_service.clients;
 
 import io.github.gvn2012.post_service.dtos.APIResource;
 import io.github.gvn2012.post_service.dtos.UserStatusResponse;
+import io.github.gvn2012.post_service.dtos.responses.UserSummaryResponse;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.HashMap;
 
 import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory;
 
@@ -71,5 +74,22 @@ public class UserClient extends HttpClient {
                         return "Unknown User";
                     return (firstName != null ? firstName : "") + (lastName != null ? " " + lastName : "");
                 }).onErrorReturn("Unknown User");
+    }
+
+    public Mono<Map<UUID, UserSummaryResponse>> getUsersSummaries(Set<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Mono.just(new HashMap<>());
+        }
+        return post(
+                "/api/v1/users/batch/summaries",
+                userIds,
+                new ParameterizedTypeReference<APIResource<Map<UUID, UserSummaryResponse>>>() {})
+                .map(response -> {
+                    if (response.isSuccess() && response.getData() != null) {
+                        return response.getData();
+                    }
+                    return new HashMap<UUID, UserSummaryResponse>();
+                })
+                .onErrorReturn(new HashMap<>());
     }
 }

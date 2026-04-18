@@ -9,7 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -28,6 +30,12 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     @Query("SELECT p FROM Post p JOIN p.announcement a WHERE a.isPinned = true AND p.status = 'PUBLISHED' ORDER BY a.priority ASC")
     List<Post> findPinnedAndPublishedAnnouncements(Pageable pageable);
+
+    @Query("SELECT p.parentPost.id FROM Post p " +
+            "WHERE p.authorId = :userId " +
+            "AND p.parentPost.id IN :postIds " +
+            "AND p.isShared = true")
+    Set<UUID> findSharedPostIdsByAuthor(@Param("userId") UUID userId, @Param("postIds") Collection<UUID> postIds);
 
     @Modifying
     @Query("UPDATE Post p SET p.commentCount = p.commentCount + :increment WHERE p.id = :id")

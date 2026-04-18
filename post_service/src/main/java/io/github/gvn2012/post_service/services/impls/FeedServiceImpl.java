@@ -7,6 +7,11 @@ import io.github.gvn2012.post_service.entities.Post;
 import io.github.gvn2012.post_service.entities.UserAffinity;
 import io.github.gvn2012.post_service.entities.enums.PostModerationStatus;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
+import io.github.gvn2012.post_service.entities.enums.PostCategory;
+import io.github.gvn2012.post_service.entities.enums.PostVisibility;
+import io.github.gvn2012.post_service.dtos.responses.PostResponse;
+import io.github.gvn2012.post_service.dtos.responses.UserSummaryResponse;
+import io.github.gvn2012.post_service.dtos.mappers.PostMapper;
 import io.github.gvn2012.post_service.repositories.ContentRankingRepository;
 import io.github.gvn2012.post_service.repositories.FeedItemRepository;
 import io.github.gvn2012.post_service.repositories.PostRepository;
@@ -30,77 +35,131 @@ public class FeedServiceImpl implements IFeedService {
     private final FeedRankingService rankingService;
     private final RelationshipClient relationshipClient;
     private final UserAffinityRepository userAffinityRepository;
+    private final UserSummaryService userSummaryService;
+    private final PostMapper postMapper;
 
     @Override
-    public List<Post> getHybridFeed(UUID recipientId, LocalDateTime cursor, int limit) {
+    public List<PostResponse> getHybridFeed(UUID recipientId, LocalDateTime cursor, int limit) {
+        LocalDateTime effectiveCursor = (cursor != null) ? cursor : LocalDateTime.now();
+        List<PostCategory> excludedCategories = List.of(PostCategory.TASK, PostCategory.ANNOUNCEMENT);
+
         List<Post> candidates = new ArrayList<>();
 
-        List<FeedItem> pushedItems = feedItemRepository.findByRecipientIdOrderByWeightScoreDescCreatedAtDesc(
-                recipientId, PageRequest.of(0, limit * 2));
-        pushedItems.forEach(item -> candidates.add(item.getSourcePost()));
-
-        List<UUID> highVolumeFollows = resolveFollows(recipientId);
-        if (!highVolumeFollows.isEmpty()) {
-            LocalDateTime cutoff = LocalDateTime.now().minusDays(7);
-            List<ContentRanking> pulledRankings = contentRankingRepository.findTopRankingsByAuthors(
-                    highVolumeFollows, cutoff, PageRequest.of(0, limit));
-            pulledRankings.forEach(ranking -> candidates.add(ranking.getPost()));
-        }
-
-        List<Post> pinnedPosts = postRepository.findPinnedAndPublishedAnnouncements(PageRequest.of(0, 5));
-        candidates.addAll(pinnedPosts);
-
-        Map<UUID, Post> deduped = new LinkedHashMap<>();
-        for (Post post : candidates) {
-            deduped.putIfAbsent(post.getId(), post);
-        }
-
-        List<UUID> authorIds = deduped.values().stream().map(Post::getAuthorId).distinct().toList();
-        Map<UUID, UserAffinity> affinities = userAffinityRepository.findByUserIdAndAuthorIdIn(recipientId, authorIds)
-                .stream()
-                .collect(Collectors.toMap(UserAffinity::getAuthorId, a -> a));
-
-        Map<UUID, Double> precomputedScores = new HashMap<>();
-        for (Post post : deduped.values()) {
-            UserAffinity aff = affinities.get(post.getAuthorId());
-            Double affinityScore = (aff != null) ? aff.getAffinityScore() : null;
-            precomputedScores.put(post.getId(), rankingService.computeScore(post, recipientId, affinityScore));
-        }
-
+        // 1. Resolve Relationships (Follows & Blocks)
+        List<UUID> followedIds = resolveFollows(recipientId);
         List<UUID> blockedIds = resolveBlocks(recipientId);
         List<UUID> blockedByIds = resolveBlockedBy(recipientId);
         Set<UUID> allBlocked = new HashSet<>(blockedIds);
         allBlocked.addAll(blockedByIds);
 
-        return deduped.values().stream()
+        // 2. Fetch Pushed Content (Inbox / Fan-out)
+        List<FeedItem> pushedItems = feedItemRepository.findByRecipientIdAndCursor(
+                recipientId, effectiveCursor, excludedCategories, PageRequest.of(0, limit * 2));
+        pushedItems.forEach(item -> candidates.add(item.getSourcePost()));
+
+        // 3. Fetch Pulled Content (Top content from followed users)
+        if (!followedIds.isEmpty()) {
+            List<ContentRanking> pulledRankings = contentRankingRepository.findTopRankingsByAuthorsAndCursor(
+                    followedIds, effectiveCursor, excludedCategories, PageRequest.of(0, limit));
+            pulledRankings.forEach(ranking -> candidates.add(ranking.getPost()));
+        }
+
+        // 4. Global Discovery Content (Randomness from non-followed authors)
+        List<ContentRanking> discoveryRankings = contentRankingRepository.findGlobalTopRankings(
+                effectiveCursor, excludedCategories, PageRequest.of(0, limit));
+
+        discoveryRankings.stream()
+                .map(ContentRanking::getPost)
+                .filter(post -> post.getVisibility() == PostVisibility.PUBLIC)
+                .filter(post -> !followedIds.contains(post.getAuthorId()))
+                .filter(post -> !allBlocked.contains(post.getAuthorId()))
+                .filter(post -> !post.getAuthorId().equals(recipientId))
+                .forEach(candidates::add);
+
+        // 5. Deduplicate by Post ID
+        Map<UUID, Post> deduped = new LinkedHashMap<>();
+        for (Post post : candidates) {
+            deduped.putIfAbsent(post.getId(), post);
+        }
+
+        // 6. Enrichment with User Affinity
+        List<UUID> poolAuthorIds = deduped.values().stream().map(Post::getAuthorId).distinct().toList();
+        Map<UUID, UserAffinity> affinities = userAffinityRepository
+                .findByUserIdAndAuthorIdIn(recipientId, poolAuthorIds)
+                .stream()
+                .collect(Collectors.toMap(UserAffinity::getAuthorId, a -> a));
+
+        // 7. Scoring & Jitter (Variability)
+        Random random = new Random();
+        Map<UUID, Double> scores = new HashMap<>();
+        for (Post post : deduped.values()) {
+            UserAffinity aff = affinities.get(post.getAuthorId());
+            Double affinityScore = (aff != null) ? aff.getAffinityScore() : null;
+            double baseScore = rankingService.computeScore(post, recipientId, affinityScore);
+
+            if (!followedIds.contains(post.getAuthorId()) && !post.getAuthorId().equals(recipientId)) {
+                baseScore *= 0.95; 
+            }
+
+            double jitter = 1.0 + (random.nextDouble() * 0.02);
+            scores.put(post.getId(), baseScore * jitter);
+        }
+
+        // 8. Sorting & Author Capping (Diversity Filter)
+        Map<UUID, Integer> authorCounts = new HashMap<>();
+        int MAX_POSTS_PER_AUTHOR = 2;
+
+        List<Post> sortedPosts = deduped.values().stream()
                 .filter(this::isVisible)
                 .filter(post -> !allBlocked.contains(post.getAuthorId()))
-                .sorted((a, b) -> {
-                    double scoreA = precomputedScores.getOrDefault(a.getId(), 0.0);
-                    double scoreB = precomputedScores.getOrDefault(b.getId(), 0.0);
-                    return Double.compare(scoreB, scoreA);
+                .sorted((a, b) -> Double.compare(scores.getOrDefault(b.getId(), 0.0),
+                        scores.getOrDefault(a.getId(), 0.0)))
+                .filter(post -> {
+                    int count = authorCounts.getOrDefault(post.getAuthorId(), 0);
+                    if (count < MAX_POSTS_PER_AUTHOR) {
+                        authorCounts.put(post.getAuthorId(), count + 1);
+                        return true;
+                    }
+                    return false;
                 })
                 .limit(limit)
                 .collect(Collectors.toList());
+
+        return enrichPosts(sortedPosts);
     }
 
     @Override
-    public List<Post> getTrendingPosts(LocalDateTime since, int limit) {
+    public List<PostResponse> getTrendingPosts(LocalDateTime since, int limit) {
         List<ContentRanking> rankings = contentRankingRepository.findTopRankingsSince(
                 since, PageRequest.of(0, limit));
-        return rankings.stream()
+        List<Post> posts = rankings.stream()
                 .map(ContentRanking::getPost)
                 .filter(this::isVisible)
                 .collect(Collectors.toList());
+        return enrichPosts(posts);
     }
 
     @Override
-    public List<Post> getFollowingFeed(UUID recipientId, LocalDateTime cursor, int limit) {
+    public List<PostResponse> getFollowingFeed(UUID recipientId, LocalDateTime cursor, int limit) {
         List<UUID> followedIds = resolveFollows(recipientId);
         if (followedIds.isEmpty())
             return List.of();
-        return postRepository.findByAuthorIdInAndStatusOrderByPublishedAtDesc(
+        List<Post> posts = postRepository.findByAuthorIdInAndStatusOrderByPublishedAtDesc(
                 followedIds, PostStatus.PUBLISHED, PageRequest.of(0, limit));
+        return enrichPosts(posts);
+    }
+
+    private List<PostResponse> enrichPosts(List<Post> posts) {
+        if (posts == null || posts.isEmpty()) return List.of();
+
+        Set<UUID> authorIds = posts.stream().map(Post::getAuthorId).collect(Collectors.toSet());
+        Map<UUID, UserSummaryResponse> authorSummaries = userSummaryService.getSummaries(authorIds);
+
+        return posts.stream().map(post -> {
+            PostResponse response = postMapper.toResponse(post);
+            response.setAuthorInfo(authorSummaries.get(post.getAuthorId()));
+            return response;
+        }).collect(Collectors.toList());
     }
 
     private List<UUID> resolveFollows(UUID userId) {

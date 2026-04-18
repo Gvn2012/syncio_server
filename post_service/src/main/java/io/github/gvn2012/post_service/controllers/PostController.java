@@ -37,29 +37,32 @@ public class PostController {
 
     @GetMapping("/author/{uid}")
     public ResponseEntity<APIResource<List<PostResponse>>> getPostsByAuthor(
+            @RequestHeader(value = "X-User-ID", required = false) UUID viewerId,
             @PathVariable("uid") UUID authorId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(APIResource.ok("Posts retrieved",
-                postService.getPostsByAuthor(authorId, PageRequest.of(page, size))));
+                postService.getPostsByAuthor(authorId, viewerId, PageRequest.of(page, size))));
     }
 
     @GetMapping("/status/{status}")
     public ResponseEntity<APIResource<List<PostResponse>>> getPostsByStatus(
+            @RequestHeader(value = "X-User-ID", required = false) UUID viewerId,
             @PathVariable PostStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(APIResource.ok("Posts retrieved",
-                postService.getPostsByStatus(status, PageRequest.of(page, size))));
+                postService.getPostsByStatus(status, viewerId, PageRequest.of(page, size))));
     }
 
     @GetMapping("/search")
     public ResponseEntity<APIResource<List<PostResponse>>> searchPosts(
+            @RequestHeader(value = "X-User-ID", required = false) UUID viewerId,
             @RequestParam String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(APIResource.ok("Search results",
-                postService.searchPosts(keyword, PageRequest.of(page, size))));
+                postService.searchPosts(keyword, viewerId, PageRequest.of(page, size))));
     }
 
     @PatchMapping("/{pid}/content")

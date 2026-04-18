@@ -21,6 +21,9 @@ import java.util.UUID;
 public class PostResponse {
     private UUID id;
     private UUID authorId;
+    private UserSummaryResponse authorInfo;
+    private String viewerReaction;
+    private boolean isSharedByViewer;
     private UUID orgId;
     private String content;
     private String contentHtml;
