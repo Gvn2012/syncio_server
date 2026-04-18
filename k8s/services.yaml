@@ -242,7 +242,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:36fe7ac0f0c4bec84e92c400573082aeb42605f2
+          image: vietpham18/post-service:93a4cfc5710ddfb7909b69e410a2039bcdea2e93
           ports:
             - containerPort: 8085
           startupProbe:
@@ -449,7 +449,7 @@ spec:
     spec:
       containers:
         - name: notification
-          image: vietpham18/notification-service:c40a67b405d21116ca8af192674d7772aeebb86e
+          image: vietpham18/notification-service:93a4cfc5710ddfb7909b69e410a2039bcdea2e93
           ports:
             - containerPort: 8083
           startupProbe:
