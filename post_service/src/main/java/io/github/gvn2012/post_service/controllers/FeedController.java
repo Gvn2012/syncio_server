@@ -29,11 +29,13 @@ public class FeedController {
     }
 
     @GetMapping("/trending")
-    public ResponseEntity<APIResource<List<PostResponse>>> getTrendingPosts(
-            @RequestParam(defaultValue = "7") int days,
+    public ResponseEntity<APIResource<List<PostResponse>>> getTrending(
+            @RequestHeader(value = "X-User-ID", required = false) UUID viewerId,
+            @RequestParam(defaultValue = "24") int hours,
             @RequestParam(defaultValue = "10") int limit) {
-        List<PostResponse> trending = feedService.getTrendingPosts(LocalDateTime.now().minusDays(days), limit);
-        return ResponseEntity.ok(APIResource.ok("Trending posts retrieved", trending));
+        LocalDateTime since = LocalDateTime.now().minusHours(hours);
+        return ResponseEntity.ok(APIResource.ok("Trending posts",
+                feedService.getTrendingPosts(viewerId, since, limit)));
     }
 
     @GetMapping("/following")

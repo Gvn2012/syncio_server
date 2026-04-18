@@ -14,10 +14,10 @@ import io.github.gvn2012.post_service.dtos.responses.UserSummaryResponse;
 import io.github.gvn2012.post_service.dtos.mappers.PostMapper;
 import io.github.gvn2012.post_service.repositories.ContentRankingRepository;
 import io.github.gvn2012.post_service.repositories.FeedItemRepository;
+import io.github.gvn2012.post_service.repositories.PostReactionRepository;
 import io.github.gvn2012.post_service.repositories.PostRepository;
 import io.github.gvn2012.post_service.repositories.UserAffinityRepository;
 import io.github.gvn2012.post_service.services.interfaces.IFeedService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +26,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class FeedServiceImpl implements IFeedService {
 
     private final FeedItemRepository feedItemRepository;
@@ -36,7 +35,29 @@ public class FeedServiceImpl implements IFeedService {
     private final RelationshipClient relationshipClient;
     private final UserAffinityRepository userAffinityRepository;
     private final UserSummaryService userSummaryService;
+    private final PostReactionRepository postReactionRepository;
     private final PostMapper postMapper;
+
+    public FeedServiceImpl(
+            FeedItemRepository feedItemRepository,
+            ContentRankingRepository contentRankingRepository,
+            PostRepository postRepository,
+            FeedRankingService rankingService,
+            RelationshipClient relationshipClient,
+            UserAffinityRepository userAffinityRepository,
+            UserSummaryService userSummaryService,
+            PostReactionRepository postReactionRepository,
+            PostMapper postMapper) {
+        this.feedItemRepository = feedItemRepository;
+        this.contentRankingRepository = contentRankingRepository;
+        this.postRepository = postRepository;
+        this.rankingService = rankingService;
+        this.relationshipClient = relationshipClient;
+        this.userAffinityRepository = userAffinityRepository;
+        this.userSummaryService = userSummaryService;
+        this.postReactionRepository = postReactionRepository;
+        this.postMapper = postMapper;
+    }
 
     @Override
     public List<PostResponse> getHybridFeed(UUID recipientId, LocalDateTime cursor, int limit) {
@@ -125,18 +146,18 @@ public class FeedServiceImpl implements IFeedService {
                 .limit(limit)
                 .collect(Collectors.toList());
 
-        return enrichPosts(sortedPosts);
+        return enrichPosts(sortedPosts, recipientId);
     }
 
     @Override
-    public List<PostResponse> getTrendingPosts(LocalDateTime since, int limit) {
+    public List<PostResponse> getTrendingPosts(UUID viewerId, LocalDateTime since, int limit) {
         List<ContentRanking> rankings = contentRankingRepository.findTopRankingsSince(
                 since, PageRequest.of(0, limit));
         List<Post> posts = rankings.stream()
                 .map(ContentRanking::getPost)
                 .filter(this::isVisible)
                 .collect(Collectors.toList());
-        return enrichPosts(posts);
+        return enrichPosts(posts, viewerId);
     }
 
     @Override
@@ -146,18 +167,40 @@ public class FeedServiceImpl implements IFeedService {
             return List.of();
         List<Post> posts = postRepository.findByAuthorIdInAndStatusOrderByPublishedAtDesc(
                 followedIds, PostStatus.PUBLISHED, PageRequest.of(0, limit));
-        return enrichPosts(posts);
+        return enrichPosts(posts, recipientId);
     }
 
-    private List<PostResponse> enrichPosts(List<Post> posts) {
+    private List<PostResponse> enrichPosts(List<Post> posts, UUID viewerId) {
         if (posts == null || posts.isEmpty()) return List.of();
 
+        Set<UUID> postIds = posts.stream().map(Post::getId).collect(Collectors.toSet());
         Set<UUID> authorIds = posts.stream().map(Post::getAuthorId).collect(Collectors.toSet());
+        
+        // Batch fetch author summaries
         Map<UUID, UserSummaryResponse> authorSummaries = userSummaryService.getSummaries(authorIds);
+        
+        // Batch fetch interactions if viewerId is present
+        Map<UUID, String> reactionsMap = new HashMap<>();
+        Set<UUID> sharedPostIds = new HashSet<>();
+        
+        if (viewerId != null) {
+            postReactionRepository.findByUserIdAndPostIdIn(viewerId, postIds)
+                .forEach(r -> reactionsMap.put(r.getPost().getId(), r.getReactionType().getCode()));
+            
+            sharedPostIds = postRepository.findSharedPostIdsByAuthor(viewerId, postIds);
+        }
+        
+        final Set<UUID> sharedIdsFinal = sharedPostIds;
 
         return posts.stream().map(post -> {
             PostResponse response = postMapper.toResponse(post);
             response.setAuthorInfo(authorSummaries.get(post.getAuthorId()));
+            
+            if (viewerId != null) {
+                response.setViewerReaction(reactionsMap.get(post.getId()));
+                response.setSharedByViewer(sharedIdsFinal.contains(post.getId()));
+            }
+            
             return response;
         }).collect(Collectors.toList());
     }

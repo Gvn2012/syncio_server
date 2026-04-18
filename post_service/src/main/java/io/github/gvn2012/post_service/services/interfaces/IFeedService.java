@@ -8,6 +8,6 @@ import java.util.UUID;
 
 public interface IFeedService {
     List<PostResponse> getHybridFeed(UUID recipientId, LocalDateTime cursor, int limit);
-    List<PostResponse> getTrendingPosts(LocalDateTime since, int limit);
+    List<PostResponse> getTrendingPosts(UUID viewerId, LocalDateTime since, int limit);
     List<PostResponse> getFollowingFeed(UUID recipientId, LocalDateTime cursor, int limit);
 }
