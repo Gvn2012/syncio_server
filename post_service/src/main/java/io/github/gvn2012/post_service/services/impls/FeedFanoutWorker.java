@@ -35,7 +35,10 @@ public class FeedFanoutWorker {
     @TransactionalEventListener
     public void handlePostCreated(PostCreatedEvent event) {
         Post post = event.post();
+        log.info("Handling PostCreatedEvent for post: {}", post.getId());
+
         List<UUID> audience = lookupAudience(post.getAuthorId());
+        log.info("Looked up audience for author: {}, found {} members", post.getAuthorId(), audience.size());
 
         if (audience.size() > FANOUT_THRESHOLD) {
             log.info("Skipping fanout for high-volume author {} ({} audience members)", post.getAuthorId(),
@@ -43,12 +46,21 @@ public class FeedFanoutWorker {
             return;
         }
 
+        log.debug("Fetching user affinities for {} audience members of author: {}", audience.size(), post.getAuthorId());
         Map<UUID, UserAffinity> affinities = affinityRepository.findByUserIdInAndAuthorId(audience, post.getAuthorId())
                 .stream()
                 .collect(Collectors.toMap(UserAffinity::getUserId, a -> a));
+        log.info("Found {} affinities for audience members", affinities.size());
 
+        log.info("Filtering audience for visibility: {} for post: {}", post.getVisibility(), post.getId());
         List<FeedItem> feedItems = audience.stream()
-                .filter(recipientId -> canViewPost(post, recipientId, audience))
+                .filter(recipientId -> {
+                    boolean canView = canViewPost(post, recipientId, audience);
+                    if (!canView) {
+                        log.debug("Recipient {} cannot view post: {}", recipientId, post.getId());
+                    }
+                    return canView;
+                })
                 .map(recipientId -> {
                     FeedItem item = new FeedItem();
                     item.setRecipientId(recipientId);
@@ -61,9 +73,12 @@ public class FeedFanoutWorker {
                     return item;
                 }).toList();
 
+        log.info("Prepared {} feed items for post: {}", feedItems.size(), post.getId());
         if (!feedItems.isEmpty()) {
             feedItemRepository.saveAll(feedItems);
-            log.info("Fan-out {} feed items for post {}", feedItems.size(), post.getId());
+            log.info("Successfully saved {} fan-out feed items for post: {}", feedItems.size(), post.getId());
+        } else {
+            log.warn("No feed items generated for post: {} (audience size was {})", post.getId(), audience.size());
         }
     }
 

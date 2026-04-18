@@ -16,6 +16,7 @@ import io.github.gvn2012.post_service.entities.enums.PostCategory;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
 import io.github.gvn2012.shared.kafka_events.PostSearchEvent;
 import io.github.gvn2012.shared.kafka_events.PostSearchEvent.OperationType;
+import lombok.extern.slf4j.Slf4j;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
 import io.github.gvn2012.post_service.repositories.*;
 import io.github.gvn2012.post_service.services.interfaces.IPostContentVersionService;
@@ -34,6 +35,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class PostServiceImpl implements IPostService {
 
     private final PostRepository postRepository;
@@ -86,27 +88,37 @@ public class PostServiceImpl implements IPostService {
     @Override
     @Transactional
     public PostResponse createPost(PostCreateRequest request, UUID authorId) {
+        log.info("Starting createPost for author: {}", authorId);
         userValidationService.validateUserCanInteract(authorId);
 
         Post post = postMapper.toEntity(request);
+        log.debug("Converted request to entity for author: {}", authorId);
         post.setAuthorId(authorId);
         post.setPublishedAt(LocalDateTime.now());
 
         Post saved = postRepository.save(post);
+        log.info("Saved post with ID: {}", saved.getId());
 
         processMentions(saved, request.getMentions());
         processTags(saved, request.getTags());
+        log.debug("Processed mentions and tags for post: {}", saved.getId());
+
         List<String> presignedUrls = null;
         if (request.getAttachments() != null && !request.getAttachments().isEmpty()) {
             presignedUrls = processAttachmentsWithPresign(saved, request.getAttachments());
+            log.debug("Processed {} attachments for post: {}", request.getAttachments().size(), saved.getId());
         }
         processSubtypes(saved, request);
+        log.debug("Processed subtypes for post: {}", saved.getId());
 
         contentVersionService.captureNewVersion(saved, saved.getAuthorId(), saved.getContent());
+        log.debug("Captured content version for post: {}", saved.getId());
 
         enrichAndPublish(saved);
+        log.info("Finished enrichAndPublish for post: {}", saved.getId());
 
         eventPublisher.publishEvent(new FeedFanoutWorker.PostCreatedEvent(saved));
+        log.info("Published FeedFanoutWorker.PostCreatedEvent for post: {}", saved.getId());
 
         PostResponse response = postMapper.toResponse(saved);
         if (presignedUrls != null && response.getAttachments() != null && !response.getAttachments().isEmpty()) {
@@ -115,6 +127,7 @@ public class PostServiceImpl implements IPostService {
                 response.getAttachments().get(i).setUploadUrl(presignedUrls.get(i));
             }
         }
+        log.info("Successfully completed createPost for post: {}", saved.getId());
         return response;
     }
 

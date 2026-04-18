@@ -69,7 +69,7 @@ public class PostEventConsumer {
                     List<Notification> notifications = new ArrayList<>();
                     String actorName = event.getActorName() != null ? event.getActorName() : "A user";
 
-                    // 1. Process Audience (Follower Feeed)
+                    // 1. Process Audience (Follower Feed)
                     audience.forEach(recipientId -> {
                         notifications.add(buildNotification(event, recipientId, NotificationType.POST_CREATED,
                                 "New post from " + actorName, formatCreatedMessage(event)));
