@@ -449,7 +449,7 @@ spec:
     spec:
       containers:
         - name: notification
-          image: vietpham18/notification-service:f5d71e178bee21a288785d77bd2abc4a0b86d020
+          image: vietpham18/notification-service:baa1a1e1c617358b5747f6691fbad52ff702bcb8
           ports:
             - containerPort: 8083
           startupProbe:
