@@ -32,7 +32,7 @@ public class RoleServiceImpl implements RoleServiceInterface {
         @Override
         @Transactional(readOnly = true)
         public APIResource<List<GetUserRoleResponse>> getUserRole(String userId) {
-                log.info("Request to get roles for user: {}", userId);
+                log.info("Request service to get roles for user: {}", userId);
                 List<UserRole> userRoles = userRoleRepository.findAllByUserId(UUID.fromString(userId));
 
                 log.debug("Found {} raw user-role mappings for user: {}", userRoles.size(), userId);
@@ -40,8 +40,8 @@ public class RoleServiceImpl implements RoleServiceInterface {
                 List<GetUserRoleResponse> responses = userRoles.stream()
                                 .filter(userRole -> {
                                         if (userRole.getRole() == null) {
-                                                log.error("CORRUPTION: UserRole {} for user {} has a null role reference!", 
-                                                    userRole.getId(), userId);
+                                                log.error("CORRUPTION: UserRole {} for user {} has a null role reference!",
+                                                                userRole.getId(), userId);
                                                 return false;
                                         }
                                         return true;
