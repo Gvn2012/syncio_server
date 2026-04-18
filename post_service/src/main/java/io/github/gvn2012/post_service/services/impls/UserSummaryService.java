@@ -29,28 +29,37 @@ public class UserSummaryService {
         Map<UUID, UserSummaryResponse> result = new HashMap<>();
         Set<UUID> missingIds = new HashSet<>();
 
-        for (UUID userId : userIds) {
-            String key = CACHE_PREFIX + userId.toString();
-            UserSummaryResponse cached = userSummaryRedisTemplate.opsForValue().get(key);
-            if (cached != null) {
-                result.put(userId, cached);
-            } else {
-                missingIds.add(userId);
+        try {
+            for (UUID userId : userIds) {
+                String key = CACHE_PREFIX + userId.toString();
+                UserSummaryResponse cached = userSummaryRedisTemplate.opsForValue().get(key);
+                if (cached != null) {
+                    result.put(userId, cached);
+                } else {
+                    missingIds.add(userId);
+                }
             }
+        } catch (Exception e) {
+            log.warn("Redis lookup failed, falling back to direct service fetch. Error: {}", e.getMessage());
+            missingIds.addAll(userIds); // Fetch everything from service if Redis fails
         }
 
         if (missingIds.isEmpty()) {
             return result;
         }
-        log.info("Cache miss for {} users, fetching from user-service", missingIds.size());
+        log.info("Fetching {} users from user-service", missingIds.size());
         try {
             Map<UUID, UserSummaryResponse> freshSummaries = userClient.getUsersSummaries(missingIds)
                     .block(Duration.ofSeconds(5));
             if (freshSummaries != null) {
                 freshSummaries.forEach((id, summary) -> {
-                    String key = CACHE_PREFIX + id.toString();
-                    userSummaryRedisTemplate.opsForValue().set(key, summary, CACHE_TTL);
                     result.put(id, summary);
+                    try {
+                        String key = CACHE_PREFIX + id.toString();
+                        userSummaryRedisTemplate.opsForValue().set(key, summary, CACHE_TTL);
+                    } catch (Exception e) {
+                        log.warn("Failed to update Redis cache: {}", e.getMessage());
+                    }
                 });
             }
         } catch (Exception e) {
