@@ -1,0 +1,37 @@
+{"properties": [
+  {
+    "name": "eureka.client.enabled",
+    "type": "java.lang.String",
+    "description": "A description for 'eureka.client.enabled'"
+  },
+  {
+    "name": "eureka.instance.enabled",
+    "type": "java.lang.String",
+    "description": "A description for 'eureka.instance.enabled'"
+  },
+  {
+    "name": "spring.cloud.discovery.enabled",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.cloud.discovery.enabled'"
+  },
+  {
+    "name": "spring.cloud.loadbalancer.enabled",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.cloud.loadbalancer.enabled'"
+  },
+  {
+    "name": "jwt.secret_key",
+    "type": "java.lang.String",
+    "description": "A description for 'jwt.secret_key'"
+  },
+  {
+    "name": "jwt.access_token_duration",
+    "type": "java.lang.String",
+    "description": "A description for 'jwt.access_token_duration'"
+  },
+  {
+    "name": "jwt.refresh_token_duration",
+    "type": "java.lang.String",
+    "description": "A description for 'jwt.refresh_token_duration'"
+  }
+]}
