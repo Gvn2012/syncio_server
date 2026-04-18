@@ -25,7 +25,6 @@ import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -155,8 +154,8 @@ public class AuthService implements AuthServiceInterface {
     public Boolean isTokenExpired(String token) {
         return getExpirationDateFromToken(token).before(new Date());
     }
-
-    public ValidateResponse validateToken(@NotNull String token) {
+    @Override
+    public ValidateResponse validateToken(String token) {
         if (token == null || token.isBlank()) {
             return new ValidateResponse(false, "Missing token", null, null);
         }
