@@ -41,7 +41,7 @@ public class UserSummaryService {
             }
         } catch (Exception e) {
             log.warn("Redis lookup failed, falling back to direct service fetch. Error: {}", e.getMessage());
-            missingIds.addAll(userIds); // Fetch everything from service if Redis fails
+            missingIds.addAll(userIds);
         }
 
         if (missingIds.isEmpty()) {
