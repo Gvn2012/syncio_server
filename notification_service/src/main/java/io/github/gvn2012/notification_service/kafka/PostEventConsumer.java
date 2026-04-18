@@ -80,8 +80,9 @@ public class PostEventConsumer {
                         event.getMentions().stream()
                                 .filter(id -> !audience.contains(id)) // Avoid duplicates if already in audience
                                 .forEach(recipientId -> {
-                                    notifications.add(buildNotification(event, recipientId, NotificationType.POST_MENTION,
-                                            "New Mention", actorName + " mentioned you in a post"));
+                                    notifications
+                                            .add(buildNotification(event, recipientId, NotificationType.POST_MENTION,
+                                                    "New Mention", actorName + " mentioned you in a post"));
                                 });
                     }
 
@@ -95,7 +96,8 @@ public class PostEventConsumer {
 
                     if (!notifications.isEmpty()) {
                         notificationRepository.saveAll(notifications);
-                        log.info("Batch created {} notifications for post: {}", notifications.size(), event.getPostId());
+                        log.info("Batch created {} notifications for post: {}", notifications.size(),
+                                event.getPostId());
                     }
                 });
     }
@@ -103,7 +105,8 @@ public class PostEventConsumer {
     private Notification buildNotification(PostActivityEvent event, UUID recipientId, NotificationType type,
             String title, String message) {
         return Notification.builder()
-                .eventId(event.getEventId() != null ? event.getEventId().toString() + "_" + type + "_" + recipientId : null)
+                .eventId(event.getEventId() != null ? event.getEventId().toString() + "_" + type + "_" + recipientId
+                        : null)
                 .recipientId(recipientId)
                 .actorId(event.getAuthorId())
                 .targetId(event.getPostId())

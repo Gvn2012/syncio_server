@@ -19,19 +19,19 @@ public class Notification {
 
     @Id
     private String id;
-    
+
     @Indexed(unique = true)
     private String eventId;
 
     private UUID recipientId;
     private UUID actorId;
-    private UUID targetId; // Reference to postId, commentId, etc.
+    private UUID targetId;
 
     private NotificationType type;
-    
+
     private String title;
     private String message;
-    
+
     @Builder.Default
     private boolean isRead = false;
 
@@ -40,6 +40,6 @@ public class Notification {
 
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
-    
-    private String email; // Legacy or for combined notifications
+
+    private String email;
 }
