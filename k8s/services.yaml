@@ -286,6 +286,74 @@ spec:
     - port: 8085
 
 
+# ===================== RANKING =====================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-ranking
+  namespace: syncio
+spec:
+  replicas: 1
+  minReadySeconds: 15
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: syncio-ranking
+  template:
+    metadata:
+      labels:
+        app: syncio-ranking
+    spec:
+      containers:
+        - name: ranking
+          image: vietpham18/ranking-service:latest
+          ports:
+            - containerPort: 8000
+          startupProbe:
+            tcpSocket:
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 12
+            timeoutSeconds: 1
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "768Mi"
+          volumeMounts:
+            - name: ranking-models
+              mountPath: /app/models
+      volumes:
+        - name: ranking-models
+          persistentVolumeClaim:
+            claimName: ranking-models-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-ranking
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-ranking
+  ports:
+    - port: 8000
+
+
 # ===================== PERMISSION =====================
 ---
 apiVersion: apps/v1
@@ -627,7 +695,7 @@ spec:
             - name: ARGOCD_APP_NAME
               value: syncio-app
             - name: SCALABLE_DEPLOYMENTS
-              value: syncio-auth,syncio-user,syncio-rs,syncio-post,syncio-permission,syncio-org,syncio-notification,syncio-uploading,syncio-search
+              value: syncio-auth,syncio-user,syncio-rs,syncio-post,syncio-permission,syncio-org,syncio-notification,syncio-uploading,syncio-search,syncio-ranking
             - name: GITHUB_REPO
               value: Gvn2012/syncio_server
             - name: GITHUB_BRANCH

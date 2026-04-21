@@ -1,13 +1,16 @@
 package io.github.gvn2012.post_service.services.impls;
 
+import io.github.gvn2012.post_service.clients.RankingClient;
 import io.github.gvn2012.post_service.clients.RelationshipClient;
+import io.github.gvn2012.post_service.dtos.requests.RankingRequestDTO;
+import io.github.gvn2012.post_service.dtos.responses.RankingResponseDTO;
 import io.github.gvn2012.post_service.entities.ContentRanking;
 import io.github.gvn2012.post_service.entities.FeedItem;
 import io.github.gvn2012.post_service.entities.Post;
 import io.github.gvn2012.post_service.entities.UserAffinity;
+import io.github.gvn2012.post_service.entities.enums.PostCategory;
 import io.github.gvn2012.post_service.entities.enums.PostModerationStatus;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
-import io.github.gvn2012.post_service.entities.enums.PostCategory;
 import io.github.gvn2012.post_service.entities.enums.PostVisibility;
 import io.github.gvn2012.post_service.dtos.responses.PostResponse;
 import io.github.gvn2012.post_service.dtos.responses.UserSummaryResponse;
@@ -18,9 +21,12 @@ import io.github.gvn2012.post_service.repositories.PostReactionRepository;
 import io.github.gvn2012.post_service.repositories.PostRepository;
 import io.github.gvn2012.post_service.repositories.UserAffinityRepository;
 import io.github.gvn2012.post_service.services.interfaces.IFeedService;
+import io.github.gvn2012.post_service.services.interfaces.IInteractionVelocityService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -37,6 +43,8 @@ public class FeedServiceImpl implements IFeedService {
     private final UserSummaryService userSummaryService;
     private final PostReactionRepository postReactionRepository;
     private final PostMapper postMapper;
+    private final IInteractionVelocityService velocityService;
+    private final RankingClient rankingClient;
 
     public FeedServiceImpl(
             FeedItemRepository feedItemRepository,
@@ -47,7 +55,9 @@ public class FeedServiceImpl implements IFeedService {
             UserAffinityRepository userAffinityRepository,
             UserSummaryService userSummaryService,
             PostReactionRepository postReactionRepository,
-            PostMapper postMapper) {
+            PostMapper postMapper,
+            IInteractionVelocityService velocityService,
+            RankingClient rankingClient) {
         this.feedItemRepository = feedItemRepository;
         this.contentRankingRepository = contentRankingRepository;
         this.postRepository = postRepository;
@@ -57,9 +67,12 @@ public class FeedServiceImpl implements IFeedService {
         this.userSummaryService = userSummaryService;
         this.postReactionRepository = postReactionRepository;
         this.postMapper = postMapper;
+        this.velocityService = velocityService;
+        this.rankingClient = rankingClient;
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PostResponse> getHybridFeed(UUID recipientId, LocalDateTime cursor, int limit) {
         LocalDateTime effectiveCursor = (cursor != null) ? cursor : LocalDateTime.now();
         List<PostCategory> excludedCategories = List.of(PostCategory.TASK, PostCategory.ANNOUNCEMENT);
@@ -103,38 +116,54 @@ public class FeedServiceImpl implements IFeedService {
             deduped.putIfAbsent(post.getId(), post);
         }
 
-        // 6. Enrichment with User Affinity
+        // 6. Stage 2: Feature Engineering
         List<UUID> poolAuthorIds = deduped.values().stream().map(Post::getAuthorId).distinct().toList();
         Map<UUID, UserAffinity> affinities = userAffinityRepository
                 .findByUserIdAndAuthorIdIn(recipientId, poolAuthorIds)
                 .stream()
                 .collect(Collectors.toMap(UserAffinity::getAuthorId, a -> a));
 
-        // 7. Scoring & Jitter (Variability)
-        Random random = new Random();
-        Map<UUID, Double> scores = new HashMap<>();
-        for (Post post : deduped.values()) {
-            UserAffinity aff = affinities.get(post.getAuthorId());
-            Double affinityScore = (aff != null) ? aff.getAffinityScore() : null;
-            double baseScore = rankingService.computeScore(post, recipientId, affinityScore);
+        LocalDateTime now = LocalDateTime.now();
+        List<RankingRequestDTO.PostFeatureDTO> features = deduped.values().stream()
+                .map(post -> RankingRequestDTO.PostFeatureDTO.builder()
+                        .postId(post.getId())
+                        .authorId(post.getAuthorId())
+                        .authorAffinity(affinities.containsKey(post.getAuthorId()) ? affinities.get(post.getAuthorId()).getAffinityScore() : 0.0)
+                        .velocityScore(velocityService.getVelocityScore(post.getId()))
+                        .recencyHours((double) Duration.between(post.getPublishedAt() != null ? post.getPublishedAt() : post.getCreatedAt(), now).toHours())
+                        .category(post.getPostCategory().name())
+                        .mediaCount(post.getAttachments() != null ? post.getAttachments().size() : 0)
+                        .build())
+                .collect(Collectors.toList());
 
-            if (!followedIds.contains(post.getAuthorId()) && !post.getAuthorId().equals(recipientId)) {
-                baseScore *= 0.95;
-            }
+        // 7. Stage 3: External ML Ranking
+        RankingRequestDTO rankingRequest = RankingRequestDTO.builder()
+                .userId(recipientId)
+                .candidates(features)
+                .build();
 
-            double jitter = 1.0 + (random.nextDouble() * 0.02);
-            scores.put(post.getId(), baseScore * jitter);
+        RankingResponseDTO rankingResponse = rankingClient.rankPosts(rankingRequest).block();
+
+        Map<UUID, Double> finalScores = new HashMap<>();
+        if (rankingResponse != null && rankingResponse.getRankedCandidates() != null) {
+            rankingResponse.getRankedCandidates().forEach(rc -> finalScores.put(rc.getPostId(), rc.getScore()));
+        } else {
+            // Fallback to local ranking if sidecar fails
+            deduped.values().forEach(post -> {
+                UserAffinity aff = affinities.get(post.getAuthorId());
+                double score = rankingService.computeScore(post, recipientId, aff != null ? aff.getAffinityScore() : null);
+                finalScores.put(post.getId(), score);
+            });
         }
 
-        // 8. Sorting & Author Capping (Diversity Filter)
+        // 8. Stage 4: Sorting & Diversity Filter
         Map<UUID, Integer> authorCounts = new HashMap<>();
         int MAX_POSTS_PER_AUTHOR = 2;
 
         List<Post> sortedPosts = deduped.values().stream()
                 .filter(this::isVisible)
                 .filter(post -> !allBlocked.contains(post.getAuthorId()))
-                .sorted((a, b) -> Double.compare(scores.getOrDefault(b.getId(), 0.0),
-                        scores.getOrDefault(a.getId(), 0.0)))
+                .sorted((a, b) -> finalScores.getOrDefault(b.getId(), 0.0).compareTo(finalScores.getOrDefault(a.getId(), 0.0)))
                 .filter(post -> {
                     int count = authorCounts.getOrDefault(post.getAuthorId(), 0);
                     if (count < MAX_POSTS_PER_AUTHOR) {
@@ -150,6 +179,7 @@ public class FeedServiceImpl implements IFeedService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PostResponse> getTrendingPosts(UUID viewerId, LocalDateTime since, int limit) {
         List<ContentRanking> rankings = contentRankingRepository.findTopRankingsSince(
                 since, PageRequest.of(0, limit));
@@ -161,6 +191,7 @@ public class FeedServiceImpl implements IFeedService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PostResponse> getFollowingFeed(UUID recipientId, LocalDateTime cursor, int limit) {
         List<UUID> followedIds = resolveFollows(recipientId);
         if (followedIds.isEmpty())

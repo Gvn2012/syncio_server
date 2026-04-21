@@ -464,3 +464,17 @@ spec:
     app: syncio-kibana
   ports:
     - port: 5601
+
+---
+# ===================== RANKING MODELS =====================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ranking-models-pvc
+  namespace: syncio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

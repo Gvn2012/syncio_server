@@ -7,8 +7,10 @@ import io.github.gvn2012.post_service.dtos.responses.PostResponse;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
 import io.github.gvn2012.post_service.services.interfaces.IPostService;
 import io.github.gvn2012.post_service.services.interfaces.ISimilarityService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,8 +36,9 @@ public class PostController {
     @PostMapping
     public ResponseEntity<APIResource<PostResponse>> createPost(
             @RequestHeader("X-User-ID") UUID authorId,
-            @RequestBody PostCreateRequest request) {
-        return ResponseEntity.ok(APIResource.ok("Post created", postService.createPost(request, authorId)));
+            @Valid @RequestBody PostCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(APIResource.ok("Post created", postService.createPost(request, authorId)));
     }
 
     @GetMapping("/{pid}")
@@ -79,25 +82,25 @@ public class PostController {
     public ResponseEntity<APIResource<PostResponse>> updatePostContent(
             @PathVariable("pid") UUID id,
             @RequestHeader("X-User-ID") UUID editorId,
-            @RequestBody PostUpdateRequest request) {
+            @Valid @RequestBody PostUpdateRequest request) {
         return ResponseEntity.ok(APIResource.ok("Post updated",
                 postService.updatePostContent(id, editorId, request)));
     }
 
     @DeleteMapping("/{pid}")
-    public ResponseEntity<Void> deletePost(
+    public ResponseEntity<APIResource<Void>> deletePost(
             @PathVariable("pid") UUID id,
             @RequestHeader("X-User-ID") UUID userId) {
         postService.deletePost(id, userId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(APIResource.message("Post deleted successfully", HttpStatus.OK));
     }
 
     @PatchMapping("/{pid}/archive")
-    public ResponseEntity<Void> archivePost(
+    public ResponseEntity<APIResource<Void>> archivePost(
             @PathVariable("pid") UUID id,
             @RequestHeader("X-User-ID") UUID userId) {
         postService.archivePost(id, userId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(APIResource.message("Post archived successfully", HttpStatus.OK));
     }
 
     @PatchMapping("/{pid}/pin")

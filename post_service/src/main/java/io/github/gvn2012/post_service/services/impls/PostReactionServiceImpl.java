@@ -3,6 +3,7 @@ package io.github.gvn2012.post_service.services.impls;
 import io.github.gvn2012.post_service.entities.*;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
 import io.github.gvn2012.post_service.repositories.*;
+import io.github.gvn2012.post_service.services.interfaces.IInteractionVelocityService;
 import io.github.gvn2012.post_service.services.interfaces.IPostReactionService;
 import io.github.gvn2012.post_service.services.kafka.PostEventProducer;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class PostReactionServiceImpl implements IPostReactionService {
     private final ReactionTypeRepository reactionTypeRepository;
     private final PostEventProducer postEventProducer;
     private final UserValidationService userValidationService;
+    private final IInteractionVelocityService velocityService;
 
     @Override
     @Transactional
@@ -40,6 +42,7 @@ public class PostReactionServiceImpl implements IPostReactionService {
         postReactionRepository.save(reaction);
 
         postRepository.incrementReactionCount(postId, 1);
+        velocityService.recordInteraction(postId, IInteractionVelocityService.InteractionType.LIKE);
         postEventProducer.publishPostReacted(postId, post.getAuthorId(), userId);
     }
 
@@ -73,11 +76,13 @@ public class PostReactionServiceImpl implements IPostReactionService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PostReaction> getReactionsByPost(UUID postId) {
         return postReactionRepository.findByPostId(postId);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public boolean hasUserReacted(UUID postId, UUID userId) {
         return postReactionRepository.existsByPostIdAndUserId(postId, userId);
     }
@@ -109,6 +114,7 @@ public class PostReactionServiceImpl implements IPostReactionService {
         postCommentRepository.incrementReactionCount(commentId, -1);
     }
 
+    @Override
     @Transactional
     public void toggleCommentReaction(UUID commentId, UUID userId, Short reactionTypeId) {
         userValidationService.validateUserCanInteract(userId);

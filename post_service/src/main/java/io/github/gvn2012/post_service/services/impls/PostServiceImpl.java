@@ -15,18 +15,20 @@ import io.github.gvn2012.post_service.entities.enums.AttachmentUploadStatus;
 import io.github.gvn2012.post_service.entities.enums.MentionStatus;
 import io.github.gvn2012.post_service.entities.enums.PostCategory;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
-import io.github.gvn2012.shared.kafka_events.PostSearchEvent;
-import io.github.gvn2012.shared.kafka_events.PostSearchEvent.OperationType;
-import lombok.extern.slf4j.Slf4j;
+import io.github.gvn2012.post_service.clients.UserClient;
+import io.github.gvn2012.post_service.exceptions.BadRequestException;
+import io.github.gvn2012.post_service.exceptions.ForbiddenException;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
 import io.github.gvn2012.post_service.repositories.*;
+import io.github.gvn2012.post_service.services.interfaces.IInteractionVelocityService;
 import io.github.gvn2012.post_service.services.interfaces.IModerationService;
-import io.github.gvn2012.post_service.services.interfaces.IPostContentVersionService;
 import io.github.gvn2012.post_service.services.interfaces.IPostService;
 import io.github.gvn2012.post_service.services.interfaces.ISimilarityService;
 import io.github.gvn2012.post_service.services.kafka.PostEventProducer;
 import io.github.gvn2012.post_service.services.subtypes.PostSubtypeProcessor;
-import io.github.gvn2012.post_service.clients.UserClient;
+import io.github.gvn2012.shared.kafka_events.PostSearchEvent;
+import io.github.gvn2012.shared.kafka_events.PostSearchEvent.OperationType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -42,7 +44,6 @@ import java.util.stream.Collectors;
 public class PostServiceImpl implements IPostService {
 
     private final PostRepository postRepository;
-    private final IPostContentVersionService contentVersionService;
     private final PostEventProducer postEventProducer;
     private final ApplicationEventPublisher eventPublisher;
     private final UserValidationService userValidationService;
@@ -58,11 +59,11 @@ public class PostServiceImpl implements IPostService {
     private final PostReactionRepository postReactionRepository;
     private final ISimilarityService similarityService;
     private final IModerationService moderationService;
+    private final IInteractionVelocityService velocityService;
     private final Map<PostCategory, PostSubtypeProcessor> subtypeProcessors;
 
     public PostServiceImpl(
             PostRepository postRepository,
-            IPostContentVersionService contentVersionService,
             PostEventProducer postEventProducer,
             ApplicationEventPublisher eventPublisher,
             UserValidationService userValidationService,
@@ -78,9 +79,9 @@ public class PostServiceImpl implements IPostService {
             PostReactionRepository postReactionRepository,
             ISimilarityService similarityService,
             IModerationService moderationService,
+            IInteractionVelocityService velocityService,
             List<PostSubtypeProcessor> processors) {
         this.postRepository = postRepository;
-        this.contentVersionService = contentVersionService;
         this.postEventProducer = postEventProducer;
         this.eventPublisher = eventPublisher;
         this.userValidationService = userValidationService;
@@ -96,6 +97,7 @@ public class PostServiceImpl implements IPostService {
         this.postReactionRepository = postReactionRepository;
         this.similarityService = similarityService;
         this.moderationService = moderationService;
+        this.velocityService = velocityService;
         this.subtypeProcessors = processors.stream()
                 .collect(Collectors.toMap(PostSubtypeProcessor::supportedCategory, Function.identity()));
     }
@@ -106,9 +108,8 @@ public class PostServiceImpl implements IPostService {
         log.info("Starting createPost for author: {}", authorId);
         userValidationService.validateUserCanInteract(authorId);
 
-        // Near-duplicate check
         if (similarityService.isDuplicate(request.getContent())) {
-            throw new io.github.gvn2012.post_service.exceptions.BadRequestException(
+            throw new BadRequestException(
                     "This post is too similar to another recent post. Please wait or change the content.");
         }
 
@@ -120,7 +121,6 @@ public class PostServiceImpl implements IPostService {
         Post saved = postRepository.save(post);
         log.info("Saved post with ID: {}", saved.getId());
 
-        // Moderation & Censorship Scan
         moderationService.moderatePost(authorId, saved);
 
         processMentions(saved, request.getMentions());
@@ -135,7 +135,9 @@ public class PostServiceImpl implements IPostService {
         processSubtypes(saved, request);
         log.debug("Processed subtypes for post: {}", saved.getId());
 
-        contentVersionService.captureNewVersion(saved, saved.getAuthorId(), saved.getContent());
+        // Capture initial version via event
+        eventPublisher.publishEvent(new PostContentVersionServiceImpl.PostVersionEvent(
+                saved.getId(), saved.getAuthorId(), saved.getContent()));
         log.debug("Captured content version for post: {}", saved.getId());
 
         enrichAndPublish(saved);
@@ -197,6 +199,7 @@ public class PostServiceImpl implements IPostService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PostResponse getPostById(UUID id, UUID viewerId) {
         Post post = fetchPostById(id);
         userValidationService.validateCanView(post, viewerId);
@@ -204,12 +207,14 @@ public class PostServiceImpl implements IPostService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PostResponse> getPostsByAuthor(UUID authorId, UUID viewerId, Pageable pageable) {
         List<Post> posts = postRepository.findByAuthorId(authorId, pageable).stream().toList();
         return enrichPosts(posts, viewerId);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PostResponse> getPostsByStatus(PostStatus status, UUID viewerId, Pageable pageable) {
         List<Post> posts = postRepository.findByStatus(status, pageable).stream().toList();
         return enrichPosts(posts, viewerId);
@@ -217,7 +222,7 @@ public class PostServiceImpl implements IPostService {
 
     private PostResponse enrichPost(PostResponse response, UUID viewerId) {
         if (response == null)
-            return null;
+            return null; // enrichment should only be called on valid objects
 
         response.setAuthorInfo(userSummaryService.getSummary(response.getAuthorId()));
 
@@ -276,7 +281,9 @@ public class PostServiceImpl implements IPostService {
         Post post = fetchPostById(postId);
         validateOwnership(post, editorId);
 
-        contentVersionService.captureNewVersion(post, editorId, request.getContent());
+        // Capture new version via event
+        eventPublisher.publishEvent(new PostContentVersionServiceImpl.PostVersionEvent(
+                post.getId(), editorId, request.getContent()));
 
         if (request.getContent() != null)
             post.setContent(request.getContent());
@@ -333,7 +340,7 @@ public class PostServiceImpl implements IPostService {
 
     private void validateOwnership(Post post, UUID userId) {
         if (!post.getAuthorId().equals(userId)) {
-            throw new io.github.gvn2012.post_service.exceptions.ForbiddenException(
+            throw new ForbiddenException(
                     "User is not the author of this post");
         }
     }
@@ -489,6 +496,7 @@ public class PostServiceImpl implements IPostService {
 
         Post saved = postRepository.save(sharedPost);
         postRepository.incrementShareCount(originalPostId, 1);
+        velocityService.recordInteraction(originalPostId, IInteractionVelocityService.InteractionType.SHARE);
 
         enrichAndPublish(saved);
         postEventProducer.publishPostSearchIndexing(PostSearchEvent.builder()
@@ -503,6 +511,7 @@ public class PostServiceImpl implements IPostService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PostResponse> searchPosts(String keyword, UUID viewerId, Pageable pageable) {
         List<Post> posts = postRepository.searchByContentContaining(keyword, pageable).stream().toList();
         return enrichPosts(posts, viewerId);

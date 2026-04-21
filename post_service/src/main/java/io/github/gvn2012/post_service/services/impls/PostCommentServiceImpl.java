@@ -8,6 +8,7 @@ import io.github.gvn2012.post_service.exceptions.ForbiddenException;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
 import io.github.gvn2012.post_service.repositories.PostCommentRepository;
 import io.github.gvn2012.post_service.repositories.PostRepository;
+import io.github.gvn2012.post_service.services.interfaces.IInteractionVelocityService;
 import io.github.gvn2012.post_service.services.interfaces.IPostCommentService;
 import io.github.gvn2012.post_service.services.kafka.PostEventProducer;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class PostCommentServiceImpl implements IPostCommentService {
     private final PostEventProducer postEventProducer;
     private final CommentMapper commentMapper;
     private final UserValidationService userValidationService;
+    private final IInteractionVelocityService velocityService;
 
     @Override
     @Transactional
@@ -53,6 +55,7 @@ public class PostCommentServiceImpl implements IPostCommentService {
         }
 
         postRepository.incrementCommentCount(postId, 1);
+        velocityService.recordInteraction(postId, IInteractionVelocityService.InteractionType.COMMENT);
         PostComment saved = commentRepository.save(comment);
         postEventProducer.publishPostCommented(postId, post.getAuthorId(), authorId);
         return commentMapper.toResponse(saved);
@@ -64,6 +67,7 @@ public class PostCommentServiceImpl implements IPostCommentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public CommentResponse getCommentById(@NonNull UUID commentId) {
         return commentMapper.toResponse(fetchCommentById(commentId));
     }
@@ -103,12 +107,14 @@ public class PostCommentServiceImpl implements IPostCommentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<CommentResponse> getCommentsByPost(@NonNull UUID postId, Pageable pageable) {
         return commentRepository.findByPostIdAndParentCommentIdIsNullOrderByCreatedAtDesc(postId, pageable)
                 .stream().map(commentMapper::toResponse).toList();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<CommentResponse> getReplies(@NonNull UUID parentCommentId, Pageable pageable) {
         return commentRepository.findByParentCommentId(parentCommentId, pageable)
                 .stream().map(commentMapper::toResponse).toList();
@@ -123,6 +129,7 @@ public class PostCommentServiceImpl implements IPostCommentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public long getCommentCount(@NonNull UUID postId) {
         return commentRepository.countByPostId(postId);
     }

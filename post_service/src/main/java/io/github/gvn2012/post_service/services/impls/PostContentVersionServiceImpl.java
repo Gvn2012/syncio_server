@@ -4,27 +4,45 @@ import io.github.gvn2012.post_service.entities.Post;
 import io.github.gvn2012.post_service.entities.PostContentVersion;
 import io.github.gvn2012.post_service.entities.enums.DiffAlgorithm;
 import io.github.gvn2012.post_service.repositories.PostContentVersionRepository;
+import io.github.gvn2012.post_service.repositories.PostRepository;
 import io.github.gvn2012.post_service.services.interfaces.IPostContentVersionService;
 import io.github.gvn2012.post_service.utils.diff.DiffStrategyFactory;
 import io.github.gvn2012.post_service.utils.diff.IDiffStrategy;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PostContentVersionServiceImpl implements IPostContentVersionService {
 
+    public record PostVersionEvent(UUID postId, UUID editorId, String content) {}
+
     private final PostContentVersionRepository versionRepository;
+    private final PostRepository postRepository;
     private final DiffStrategyFactory diffFactory;
 
-    @Override
     @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handlePostVersionEvent(PostVersionEvent event) {
+        log.info("Processing async version capture for post: {}", event.postId());
+        postRepository.findById(event.postId()).ifPresent(post -> {
+            captureNewVersion(post, event.editorId(), event.content());
+        });
+    }
+
+    @Override
     @Transactional
     public void captureNewVersion(Post post, UUID editorId, String newContentStr) {
         if (newContentStr == null)
