@@ -8,6 +8,8 @@ import io.github.gvn2012.post_service.services.interfaces.IPostContentVersionSer
 import io.github.gvn2012.post_service.utils.diff.DiffStrategyFactory;
 import io.github.gvn2012.post_service.utils.diff.IDiffStrategy;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,8 +24,9 @@ public class PostContentVersionServiceImpl implements IPostContentVersionService
     private final DiffStrategyFactory diffFactory;
 
     @Override
+    @Async
     @Transactional
-    public PostContentVersion captureNewVersion(Post post, UUID editorId, String newContentStr) {
+    public void captureNewVersion(Post post, UUID editorId, String newContentStr) {
         if (newContentStr == null)
             newContentStr = "";
 
@@ -52,7 +55,7 @@ public class PostContentVersionServiceImpl implements IPostContentVersionService
             newVersion.setContentSnapshot(newContentStr);
         }
 
-        return versionRepository.save(newVersion);
+        versionRepository.save(newVersion);
     }
 
     @Override
