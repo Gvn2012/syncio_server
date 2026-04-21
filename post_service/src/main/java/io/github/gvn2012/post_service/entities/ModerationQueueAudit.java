@@ -12,7 +12,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @AllArgsConstructor
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @Table(name = "moderation_queue_audit", indexes = {
         @Index(name = "ix_mod_audit_queue", columnList = "moderation_queue_id"),
         @Index(name = "ix_mod_audit_actor", columnList = "actor_id")

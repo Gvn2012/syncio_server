@@ -6,8 +6,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Utility class for calculating text similarity using Cosine Similarity algorithm.
- * Uses Bag-of-Words (BoW) approach with basic normalization and stop-word filtering.
+ * Utility class for calculating text similarity using Cosine Similarity
+ * algorithm.
+ * Uses Bag-of-Words (BoW) approach with basic normalization and stop-word
+ * filtering.
  */
 @Slf4j
 public class SimilarityUtils {
@@ -16,11 +18,11 @@ public class SimilarityUtils {
             "a", "an", "the", "and", "or", "but", "if", "then", "else", "when", "at", "by", "from",
             "for", "with", "in", "on", "to", "of", "is", "am", "are", "was", "were", "be", "been",
             "this", "that", "these", "those", "it", "its", "i", "me", "my", "you", "your", "he",
-            "him", "his", "she", "her", "we", "us", "our", "they", "them", "their"
-    ));
+            "him", "his", "she", "her", "we", "us", "our", "they", "them", "their"));
 
     /**
      * Calculates the cosine similarity between two strings.
+     * 
      * @return a value between 0.0 (no similarity) and 1.0 (identical)
      */
     public static double calculateCosineSimilarity(String text1, String text2) {
@@ -67,12 +69,11 @@ public class SimilarityUtils {
     }
 
     private static List<String> tokenize(String text) {
-        if (text == null) return Collections.emptyList();
+        if (text == null)
+            return Collections.emptyList();
 
-        // Remove HTML tags if any (basic approach)
         String cleanText = text.replaceAll("<[^>]*>", " ");
 
-        // Lowercase and remove non-alphanumeric (keep spaces)
         cleanText = cleanText.toLowerCase().replaceAll("[^a-z0-9\\s]", " ");
 
         return Arrays.stream(cleanText.split("\\s+"))

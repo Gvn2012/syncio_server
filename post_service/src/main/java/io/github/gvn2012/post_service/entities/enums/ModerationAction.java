@@ -11,5 +11,7 @@ public enum ModerationAction {
     BAN_AUTHOR,
     DISMISS,
     REOPEN,
-    ADD_NOTE
+    ADD_NOTE,
+    MARK_VIOLATION,
+    FLAG
 }

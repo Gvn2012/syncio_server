@@ -20,6 +20,7 @@ import io.github.gvn2012.shared.kafka_events.PostSearchEvent.OperationType;
 import lombok.extern.slf4j.Slf4j;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
 import io.github.gvn2012.post_service.repositories.*;
+import io.github.gvn2012.post_service.services.interfaces.IModerationService;
 import io.github.gvn2012.post_service.services.interfaces.IPostContentVersionService;
 import io.github.gvn2012.post_service.services.interfaces.IPostService;
 import io.github.gvn2012.post_service.services.interfaces.ISimilarityService;
@@ -56,6 +57,7 @@ public class PostServiceImpl implements IPostService {
     private final UserSummaryService userSummaryService;
     private final PostReactionRepository postReactionRepository;
     private final ISimilarityService similarityService;
+    private final IModerationService moderationService;
     private final Map<PostCategory, PostSubtypeProcessor> subtypeProcessors;
 
     public PostServiceImpl(
@@ -75,6 +77,7 @@ public class PostServiceImpl implements IPostService {
             UserSummaryService userSummaryService,
             PostReactionRepository postReactionRepository,
             ISimilarityService similarityService,
+            IModerationService moderationService,
             List<PostSubtypeProcessor> processors) {
         this.postRepository = postRepository;
         this.contentVersionService = contentVersionService;
@@ -92,6 +95,7 @@ public class PostServiceImpl implements IPostService {
         this.userSummaryService = userSummaryService;
         this.postReactionRepository = postReactionRepository;
         this.similarityService = similarityService;
+        this.moderationService = moderationService;
         this.subtypeProcessors = processors.stream()
                 .collect(Collectors.toMap(PostSubtypeProcessor::supportedCategory, Function.identity()));
     }
@@ -115,6 +119,9 @@ public class PostServiceImpl implements IPostService {
 
         Post saved = postRepository.save(post);
         log.info("Saved post with ID: {}", saved.getId());
+
+        // Moderation & Censorship Scan
+        moderationService.moderatePost(authorId, saved);
 
         processMentions(saved, request.getMentions());
         processTags(saved, request.getTags());
@@ -297,6 +304,8 @@ public class PostServiceImpl implements IPostService {
             attachmentRepository.deleteByPostId(postId);
             presignedUrls = processAttachmentsWithPresign(post, request.getAttachments());
         }
+
+        moderationService.moderatePost(editorId, post);
 
         post.setEditCount(post.getEditCount() + 1);
         Post saved = postRepository.save(post);
