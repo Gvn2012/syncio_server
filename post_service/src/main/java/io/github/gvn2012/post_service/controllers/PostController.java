@@ -6,6 +6,7 @@ import io.github.gvn2012.post_service.dtos.requests.PostUpdateRequest;
 import io.github.gvn2012.post_service.dtos.responses.PostResponse;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
 import io.github.gvn2012.post_service.services.interfaces.IPostService;
+import io.github.gvn2012.post_service.services.interfaces.ISimilarityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +21,15 @@ import java.util.UUID;
 public class PostController {
 
     private final IPostService postService;
+    private final ISimilarityService similarityService;
+
+    @GetMapping("/{pid}/similar")
+    public ResponseEntity<APIResource<List<PostResponse>>> getSimilarPosts(
+            @PathVariable("pid") UUID id,
+            @RequestParam(defaultValue = "5") int limit) {
+        return ResponseEntity.ok(APIResource.ok("Similar posts retrieved", 
+                similarityService.findSimilarPosts(id, limit)));
+    }
 
     @PostMapping
     public ResponseEntity<APIResource<PostResponse>> createPost(

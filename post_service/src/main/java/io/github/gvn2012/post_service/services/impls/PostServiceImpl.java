@@ -22,6 +22,7 @@ import io.github.gvn2012.post_service.exceptions.NotFoundException;
 import io.github.gvn2012.post_service.repositories.*;
 import io.github.gvn2012.post_service.services.interfaces.IPostContentVersionService;
 import io.github.gvn2012.post_service.services.interfaces.IPostService;
+import io.github.gvn2012.post_service.services.interfaces.ISimilarityService;
 import io.github.gvn2012.post_service.services.kafka.PostEventProducer;
 import io.github.gvn2012.post_service.services.subtypes.PostSubtypeProcessor;
 import io.github.gvn2012.post_service.clients.UserClient;
@@ -54,6 +55,7 @@ public class PostServiceImpl implements IPostService {
     private final io.github.gvn2012.post_service.clients.UploadClient uploadClient;
     private final UserSummaryService userSummaryService;
     private final PostReactionRepository postReactionRepository;
+    private final ISimilarityService similarityService;
     private final Map<PostCategory, PostSubtypeProcessor> subtypeProcessors;
 
     public PostServiceImpl(
@@ -72,6 +74,7 @@ public class PostServiceImpl implements IPostService {
             io.github.gvn2012.post_service.clients.UploadClient uploadClient,
             UserSummaryService userSummaryService,
             PostReactionRepository postReactionRepository,
+            ISimilarityService similarityService,
             List<PostSubtypeProcessor> processors) {
         this.postRepository = postRepository;
         this.contentVersionService = contentVersionService;
@@ -88,6 +91,7 @@ public class PostServiceImpl implements IPostService {
         this.uploadClient = uploadClient;
         this.userSummaryService = userSummaryService;
         this.postReactionRepository = postReactionRepository;
+        this.similarityService = similarityService;
         this.subtypeProcessors = processors.stream()
                 .collect(Collectors.toMap(PostSubtypeProcessor::supportedCategory, Function.identity()));
     }
@@ -97,6 +101,12 @@ public class PostServiceImpl implements IPostService {
     public PostResponse createPost(PostCreateRequest request, UUID authorId) {
         log.info("Starting createPost for author: {}", authorId);
         userValidationService.validateUserCanInteract(authorId);
+
+        // Near-duplicate check
+        if (similarityService.isDuplicate(request.getContent())) {
+            throw new io.github.gvn2012.post_service.exceptions.BadRequestException(
+                    "This post is too similar to another recent post. Please wait or change the content.");
+        }
 
         Post post = postMapper.toEntity(request);
         log.debug("Converted request to entity for author: {}", authorId);
