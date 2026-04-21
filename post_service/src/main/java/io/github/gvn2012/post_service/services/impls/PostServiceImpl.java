@@ -201,57 +201,52 @@ public class PostServiceImpl implements IPostService {
     private PostResponse enrichPost(PostResponse response, UUID viewerId) {
         if (response == null)
             return null;
-        
-        // 1. Author Info Enrichment
+
         response.setAuthorInfo(userSummaryService.getSummary(response.getAuthorId()));
-        
-        // 2. Viewer Interaction Enrichment
+
         if (viewerId != null) {
-            // Reaction check
             postReactionRepository.findByPostIdAndUserId(response.getId(), viewerId)
-                .ifPresent(reaction -> response.setViewerReaction(reaction.getReactionType().getCode()));
-            
-            // Shared check
-            boolean isShared = postRepository.findSharedPostIdsByAuthor(viewerId, Collections.singleton(response.getId()))
-                .contains(response.getId());
+                    .ifPresent(reaction -> response.setViewerReaction(reaction.getReactionType().getCode()));
+
+            boolean isShared = postRepository
+                    .findSharedPostIdsByAuthor(viewerId, Collections.singleton(response.getId()))
+                    .contains(response.getId());
             response.setSharedByViewer(isShared);
         }
-        
+
         return response;
     }
 
     private List<PostResponse> enrichPosts(List<Post> posts, UUID viewerId) {
         if (posts == null || posts.isEmpty())
             return List.of();
-            
+
         Set<UUID> postIds = posts.stream().map(Post::getId).collect(Collectors.toSet());
         Set<UUID> authorIds = posts.stream().map(Post::getAuthorId).collect(Collectors.toSet());
-        
-        // Batch fetch author summaries
+
         Map<UUID, UserSummaryResponse> summaries = userSummaryService.getSummaries(authorIds);
-        
-        // Batch fetch interactions if viewerId is present
+
         Map<UUID, String> reactionsMap = new HashMap<>();
         Set<UUID> sharedPostIds = new HashSet<>();
-        
+
         if (viewerId != null) {
             postReactionRepository.findByUserIdAndPostIdIn(viewerId, postIds)
-                .forEach(r -> reactionsMap.put(r.getPost().getId(), r.getReactionType().getCode()));
-            
+                    .forEach(r -> reactionsMap.put(r.getPost().getId(), r.getReactionType().getCode()));
+
             sharedPostIds = postRepository.findSharedPostIdsByAuthor(viewerId, postIds);
         }
-        
+
         final Set<UUID> sharedIdsFinal = sharedPostIds;
-        
+
         return posts.stream().map(post -> {
             PostResponse res = postMapper.toResponse(post);
             res.setAuthorInfo(summaries.get(post.getAuthorId()));
-            
+
             if (viewerId != null) {
                 res.setViewerReaction(reactionsMap.get(post.getId()));
                 res.setSharedByViewer(sharedIdsFinal.contains(post.getId()));
             }
-            
+
             return res;
         }).collect(Collectors.toList());
     }

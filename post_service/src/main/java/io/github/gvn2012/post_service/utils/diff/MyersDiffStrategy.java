@@ -3,6 +3,7 @@ package io.github.gvn2012.post_service.utils.diff;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -10,20 +11,28 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
+@Slf4j
 public class MyersDiffStrategy implements IDiffStrategy {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public record Edit(String op, String text) {}
+    public record Edit(String op, String text) {
+    }
 
     @Override
     public byte[] computeDiff(String originalText, String modifiedText) {
-        if (originalText == null) originalText = "";
-        if (modifiedText == null) modifiedText = "";
-        
+        if (originalText == null)
+            originalText = "";
+        if (modifiedText == null)
+            modifiedText = "";
+
         String[] a = originalText.split("(?<=\n)");
         String[] b = modifiedText.split("(?<=\n)");
 
+        return computeDiffFromChunks(a, b);
+    }
+
+    public byte[] computeDiffFromChunks(String[] a, String[] b) {
         int n = a.length;
         int m = b.length;
         int max = n + m;
@@ -52,21 +61,20 @@ public class MyersDiffStrategy implements IDiffStrategy {
                 }
             }
         }
-        return serialize(List.of(new Edit("EQUAL", originalText)));
+        return serialize(List.of(new Edit("EQUAL", String.join("", a))));
     }
 
     private byte[] buildEdits(List<int[]> trace, String[] a, String[] b, int max) {
         int x = a.length;
         int y = b.length;
         List<Edit> edits = new ArrayList<>();
-        
-        for (int d = trace.size() - 1; d > 0; d--) {
 
+        for (int d = trace.size() - 1; d > 0; d--) {
             int[] vPrev = trace.get(d - 1);
             int k = x - y;
             int index = k + max;
             int prevK;
-            
+
             if (k == -d || (k != d && vPrev[index - 1] < vPrev[index + 1])) {
                 prevK = k + 1;
             } else {
@@ -98,9 +106,11 @@ public class MyersDiffStrategy implements IDiffStrategy {
 
     @Override
     public String applyDiff(String originalText, byte[] diff) {
-        if (diff == null || diff.length == 0) return originalText;
+        if (diff == null || diff.length == 0)
+            return originalText;
         try {
-            List<Edit> edits = MAPPER.readValue(new String(diff, StandardCharsets.UTF_8), new TypeReference<>() {});
+            List<Edit> edits = MAPPER.readValue(new String(diff, StandardCharsets.UTF_8), new TypeReference<>() {
+            });
             StringBuilder sb = new StringBuilder();
             for (Edit edit : edits) {
                 if ("INSERT".equals(edit.op()) || "EQUAL".equals(edit.op())) {
@@ -109,14 +119,16 @@ public class MyersDiffStrategy implements IDiffStrategy {
             }
             return sb.toString();
         } catch (JsonProcessingException e) {
+            log.error("Failed to apply diff", e);
             throw new RuntimeException("Failed to apply diff", e);
         }
     }
-    
+
     private byte[] serialize(List<Edit> edits) {
         try {
             return MAPPER.writeValueAsBytes(edits);
         } catch (JsonProcessingException e) {
+            log.error("Failed to serialize diff", e);
             throw new RuntimeException("Failed to serialize diff", e);
         }
     }

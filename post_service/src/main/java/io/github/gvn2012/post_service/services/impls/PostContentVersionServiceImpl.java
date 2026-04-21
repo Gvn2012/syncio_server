@@ -24,22 +24,25 @@ public class PostContentVersionServiceImpl implements IPostContentVersionService
     @Override
     @Transactional
     public PostContentVersion captureNewVersion(Post post, UUID editorId, String newContentStr) {
-        if (newContentStr == null) newContentStr = "";
+        if (newContentStr == null)
+            newContentStr = "";
 
         List<PostContentVersion> versions = versionRepository.findByPostIdOrderByVersionNumberDesc(post.getId());
         int versionNum = versions.isEmpty() ? 1 : versions.get(0).getVersionNumber() + 1;
+
+        String previousContent = retrieveFullTextAtVersion(post.getId(), versionNum - 1);
+
+        DiffAlgorithm bestAlgo = diffFactory.determineBestAlgorithm(previousContent, newContentStr);
 
         PostContentVersion newVersion = new PostContentVersion();
         newVersion.setPost(post);
         newVersion.setCreatedBy(editorId);
         newVersion.setVersionNumber(versionNum);
-        // By default use Myers for the diff
-        newVersion.setDiffAlgorithm(DiffAlgorithm.MYERS);
+        newVersion.setDiffAlgorithm(bestAlgo);
 
-        String previousContent = retrieveFullTextAtVersion(post.getId(), versionNum - 1);
-        
-        IDiffStrategy myers = diffFactory.getStrategy(newVersion.getDiffAlgorithm());
-        byte[] diffBytes = myers.computeDiff(previousContent, newContentStr);
+        IDiffStrategy strategy = diffFactory.getStrategy(bestAlgo);
+        byte[] diffBytes = strategy.computeDiff(previousContent, newContentStr);
+
         newVersion.setContentDiff(diffBytes);
         newVersion.setOriginalSize(previousContent.length());
         newVersion.setCompressedSize(diffBytes.length);
@@ -54,15 +57,18 @@ public class PostContentVersionServiceImpl implements IPostContentVersionService
 
     @Override
     public String retrieveFullTextAtVersion(UUID postId, int targetVersion) {
-        if (targetVersion == 0) return "";
-        
+        if (targetVersion == 0)
+            return "";
+
         List<PostContentVersion> versions = versionRepository.findByPostIdOrderByVersionNumberAsc(postId);
-        
-        if (versions.isEmpty()) return "";
+
+        if (versions.isEmpty())
+            return "";
 
         String currentText = "";
         for (PostContentVersion v : versions) {
-            if (v.getVersionNumber() > targetVersion) break;
+            if (v.getVersionNumber() > targetVersion)
+                break;
             if (Boolean.TRUE.equals(v.getIsSnapshot())) {
                 currentText = v.getContentSnapshot();
             } else {
@@ -70,7 +76,7 @@ public class PostContentVersionServiceImpl implements IPostContentVersionService
                 currentText = strategy.applyDiff(currentText, v.getContentDiff());
             }
         }
-        
+
         return currentText;
     }
 }

@@ -119,7 +119,7 @@ public class FeedServiceImpl implements IFeedService {
             double baseScore = rankingService.computeScore(post, recipientId, affinityScore);
 
             if (!followedIds.contains(post.getAuthorId()) && !post.getAuthorId().equals(recipientId)) {
-                baseScore *= 0.95; 
+                baseScore *= 0.95;
             }
 
             double jitter = 1.0 + (random.nextDouble() * 0.02);
@@ -171,36 +171,34 @@ public class FeedServiceImpl implements IFeedService {
     }
 
     private List<PostResponse> enrichPosts(List<Post> posts, UUID viewerId) {
-        if (posts == null || posts.isEmpty()) return List.of();
+        if (posts == null || posts.isEmpty())
+            return List.of();
 
         Set<UUID> postIds = posts.stream().map(Post::getId).collect(Collectors.toSet());
         Set<UUID> authorIds = posts.stream().map(Post::getAuthorId).collect(Collectors.toSet());
-        
-        // Batch fetch author summaries
+
         Map<UUID, UserSummaryResponse> authorSummaries = userSummaryService.getSummaries(authorIds);
-        
-        // Batch fetch interactions if viewerId is present
+
         Map<UUID, String> reactionsMap = new HashMap<>();
         Set<UUID> sharedPostIds = new HashSet<>();
-        
+
         if (viewerId != null) {
             postReactionRepository.findByUserIdAndPostIdIn(viewerId, postIds)
-                .forEach(r -> reactionsMap.put(r.getPost().getId(), r.getReactionType().getCode()));
-            
+                    .forEach(r -> reactionsMap.put(r.getPost().getId(), r.getReactionType().getCode()));
+
             sharedPostIds = postRepository.findSharedPostIdsByAuthor(viewerId, postIds);
         }
-        
+
         final Set<UUID> sharedIdsFinal = sharedPostIds;
 
         return posts.stream().map(post -> {
             PostResponse response = postMapper.toResponse(post);
             response.setAuthorInfo(authorSummaries.get(post.getAuthorId()));
-            
+
             if (viewerId != null) {
                 response.setViewerReaction(reactionsMap.get(post.getId()));
                 response.setSharedByViewer(sharedIdsFinal.contains(post.getId()));
             }
-            
             return response;
         }).collect(Collectors.toList());
     }
