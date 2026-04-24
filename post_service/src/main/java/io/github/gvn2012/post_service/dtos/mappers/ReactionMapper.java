@@ -8,14 +8,14 @@ import org.springframework.stereotype.Component;
 public class ReactionMapper {
 
     public ReactionResponse toResponse(PostReaction reaction) {
-        if (reaction == null) return null;
+        if (reaction == null)
+            return null;
         return ReactionResponse.builder()
                 .id(reaction.getId())
                 .postId(reaction.getPost() != null ? reaction.getPost().getId() : null)
-                .commentId(null) // Entity doesn't have comment link apparently, let's leave it null for now
+                .commentId(null)
                 .userId(reaction.getUserId())
-                .reactionCode(reaction.getReactionType() != null ? reaction.getReactionType().getCode() : null)
-                .reactionEmoji(reaction.getReactionType() != null ? reaction.getReactionType().getEmoji() : null)
+                .reactionCode(reaction.getReactionType() != null ? reaction.getReactionType().name() : null)
                 .createdAt(reaction.getCreatedAt())
                 .build();
     }

@@ -46,6 +46,7 @@ public class PostResponse {
     private List<MediaAttachmentResponse> attachments;
     private List<UUID> mentions;
     private List<String> tags;
+    private List<String> topReactions;
     private String metadata;
 
     private PostEventResponse event;

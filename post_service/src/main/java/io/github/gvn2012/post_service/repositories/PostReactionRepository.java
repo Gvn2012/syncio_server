@@ -1,7 +1,10 @@
 package io.github.gvn2012.post_service.repositories;
 
 import io.github.gvn2012.post_service.entities.PostReaction;
+import io.github.gvn2012.post_service.entities.enums.ReactionType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
@@ -21,4 +24,8 @@ public interface PostReactionRepository extends JpaRepository<PostReaction, UUID
     boolean existsByPostIdAndUserId(UUID postId, UUID userId);
 
     void deleteByPostIdAndUserId(UUID postId, UUID userId);
+
+    @Query("SELECT r.reactionType FROM PostReaction r WHERE r.post.id = :postId " +
+           "GROUP BY r.reactionType ORDER BY COUNT(r.reactionType) DESC")
+    List<ReactionType> findTopReactionsByPostId(UUID postId, Pageable pageable);
 }

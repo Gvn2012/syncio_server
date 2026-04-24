@@ -97,7 +97,7 @@ public class FeedServiceImpl implements IFeedService {
         if (lastTsStr != null) {
             LocalDateTime lastTs = LocalDateTime.parse(lastTsStr);
             if (cursor.isBefore(lastTs) || cursor.isEqual(lastTs)) {
-                log.info("Smart Refill triggered for user {}. Cursor {} is beyond cached window {}.", 
+                log.info("Smart Refill triggered for user {}. Cursor {} is beyond cached window {}.",
                         recipientId, cursor, lastTs);
                 return generateAndCacheRankedFeed(recipientId, limit, cacheKey, cursor);
             }
@@ -107,7 +107,8 @@ public class FeedServiceImpl implements IFeedService {
         return retrieveFreshHybridPage(recipientId, cursor, limit);
     }
 
-    private List<PostResponse> generateAndCacheRankedFeed(UUID recipientId, int limit, String cacheKey, LocalDateTime cursor) {
+    private List<PostResponse> generateAndCacheRankedFeed(UUID recipientId, int limit, String cacheKey,
+            LocalDateTime cursor) {
         LocalDateTime effectiveCursor = (cursor != null) ? cursor : LocalDateTime.now();
         List<PostCategory> excludedCategories = List.of(PostCategory.TASK, PostCategory.ANNOUNCEMENT);
 
@@ -218,7 +219,8 @@ public class FeedServiceImpl implements IFeedService {
             UUID lastIdInBatch = sortedIds.get(sortedIds.size() - 1);
             Post lastPost = deduped.get(lastIdInBatch);
             if (lastPost != null) {
-                LocalDateTime lastPostTs = lastPost.getPublishedAt() != null ? lastPost.getPublishedAt() : lastPost.getCreatedAt();
+                LocalDateTime lastPostTs = lastPost.getPublishedAt() != null ? lastPost.getPublishedAt()
+                        : lastPost.getCreatedAt();
                 interactionRedisTemplate.opsForValue().set(cacheKey + ":last_ts", lastPostTs.toString(), CACHE_TTL);
             }
         }
@@ -281,7 +283,7 @@ public class FeedServiceImpl implements IFeedService {
 
         if (viewerId != null) {
             postReactionRepository.findByUserIdAndPostIdIn(viewerId, postIds)
-                    .forEach(r -> reactionsMap.put(r.getPost().getId(), r.getReactionType().getCode()));
+                    .forEach(r -> reactionsMap.put(r.getPost().getId(), r.getReactionType().name()));
 
             sharedPostIds = postRepository.findSharedPostIdsByAuthor(viewerId, postIds);
         }
@@ -296,6 +298,14 @@ public class FeedServiceImpl implements IFeedService {
                 response.setViewerReaction(reactionsMap.get(post.getId()));
                 response.setSharedByViewer(sharedIdsFinal.contains(post.getId()));
             }
+
+            List<String> topReactions = postReactionRepository
+                    .findTopReactionsByPostId(post.getId(), PageRequest.of(0, 3))
+                    .stream()
+                    .map(Enum::name)
+                    .collect(Collectors.toList());
+            response.setTopReactions(topReactions);
+
             return response;
         }).collect(Collectors.toList());
     }

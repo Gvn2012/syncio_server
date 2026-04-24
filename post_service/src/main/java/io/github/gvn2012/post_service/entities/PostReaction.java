@@ -1,5 +1,6 @@
 package io.github.gvn2012.post_service.entities;
 
+import io.github.gvn2012.post_service.entities.enums.ReactionType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -18,9 +19,9 @@ import java.util.UUID;
 @Table(name = "post_reactions", indexes = {
         @Index(name = "ix_post_reactions_post", columnList = "post_id"),
         @Index(name = "ix_post_reactions_user", columnList = "user_id"),
-        @Index(name = "ix_post_reactions_type", columnList = "reaction_type_id")
+        @Index(name = "ix_post_reactions_type", columnList = "reaction_type")
 }, uniqueConstraints = {
-        @UniqueConstraint(name = "uk_post_user_reaction", columnNames = {"post_id", "user_id", "reaction_type_id"})
+        @UniqueConstraint(name = "uk_post_user_reaction", columnNames = {"post_id", "user_id", "reaction_type"})
 })
 public class PostReaction extends AuditableEntity {
 
@@ -41,7 +42,7 @@ public class PostReaction extends AuditableEntity {
     private UUID userId;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "reaction_type_id", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reaction_type", nullable = false, length = 32)
     private ReactionType reactionType;
 }

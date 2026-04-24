@@ -30,6 +30,7 @@ import io.github.gvn2012.shared.kafka_events.PostSearchEvent;
 import io.github.gvn2012.shared.kafka_events.PostSearchEvent.OperationType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -222,19 +223,26 @@ public class PostServiceImpl implements IPostService {
 
     private PostResponse enrichPost(PostResponse response, UUID viewerId) {
         if (response == null)
-            return null; // enrichment should only be called on valid objects
+            return null;
 
         response.setAuthorInfo(userSummaryService.getSummary(response.getAuthorId()));
 
         if (viewerId != null) {
             postReactionRepository.findByPostIdAndUserId(response.getId(), viewerId)
-                    .ifPresent(reaction -> response.setViewerReaction(reaction.getReactionType().getCode()));
+                    .ifPresent(reaction -> response.setViewerReaction(reaction.getReactionType().name()));
 
             boolean isShared = postRepository
                     .findSharedPostIdsByAuthor(viewerId, Collections.singleton(response.getId()))
                     .contains(response.getId());
             response.setSharedByViewer(isShared);
         }
+
+        List<String> topReactions = postReactionRepository
+                .findTopReactionsByPostId(response.getId(), PageRequest.of(0, 3))
+                .stream()
+                .map(Enum::name)
+                .collect(Collectors.toList());
+        response.setTopReactions(topReactions);
 
         return response;
     }
@@ -253,7 +261,7 @@ public class PostServiceImpl implements IPostService {
 
         if (viewerId != null) {
             postReactionRepository.findByUserIdAndPostIdIn(viewerId, postIds)
-                    .forEach(r -> reactionsMap.put(r.getPost().getId(), r.getReactionType().getCode()));
+                    .forEach(r -> reactionsMap.put(r.getPost().getId(), r.getReactionType().name()));
 
             sharedPostIds = postRepository.findSharedPostIdsByAuthor(viewerId, postIds);
         }
@@ -268,6 +276,13 @@ public class PostServiceImpl implements IPostService {
                 res.setViewerReaction(reactionsMap.get(post.getId()));
                 res.setSharedByViewer(sharedIdsFinal.contains(post.getId()));
             }
+
+            List<String> topReactions = postReactionRepository
+                    .findTopReactionsByPostId(post.getId(), PageRequest.of(0, 3))
+                    .stream()
+                    .map(Enum::name)
+                    .collect(Collectors.toList());
+            res.setTopReactions(topReactions);
 
             return res;
         }).collect(Collectors.toList());

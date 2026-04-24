@@ -14,6 +14,5 @@ public class ReactionResponse {
     private UUID commentId;
     private UUID userId;
     private String reactionCode;
-    private String reactionEmoji;
     private LocalDateTime createdAt;
 }

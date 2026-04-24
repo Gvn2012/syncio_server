@@ -1,6 +1,7 @@
 package io.github.gvn2012.post_service.controllers;
 
 import io.github.gvn2012.post_service.dtos.APIResource;
+import io.github.gvn2012.post_service.entities.enums.ReactionType;
 import io.github.gvn2012.post_service.services.interfaces.IPostReactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,8 +20,8 @@ public class PostReactionController {
     public ResponseEntity<APIResource<Void>> togglePostReaction(
             @PathVariable("pid") UUID postId,
             @RequestHeader("X-User-Id") UUID userId,
-            @RequestParam Short typeId) {
-        postReactionService.toggleReaction(postId, userId, typeId);
+            @RequestParam ReactionType type) {
+        postReactionService.toggleReaction(postId, userId, type);
         return ResponseEntity.ok(APIResource.success(null));
     }
 
@@ -28,8 +29,8 @@ public class PostReactionController {
     public ResponseEntity<APIResource<Void>> toggleCommentReaction(
             @PathVariable("cmid") UUID commentId,
             @RequestHeader("X-User-Id") UUID userId,
-            @RequestParam Short typeId) {
-        postReactionService.toggleCommentReaction(commentId, userId, typeId);
+            @RequestParam ReactionType type) {
+        postReactionService.toggleCommentReaction(commentId, userId, type);
         return ResponseEntity.ok(APIResource.success(null));
     }
 }

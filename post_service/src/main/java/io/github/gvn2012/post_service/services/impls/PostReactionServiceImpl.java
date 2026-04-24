@@ -1,6 +1,7 @@
 package io.github.gvn2012.post_service.services.impls;
 
 import io.github.gvn2012.post_service.entities.*;
+import io.github.gvn2012.post_service.entities.enums.ReactionType;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
 import io.github.gvn2012.post_service.repositories.*;
 import io.github.gvn2012.post_service.services.interfaces.IInteractionVelocityService;
@@ -21,18 +22,16 @@ public class PostReactionServiceImpl implements IPostReactionService {
     private final PostRepository postRepository;
     private final PostCommentRepository postCommentRepository;
     private final PostCommentReactionRepository postCommentReactionRepository;
-    private final ReactionTypeRepository reactionTypeRepository;
     private final PostEventProducer postEventProducer;
     private final UserValidationService userValidationService;
     private final IInteractionVelocityService velocityService;
 
     @Override
     @Transactional
-    public void addPostReaction(UUID postId, UUID userId, Short reactionTypeId) {
+    public void addPostReaction(UUID postId, UUID userId, ReactionType type) {
         userValidationService.validateUserCanInteract(userId);
         Post post = fetchPostById(postId);
         userValidationService.validateCanView(post, userId);
-        ReactionType type = fetchReactionTypeById(reactionTypeId);
 
         PostReaction reaction = PostReaction.builder()
                 .post(post)
@@ -51,11 +50,6 @@ public class PostReactionServiceImpl implements IPostReactionService {
                 .orElseThrow(() -> new NotFoundException("Post not found: " + id));
     }
 
-    private ReactionType fetchReactionTypeById(Short id) {
-        return reactionTypeRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Reaction type not found: " + id));
-    }
-
     @Override
     @Transactional
     public void removePostReaction(UUID postId, UUID userId) {
@@ -66,12 +60,12 @@ public class PostReactionServiceImpl implements IPostReactionService {
 
     @Override
     @Transactional
-    public void toggleReaction(UUID postId, UUID userId, Short reactionTypeId) {
+    public void toggleReaction(UUID postId, UUID userId, ReactionType type) {
         userValidationService.validateUserCanInteract(userId);
         if (hasUserReacted(postId, userId)) {
             removePostReaction(postId, userId);
         } else {
-            addPostReaction(postId, userId, reactionTypeId);
+            addPostReaction(postId, userId, type);
         }
     }
 
@@ -89,12 +83,11 @@ public class PostReactionServiceImpl implements IPostReactionService {
 
     @Override
     @Transactional
-    public void addCommentReaction(UUID commentId, UUID userId, Short reactionTypeId) {
+    public void addCommentReaction(UUID commentId, UUID userId, ReactionType type) {
         userValidationService.validateUserCanInteract(userId);
         PostComment comment = postCommentRepository.findById(commentId)
                 .orElseThrow(() -> new NotFoundException("Comment not found: " + commentId));
         userValidationService.validateNotBlocked(comment.getUserId(), userId);
-        ReactionType type = fetchReactionTypeById(reactionTypeId);
 
         PostCommentReaction reaction = PostCommentReaction.builder()
                 .comment(comment)
@@ -116,12 +109,12 @@ public class PostReactionServiceImpl implements IPostReactionService {
 
     @Override
     @Transactional
-    public void toggleCommentReaction(UUID commentId, UUID userId, Short reactionTypeId) {
+    public void toggleCommentReaction(UUID commentId, UUID userId, ReactionType type) {
         userValidationService.validateUserCanInteract(userId);
         if (postCommentReactionRepository.existsByCommentIdAndUserId(commentId, userId)) {
             removeCommentReaction(commentId, userId);
         } else {
-            addCommentReaction(commentId, userId, reactionTypeId);
+            addCommentReaction(commentId, userId, type);
         }
     }
 }
