@@ -311,7 +311,7 @@ spec:
     spec:
       containers:
         - name: ranking
-          image: vietpham18/ranking-service:latest
+          image: vietpham18/ranking-service:a08c26f1861476515f3f652f7007cabb574288a5
           ports:
             - containerPort: 8000
           startupProbe:
