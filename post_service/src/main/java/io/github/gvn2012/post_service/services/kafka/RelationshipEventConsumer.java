@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.cache.annotation.CacheEvict;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -25,11 +27,18 @@ public class RelationshipEventConsumer {
 
     @KafkaListener(topics = "relationship-events-v2", groupId = "post-service-relationship-affinity")
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "userFriends", key = "#event.sourceUserId"),
+            @CacheEvict(value = "userFriends", key = "#event.targetUserId"),
+            @CacheEvict(value = "userBlocks", key = "#event.sourceUserId"),
+            @CacheEvict(value = "userBlockedBy", key = "#event.targetUserId")
+    })
     public void handleRelationshipChange(RelationshipChangedEvent event) {
-        if (event == null || event.getSourceUserId() == null || event.getTargetUserId() == null) return;
+        if (event == null || event.getSourceUserId() == null || event.getTargetUserId() == null)
+            return;
 
-        log.info("Handling relationship change for affinity: {} between {} and {}", 
-            event.getChangeType(), event.getSourceUserId(), event.getTargetUserId());
+        log.info("Handling relationship change for affinity: {} between {} and {}",
+                event.getChangeType(), event.getSourceUserId(), event.getTargetUserId());
 
         UUID actorId = event.getSourceUserId();
         UUID authorId = event.getTargetUserId();
@@ -40,7 +49,8 @@ public class RelationshipEventConsumer {
     private void updateAffinity(UUID actorId, UUID authorId, RelationshipChangedEvent.ChangeType type) {
         Optional<UserAffinity> existing = affinityRepository.findByUserIdAndAuthorId(actorId, authorId);
         UserAffinity aff = existing.orElseGet(() -> {
-            UserAffinity newAff = new UserAffinity(null, actorId, authorId, 0.0, LocalDateTime.now(), UUID.randomUUID()); // OrgId is required, using random for now as it's not provided in event
+            UserAffinity newAff = new UserAffinity(null, actorId, authorId, 0.0, LocalDateTime.now(),
+                    UUID.randomUUID());
             return newAff;
         });
 
@@ -49,15 +59,14 @@ public class RelationshipEventConsumer {
             case UNFOLLOW -> aff.setAffinityScore(Math.max(0.0, aff.getAffinityScore() - FOLLOW_BOOST));
             case FRIEND_REQUEST_ACCEPTED -> {
                 aff.setAffinityScore(aff.getAffinityScore() + FRIENDSHIP_BOOST);
-                // Bi-directional for friends
                 updatePeerAffinity(authorId, actorId, FRIENDSHIP_BOOST);
             }
             case BLOCK -> {
                 aff.setAffinityScore(0.0);
-                // Bi-directional reset for block
-                updatePeerAffinity(authorId, actorId, -1.0); // Reset peer as well
+                updatePeerAffinity(authorId, actorId, -1.0);
             }
-            default -> {}
+            default -> {
+            }
         }
 
         aff.setLastUpdated(LocalDateTime.now());
@@ -67,15 +76,15 @@ public class RelationshipEventConsumer {
     private void updatePeerAffinity(UUID actorId, UUID authorId, double boost) {
         Optional<UserAffinity> existing = affinityRepository.findByUserIdAndAuthorId(actorId, authorId);
         UserAffinity aff = existing.orElseGet(() -> {
-             return new UserAffinity(null, actorId, authorId, 0.0, LocalDateTime.now(), UUID.randomUUID());
+            return new UserAffinity(null, actorId, authorId, 0.0, LocalDateTime.now(), UUID.randomUUID());
         });
-        
+
         if (boost < 0) {
             aff.setAffinityScore(0.0);
         } else {
             aff.setAffinityScore(aff.getAffinityScore() + boost);
         }
-        
+
         aff.setLastUpdated(LocalDateTime.now());
         affinityRepository.save(aff);
     }

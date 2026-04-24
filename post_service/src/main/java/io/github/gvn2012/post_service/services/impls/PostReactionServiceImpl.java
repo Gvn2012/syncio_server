@@ -1,5 +1,8 @@
 package io.github.gvn2012.post_service.services.impls;
 
+import io.github.gvn2012.post_service.dtos.responses.PostReactionGroupResponse;
+import io.github.gvn2012.post_service.dtos.responses.ReactorSummaryResponse;
+import io.github.gvn2012.post_service.dtos.responses.UserSummaryResponse;
 import io.github.gvn2012.post_service.entities.*;
 import io.github.gvn2012.post_service.entities.enums.ReactionType;
 import io.github.gvn2012.post_service.exceptions.NotFoundException;
@@ -8,12 +11,12 @@ import io.github.gvn2012.post_service.services.interfaces.IInteractionVelocitySe
 import io.github.gvn2012.post_service.services.interfaces.IPostReactionService;
 import io.github.gvn2012.post_service.services.kafka.PostEventProducer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,28 +29,27 @@ public class PostReactionServiceImpl implements IPostReactionService {
     private final PostEventProducer postEventProducer;
     private final UserValidationService userValidationService;
     private final IInteractionVelocityService velocityService;
+    private final UserSummaryService userSummaryService;
+    private final SocialRelationshipService socialRelationshipService;
+
+    @org.springframework.beans.factory.annotation.Value("${syncio.gateway.host:http://syncio.site}")
+    private String gatewayHost;
 
     @Override
     @Transactional
     public void addPostReaction(UUID postId, UUID userId, ReactionType type) {
         Post post = fetchPostById(postId);
-        userValidationService.validateCanView(post, userId);
-
-        PostReaction reaction = PostReaction.builder()
+        userValidationService.validateUserCanInteract(userId);
+        
+        postReactionRepository.save(PostReaction.builder()
                 .post(post)
                 .userId(userId)
                 .reactionType(type)
-                .build();
-        postReactionRepository.save(reaction);
-
+                .build());
         postRepository.incrementReactionCount(postId, 1);
+        
         velocityService.recordInteraction(postId, IInteractionVelocityService.InteractionType.LIKE);
         postEventProducer.publishPostReacted(postId, post.getAuthorId(), userId);
-    }
-
-    private Post fetchPostById(UUID id) {
-        return postRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Post not found: " + id));
     }
 
     @Override
@@ -69,7 +71,8 @@ public class PostReactionServiceImpl implements IPostReactionService {
                 } else {
                     existing.setReactionType(type);
                     postReactionRepository.save(existing);
-                    velocityService.recordInteraction(postId, IInteractionVelocityService.InteractionType.LIKE);
+                    Post post = existing.getPost();
+                    postEventProducer.publishPostReacted(postId, post.getAuthorId(), userId);
                 }
             },
             () -> addPostReaction(postId, userId, type)
@@ -91,17 +94,13 @@ public class PostReactionServiceImpl implements IPostReactionService {
     @Override
     @Transactional
     public void addCommentReaction(UUID commentId, UUID userId, ReactionType type) {
-        PostComment comment = postCommentRepository.findById(commentId)
-                .orElseThrow(() -> new NotFoundException("Comment not found: " + commentId));
-        userValidationService.validateNotBlocked(comment.getUserId(), userId);
-
-        PostCommentReaction reaction = PostCommentReaction.builder()
+        PostComment comment = fetchCommentById(commentId);
+        userValidationService.validateUserCanInteract(userId);
+        postCommentReactionRepository.save(PostCommentReaction.builder()
                 .comment(comment)
                 .userId(userId)
                 .reactionType(type)
-                .build();
-        postCommentReactionRepository.save(reaction);
-
+                .build());
         postCommentRepository.incrementReactionCount(commentId, 1);
     }
 
@@ -116,17 +115,92 @@ public class PostReactionServiceImpl implements IPostReactionService {
     @Transactional
     public void toggleCommentReaction(UUID commentId, UUID userId, ReactionType type) {
         userValidationService.validateUserCanInteract(userId);
-        
+
         postCommentReactionRepository.findByCommentIdAndUserId(commentId, userId).ifPresentOrElse(
-            existing -> {
-                if (existing.getReactionType() == type) {
-                    removeCommentReaction(commentId, userId);
-                } else {
-                    existing.setReactionType(type);
-                    postCommentReactionRepository.save(existing);
-                }
-            },
-            () -> addCommentReaction(commentId, userId, type)
+                existing -> {
+                    if (existing.getReactionType() == type) {
+                        removeCommentReaction(commentId, userId);
+                    } else {
+                        existing.setReactionType(type);
+                        postCommentReactionRepository.save(existing);
+                    }
+                },
+                () -> addCommentReaction(commentId, userId, type)
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(value = "postDetailedReactions", key = "#postId.toString() + '-' + #currentUserId.toString()")
+    public List<PostReactionGroupResponse> getDetailedPostReactions(UUID postId, UUID currentUserId) {
+        List<PostReaction> reactions = postReactionRepository.findByPostId(postId);
+        if (reactions.isEmpty()) return List.of();
+
+        Set<UUID> reactorIds = reactions.stream()
+                .map(PostReaction::getUserId)
+                .collect(Collectors.toSet());
+
+        // Use cached services
+        Map<UUID, UserSummaryResponse> userMap = userSummaryService.getSummaries(reactorIds);
+        Set<UUID> friendIds = socialRelationshipService.getFriendIds(currentUserId);
+        Set<UUID> blockedIds = new HashSet<>(socialRelationshipService.getBlockedList(currentUserId));
+        Set<UUID> blockedByIds = new HashSet<>(socialRelationshipService.getBlockedByList(currentUserId));
+
+        Map<ReactionType, List<ReactorSummaryResponse>> grouped = reactions.stream()
+                .map(r -> {
+                    UUID rid = r.getUserId();
+                    boolean isBlocked = blockedIds.contains(rid) || blockedByIds.contains(rid);
+                    
+                    UserSummaryResponse summary = userMap.get(rid);
+                    boolean isDeleted = summary == null || !Boolean.TRUE.equals(summary.getActive());
+
+                    if (isBlocked || isDeleted) {
+                        return Map.entry(r.getReactionType(), ReactorSummaryResponse.builder()
+                                .userId(null)
+                                .username("unknown")
+                                .fullName("Unknown User")
+                                .avatarUrl(null)
+                                .isFriend(false)
+                                .isBlocked(isBlocked)
+                                .build());
+                    }
+
+                    String avatarUrl = summary.getAvatarUrl();
+                    if (summary.getAvatarPath() != null && !summary.getAvatarPath().isBlank()) {
+                        avatarUrl = String.format("%s/api/v1/upload/view?path=%s", gatewayHost, summary.getAvatarPath());
+                    }
+
+                    return Map.entry(r.getReactionType(), ReactorSummaryResponse.builder()
+                            .userId(rid)
+                            .username(summary.getUsername())
+                            .fullName(summary.getDisplayName())
+                            .avatarUrl(avatarUrl)
+                            .isFriend(friendIds.contains(rid))
+                            .isBlocked(false)
+                            .build());
+                })
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getKey,
+                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+                ));
+
+        return grouped.entrySet().stream()
+                .map(e -> PostReactionGroupResponse.builder()
+                        .reactionType(e.getKey())
+                        .count(e.getValue().size())
+                        .reactors(e.getValue())
+                        .build())
+                .sorted((a, b) -> Long.compare(b.getCount(), a.getCount()))
+                .collect(Collectors.toList());
+    }
+
+    private Post fetchPostById(UUID postId) {
+        return postRepository.findById(postId)
+                .orElseThrow(() -> new NotFoundException("Post not found with id: " + postId));
+    }
+
+    private PostComment fetchCommentById(UUID commentId) {
+        return postCommentRepository.findById(commentId)
+                .orElseThrow(() -> new NotFoundException("Comment not found with id: " + commentId));
     }
 }

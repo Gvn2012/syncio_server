@@ -7,6 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import io.github.gvn2012.post_service.dtos.responses.PostReactionGroupResponse;
+
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -32,5 +35,12 @@ public class PostReactionController {
             @RequestParam ReactionType type) {
         postReactionService.toggleCommentReaction(commentId, userId, type);
         return ResponseEntity.ok(APIResource.success(null));
+    }
+
+    @GetMapping("/{pid}/detailed")
+    public ResponseEntity<APIResource<List<PostReactionGroupResponse>>> getDetailedReactions(
+            @PathVariable("pid") UUID postId,
+            @RequestHeader("X-User-Id") UUID userId) {
+        return ResponseEntity.ok(APIResource.success(postReactionService.getDetailedPostReactions(postId, userId)));
     }
 }
