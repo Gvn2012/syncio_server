@@ -337,9 +337,10 @@ public class AuthService implements AuthServiceInterface {
     @Transactional
     public APIResource<String> logout(LogoutRequest request) {
         try {
+            if (request == null || request.getLogoutToken() == null || request.getLogoutToken().isBlank()) {
+                return APIResource.ok("Logged out successfully (no token provided)", "Logged out");
+            }
             String token = request.getLogoutToken();
-            if (token == null || token.isBlank())
-                return APIResource.error("BAD_REQUEST", "Token missing", HttpStatus.BAD_REQUEST, null);
             String parsedToken = token;
             if (token.toLowerCase().startsWith("bearer ")) {
                 parsedToken = token.substring(7).trim();

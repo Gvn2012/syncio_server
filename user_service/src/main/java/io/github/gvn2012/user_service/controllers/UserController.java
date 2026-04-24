@@ -35,7 +35,7 @@ public class UserController {
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse httpResponse) {
         APIResource<LoginResponse> response = userService.login(request);
-        
+
         if (response.isSuccess() && response.getData() != null) {
             setTokenCookies(httpResponse, response.getData().getAccessToken(), response.getData().getRefreshToken());
         }
@@ -50,17 +50,14 @@ public class UserController {
         accessCookie.setHttpOnly(true);
         accessCookie.setPath("/");
         accessCookie.setMaxAge(3600);
-        // accessCookie.setSecure(true); // Enable for HTTPS
         response.addCookie(accessCookie);
 
         Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
         refreshCookie.setHttpOnly(true);
         refreshCookie.setPath("/");
         refreshCookie.setMaxAge(30 * 24 * 3600);
-        // refreshCookie.setSecure(true); // Enable for HTTPS
         response.addCookie(refreshCookie);
     }
-
 
     @PostMapping("/register")
     public ResponseEntity<APIResource<UserRegisterResponse>> register(
@@ -100,12 +97,13 @@ public class UserController {
     @PostMapping("/batch/summaries")
     public ResponseEntity<APIResource<Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse>>> getUsersSummary(
             @RequestBody Set<UUID> userIds) {
-        APIResource<Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse>> response = userService.getUsersSummary(userIds);
+        APIResource<Map<UUID, io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse>> response = userService
+                .getUsersSummary(userIds);
         org.springframework.http.HttpStatusCode status = response.getStatus() != null ? response.getStatus()
                 : org.springframework.http.HttpStatus.OK;
         return ResponseEntity.status(status).body(response);
     }
- 
+
     @GetMapping("/check-username-email-availability")
     public ResponseEntity<APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse>> checkUsernameEmailAvailability(
             @RequestParam String email, @RequestParam String username) {
