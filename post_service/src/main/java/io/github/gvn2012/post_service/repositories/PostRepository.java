@@ -29,12 +29,13 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
         List<Post> findByAuthorIdInAndStatusOrderByPublishedAtDesc(List<UUID> authorIds, PostStatus status,
                         Pageable pageable);
 
-        List<Post> findByAuthorIdInAndStatusAndPublishedAtBeforeOrderByPublishedAtDesc(
-                        List<UUID> authorIds, PostStatus status, LocalDateTime cursor, Pageable pageable);
+        List<Post> findByAuthorIdInAndStatusAndPostCategoryNotInAndPublishedAtBeforeOrderByPublishedAtDesc(
+                        List<UUID> authorIds, PostStatus status, Collection<io.github.gvn2012.post_service.entities.enums.PostCategory> excludedCategories, LocalDateTime cursor, Pageable pageable);
 
-        List<Post> findByVisibilityAndStatusAndPublishedAtBeforeOrderByPublishedAtDesc(
+        List<Post> findByVisibilityAndStatusAndPostCategoryNotInAndPublishedAtBeforeOrderByPublishedAtDesc(
                         PostVisibility visibility,
                         PostStatus status,
+                        Collection<io.github.gvn2012.post_service.entities.enums.PostCategory> excludedCategories,
                         LocalDateTime cursor,
                         Pageable pageable);
 
