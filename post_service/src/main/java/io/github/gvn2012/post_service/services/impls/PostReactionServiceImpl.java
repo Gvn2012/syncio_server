@@ -149,10 +149,11 @@ public class PostReactionServiceImpl implements IPostReactionService {
         Map<ReactionType, List<ReactorSummaryResponse>> grouped = reactions.stream()
                 .map(r -> {
                     UUID rid = r.getUserId();
-                    boolean isBlocked = blockedIds.contains(rid) || blockedByIds.contains(rid);
+                    boolean isSelf = rid.equals(currentUserId);
+                    boolean isBlocked = !isSelf && (blockedIds.contains(rid) || blockedByIds.contains(rid));
                     
                     UserSummaryResponse summary = userMap.get(rid);
-                    boolean isDeleted = summary == null || !Boolean.TRUE.equals(summary.getActive());
+                    boolean isDeleted = !isSelf && (summary == null || !Boolean.TRUE.equals(summary.getActive()));
 
                     if (isBlocked || isDeleted) {
                         return Map.entry(r.getReactionType(), ReactorSummaryResponse.builder()
@@ -175,7 +176,7 @@ public class PostReactionServiceImpl implements IPostReactionService {
                             .username(summary.getUsername())
                             .fullName(summary.getDisplayName())
                             .avatarUrl(avatarUrl)
-                            .isFriend(friendIds.contains(rid))
+                            .isFriend(isSelf || friendIds.contains(rid))
                             .isBlocked(false)
                             .build());
                 })

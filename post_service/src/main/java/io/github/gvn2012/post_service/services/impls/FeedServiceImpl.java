@@ -144,6 +144,21 @@ public class FeedServiceImpl implements IFeedService {
                 .filter(post -> !post.getAuthorId().equals(recipientId))
                 .forEach(candidates::add);
 
+        // 4.1. Direct Pull for followed authors (Handle Relationship Lag)
+        if (!followedIds.isEmpty()) {
+            postRepository.findByAuthorIdInAndStatusAndPublishedAtBeforeOrderByPublishedAtDesc(
+                    followedIds, PostStatus.PUBLISHED, effectiveCursor, PageRequest.of(0, 50))
+                    .forEach(candidates::add);
+        }
+
+        // 4.2. Direct Pull for Discovery (Ensure non-empty feed)
+        postRepository.findByVisibilityAndStatusAndPublishedAtBeforeOrderByPublishedAtDesc(
+                PostVisibility.PUBLIC, PostStatus.PUBLISHED, effectiveCursor, PageRequest.of(0, 50))
+                .stream()
+                .filter(post -> !allBlocked.contains(post.getAuthorId()))
+                .filter(post -> !post.getAuthorId().equals(recipientId))
+                .forEach(candidates::add);
+
         // 5. Deduplicate
         Map<UUID, Post> deduped = new LinkedHashMap<>();
         for (Post post : candidates) {
@@ -236,13 +251,46 @@ public class FeedServiceImpl implements IFeedService {
     }
 
     private List<PostResponse> retrieveFreshHybridPage(UUID recipientId, LocalDateTime cursor, int limit) {
-        // This is the fallback/standard logic for subsequent pages if cache is missing
-        // Fetches from DB based on cursor...
+        // Fallback logic for subsequent pages if cache is missing or expired
         List<PostCategory> excludedCategories = List.of(PostCategory.TASK, PostCategory.ANNOUNCEMENT);
-        List<FeedItem> pushedItems = feedItemRepository.findByRecipientIdAndCursor(
-                recipientId, cursor, excludedCategories, PageRequest.of(0, limit));
+        List<Post> candidates = new ArrayList<>();
 
-        List<Post> results = pushedItems.stream().map(FeedItem::getSourcePost).collect(Collectors.toList());
+        List<UUID> followedIds = resolveFollows(recipientId);
+        List<UUID> blockedIds = resolveBlocks(recipientId);
+        List<UUID> blockedByIds = resolveBlockedBy(recipientId);
+        Set<UUID> allBlocked = new HashSet<>(blockedIds);
+        allBlocked.addAll(blockedByIds);
+
+        // 1. Pushed (Inbox)
+        feedItemRepository.findByRecipientIdAndCursor(recipientId, cursor, excludedCategories, PageRequest.of(0, limit))
+                .forEach(item -> candidates.add(item.getSourcePost()));
+
+        // 2. Pulled (Direct)
+        if (candidates.size() < limit && !followedIds.isEmpty()) {
+            postRepository.findByAuthorIdInAndStatusAndPublishedAtBeforeOrderByPublishedAtDesc(
+                    followedIds, PostStatus.PUBLISHED, cursor, PageRequest.of(0, limit))
+                    .forEach(candidates::add);
+        }
+
+        // 3. Discovery (Direct)
+        if (candidates.size() < limit) {
+            postRepository.findByVisibilityAndStatusAndPublishedAtBeforeOrderByPublishedAtDesc(
+                    PostVisibility.PUBLIC, PostStatus.PUBLISHED, cursor, PageRequest.of(0, limit))
+                    .stream()
+                    .filter(post -> !allBlocked.contains(post.getAuthorId()))
+                    .filter(post -> !post.getAuthorId().equals(recipientId))
+                    .forEach(candidates::add);
+        }
+
+        // Deduplicate and return
+        List<Post> results = candidates.stream()
+                .filter(Objects::nonNull)
+                .filter(post -> !allBlocked.contains(post.getAuthorId()))
+                .collect(Collectors.toMap(Post::getId, p -> p, (p1, p2) -> p1, LinkedHashMap::new))
+                .values().stream()
+                .limit(limit)
+                .toList();
+
         return enrichPosts(results, recipientId);
     }
 
