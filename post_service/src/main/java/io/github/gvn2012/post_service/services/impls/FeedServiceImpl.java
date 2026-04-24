@@ -8,6 +8,7 @@ import io.github.gvn2012.post_service.entities.ContentRanking;
 import io.github.gvn2012.post_service.entities.FeedItem;
 import io.github.gvn2012.post_service.entities.Post;
 import io.github.gvn2012.post_service.entities.UserAffinity;
+import lombok.extern.slf4j.Slf4j;
 import io.github.gvn2012.post_service.entities.enums.PostCategory;
 import io.github.gvn2012.post_service.entities.enums.PostModerationStatus;
 import io.github.gvn2012.post_service.entities.enums.PostStatus;
@@ -22,6 +23,7 @@ import io.github.gvn2012.post_service.repositories.PostRepository;
 import io.github.gvn2012.post_service.repositories.UserAffinityRepository;
 import io.github.gvn2012.post_service.services.interfaces.IFeedService;
 import io.github.gvn2012.post_service.services.interfaces.IInteractionVelocityService;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +34,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class FeedServiceImpl implements IFeedService {
 
     private final FeedItemRepository feedItemRepository;
@@ -45,6 +48,11 @@ public class FeedServiceImpl implements IFeedService {
     private final PostMapper postMapper;
     private final IInteractionVelocityService velocityService;
     private final RankingClient rankingClient;
+    private final RedisTemplate<String, String> interactionRedisTemplate;
+
+    private static final String RANKED_FEED_CACHE_PREFIX = "feed:ranked:";
+    private static final int RANKED_POOL_SIZE = 200;
+    private static final Duration CACHE_TTL = Duration.ofMinutes(15);
 
     public FeedServiceImpl(
             FeedItemRepository feedItemRepository,
@@ -57,7 +65,8 @@ public class FeedServiceImpl implements IFeedService {
             PostReactionRepository postReactionRepository,
             PostMapper postMapper,
             IInteractionVelocityService velocityService,
-            RankingClient rankingClient) {
+            RankingClient rankingClient,
+            RedisTemplate<String, String> interactionRedisTemplate) {
         this.feedItemRepository = feedItemRepository;
         this.contentRankingRepository = contentRankingRepository;
         this.postRepository = postRepository;
@@ -69,38 +78,62 @@ public class FeedServiceImpl implements IFeedService {
         this.postMapper = postMapper;
         this.velocityService = velocityService;
         this.rankingClient = rankingClient;
+        this.interactionRedisTemplate = interactionRedisTemplate;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PostResponse> getHybridFeed(UUID recipientId, LocalDateTime cursor, int limit) {
+        String cacheKey = RANKED_FEED_CACHE_PREFIX + recipientId.toString();
+        String lastTsKey = cacheKey + ":last_ts";
+
+        // 1. Initial Load
+        if (cursor == null) {
+            return generateAndCacheRankedFeed(recipientId, limit, cacheKey, null);
+        }
+
+        // 2. Check if we need a Refill (Smart Refill Trigger)
+        String lastTsStr = interactionRedisTemplate.opsForValue().get(lastTsKey);
+        if (lastTsStr != null) {
+            LocalDateTime lastTs = LocalDateTime.parse(lastTsStr);
+            if (cursor.isBefore(lastTs) || cursor.isEqual(lastTs)) {
+                log.info("Smart Refill triggered for user {}. Cursor {} is beyond cached window {}.", 
+                        recipientId, cursor, lastTs);
+                return generateAndCacheRankedFeed(recipientId, limit, cacheKey, cursor);
+            }
+        }
+
+        // 3. Fallback/Standard Page Retrieval
+        return retrieveFreshHybridPage(recipientId, cursor, limit);
+    }
+
+    private List<PostResponse> generateAndCacheRankedFeed(UUID recipientId, int limit, String cacheKey, LocalDateTime cursor) {
         LocalDateTime effectiveCursor = (cursor != null) ? cursor : LocalDateTime.now();
         List<PostCategory> excludedCategories = List.of(PostCategory.TASK, PostCategory.ANNOUNCEMENT);
 
         List<Post> candidates = new ArrayList<>();
 
-        // 1. Resolve Relationships (Follows & Blocks)
         List<UUID> followedIds = resolveFollows(recipientId);
         List<UUID> blockedIds = resolveBlocks(recipientId);
         List<UUID> blockedByIds = resolveBlockedBy(recipientId);
         Set<UUID> allBlocked = new HashSet<>(blockedIds);
         allBlocked.addAll(blockedByIds);
 
-        // 2. Fetch Pushed Content (Inbox / Fan-out)
+        // 2. Fetch Pushed Content (Fan-out Inbox) - Fetch more for a healthy pool
         List<FeedItem> pushedItems = feedItemRepository.findByRecipientIdAndCursor(
-                recipientId, effectiveCursor, excludedCategories, PageRequest.of(0, limit * 2));
+                recipientId, effectiveCursor, excludedCategories, PageRequest.of(0, RANKED_POOL_SIZE / 2));
         pushedItems.forEach(item -> candidates.add(item.getSourcePost()));
 
-        // 3. Fetch Pulled Content (Top content from followed users)
+        // 3. Fetch Pulled Content (Top-K from followed users)
         if (!followedIds.isEmpty()) {
             List<ContentRanking> pulledRankings = contentRankingRepository.findTopRankingsByAuthorsAndCursor(
-                    followedIds, effectiveCursor, excludedCategories, PageRequest.of(0, limit));
+                    followedIds, effectiveCursor, excludedCategories, PageRequest.of(0, RANKED_POOL_SIZE / 2));
             pulledRankings.forEach(ranking -> candidates.add(ranking.getPost()));
         }
 
-        // 4. Global Discovery Content (Randomness from non-followed authors)
+        // 4. Global Discovery Content
         List<ContentRanking> discoveryRankings = contentRankingRepository.findGlobalTopRankings(
-                effectiveCursor, excludedCategories, PageRequest.of(0, limit));
+                effectiveCursor, excludedCategories, PageRequest.of(0, 50));
 
         discoveryRankings.stream()
                 .map(ContentRanking::getPost)
@@ -110,33 +143,37 @@ public class FeedServiceImpl implements IFeedService {
                 .filter(post -> !post.getAuthorId().equals(recipientId))
                 .forEach(candidates::add);
 
-        // 5. Deduplicate by Post ID
+        // 5. Deduplicate
         Map<UUID, Post> deduped = new LinkedHashMap<>();
         for (Post post : candidates) {
             deduped.putIfAbsent(post.getId(), post);
         }
 
-        // 6. Stage 2: Feature Engineering
+        // 6. Feature Engineering for ML
         List<UUID> poolAuthorIds = deduped.values().stream().map(Post::getAuthorId).distinct().toList();
         Map<UUID, UserAffinity> affinities = userAffinityRepository
                 .findByUserIdAndAuthorIdIn(recipientId, poolAuthorIds)
                 .stream()
                 .collect(Collectors.toMap(UserAffinity::getAuthorId, a -> a));
 
-        LocalDateTime now = LocalDateTime.now();
         List<RankingRequestDTO.PostFeatureDTO> features = deduped.values().stream()
                 .map(post -> RankingRequestDTO.PostFeatureDTO.builder()
                         .postId(post.getId())
                         .authorId(post.getAuthorId())
-                        .authorAffinity(affinities.containsKey(post.getAuthorId()) ? affinities.get(post.getAuthorId()).getAffinityScore() : 0.0)
+                        .authorAffinity(affinities.containsKey(post.getAuthorId())
+                                ? affinities.get(post.getAuthorId()).getAffinityScore()
+                                : 0.0)
                         .velocityScore(velocityService.getVelocityScore(post.getId()))
-                        .recencyHours((double) Duration.between(post.getPublishedAt() != null ? post.getPublishedAt() : post.getCreatedAt(), now).toHours())
+                        .recencyHours((double) Duration
+                                .between(post.getPublishedAt() != null ? post.getPublishedAt() : post.getCreatedAt(),
+                                        effectiveCursor)
+                                .toHours())
                         .category(post.getPostCategory().name())
                         .mediaCount(post.getAttachments() != null ? post.getAttachments().size() : 0)
                         .build())
                 .collect(Collectors.toList());
 
-        // 7. Stage 3: External ML Ranking
+        // 7. ML Ranking
         RankingRequestDTO rankingRequest = RankingRequestDTO.builder()
                 .userId(recipientId)
                 .candidates(features)
@@ -144,38 +181,67 @@ public class FeedServiceImpl implements IFeedService {
 
         RankingResponseDTO rankingResponse = rankingClient.rankPosts(rankingRequest).block();
 
-        Map<UUID, Double> finalScores = new HashMap<>();
+        List<UUID> sortedIds = new ArrayList<>();
         if (rankingResponse != null && rankingResponse.getRankedCandidates() != null) {
-            rankingResponse.getRankedCandidates().forEach(rc -> finalScores.put(rc.getPostId(), rc.getScore()));
+            sortedIds = rankingResponse.getRankedCandidates().stream()
+                    .map(RankingResponseDTO.RankedPostDTO::getPostId)
+                    .collect(Collectors.toList());
         } else {
-            // Fallback to local ranking if sidecar fails
-            deduped.values().forEach(post -> {
-                UserAffinity aff = affinities.get(post.getAuthorId());
-                double score = rankingService.computeScore(post, recipientId, aff != null ? aff.getAffinityScore() : null);
-                finalScores.put(post.getId(), score);
-            });
+            // Local fallback sorting
+            sortedIds = deduped.values().stream()
+                    .sorted((a, b) -> {
+                        UserAffinity aff = affinities.get(b.getAuthorId());
+                        Double scoreB = rankingService.computeScore(b, recipientId,
+                                aff != null ? aff.getAffinityScore() : null);
+                        Double scoreA = rankingService.computeScore(a, recipientId,
+                                affinities.get(a.getAuthorId()) != null
+                                        ? affinities.get(a.getAuthorId()).getAffinityScore()
+                                        : null);
+                        return scoreB.compareTo(scoreA);
+                    })
+                    .map(Post::getId)
+                    .collect(Collectors.toList());
         }
 
-        // 8. Stage 4: Sorting & Diversity Filter
-        Map<UUID, Integer> authorCounts = new HashMap<>();
-        int MAX_POSTS_PER_AUTHOR = 2;
+        // 8. Cache the sorted IDs in Redis (Append if refilling, Replace if fresh)
+        if (cursor == null) {
+            interactionRedisTemplate.delete(cacheKey);
+            interactionRedisTemplate.delete(cacheKey + ":last_ts");
+        }
 
-        List<Post> sortedPosts = deduped.values().stream()
-                .filter(this::isVisible)
-                .filter(post -> !allBlocked.contains(post.getAuthorId()))
-                .sorted((a, b) -> finalScores.getOrDefault(b.getId(), 0.0).compareTo(finalScores.getOrDefault(a.getId(), 0.0)))
-                .filter(post -> {
-                    int count = authorCounts.getOrDefault(post.getAuthorId(), 0);
-                    if (count < MAX_POSTS_PER_AUTHOR) {
-                        authorCounts.put(post.getAuthorId(), count + 1);
-                        return true;
-                    }
-                    return false;
-                })
+        if (!sortedIds.isEmpty()) {
+            List<String> idStrings = sortedIds.stream().map(UUID::toString).toList();
+            interactionRedisTemplate.opsForList().rightPushAll(cacheKey, idStrings);
+            interactionRedisTemplate.expire(cacheKey, CACHE_TTL);
+
+            // Update the "Last Timestamp" in this batch to detect future refills
+            UUID lastIdInBatch = sortedIds.get(sortedIds.size() - 1);
+            Post lastPost = deduped.get(lastIdInBatch);
+            if (lastPost != null) {
+                LocalDateTime lastPostTs = lastPost.getPublishedAt() != null ? lastPost.getPublishedAt() : lastPost.getCreatedAt();
+                interactionRedisTemplate.opsForValue().set(cacheKey + ":last_ts", lastPostTs.toString(), CACHE_TTL);
+            }
+        }
+
+        // 9. Diversity Filter & Return Page 1
+        List<Post> topPosts = sortedIds.stream()
+                .map(deduped::get)
+                .filter(Objects::nonNull)
                 .limit(limit)
-                .collect(Collectors.toList());
+                .toList();
 
-        return enrichPosts(sortedPosts, recipientId);
+        return enrichPosts(topPosts, recipientId);
+    }
+
+    private List<PostResponse> retrieveFreshHybridPage(UUID recipientId, LocalDateTime cursor, int limit) {
+        // This is the fallback/standard logic for subsequent pages if cache is missing
+        // Fetches from DB based on cursor...
+        List<PostCategory> excludedCategories = List.of(PostCategory.TASK, PostCategory.ANNOUNCEMENT);
+        List<FeedItem> pushedItems = feedItemRepository.findByRecipientIdAndCursor(
+                recipientId, cursor, excludedCategories, PageRequest.of(0, limit));
+
+        List<Post> results = pushedItems.stream().map(FeedItem::getSourcePost).collect(Collectors.toList());
+        return enrichPosts(results, recipientId);
     }
 
     @Override
