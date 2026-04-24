@@ -14,7 +14,7 @@ import java.util.UUID;
 
 public interface ContentRankingRepository extends JpaRepository<ContentRanking, UUID> {
 
-    @Query("SELECT c FROM ContentRanking c JOIN c.post p WHERE p.publishedAt >= :cutoff ORDER BY c.totalScore DESC")
+    @Query("SELECT c FROM ContentRanking c JOIN c.post p WHERE p.publishedAt >= :cutoff AND p.orgId IS NULL ORDER BY c.totalScore DESC")
     List<ContentRanking> findTopRankingsSince(
             @Param("cutoff") LocalDateTime cutoff,
             Pageable pageable
@@ -23,6 +23,7 @@ public interface ContentRankingRepository extends JpaRepository<ContentRanking, 
     @Query("SELECT c FROM ContentRanking c JOIN c.post p " +
            "WHERE p.publishedAt < :cursor " +
            "AND p.postCategory NOT IN :excludedCategories " +
+           "AND p.orgId IS NULL " +
            "ORDER BY c.totalScore DESC")
     List<ContentRanking> findGlobalTopRankings(
             @Param("cursor") LocalDateTime cursor,
@@ -30,7 +31,7 @@ public interface ContentRankingRepository extends JpaRepository<ContentRanking, 
             Pageable pageable
     );
 
-    @Query("SELECT c FROM ContentRanking c JOIN c.post p WHERE p.authorId IN :authorIds AND p.publishedAt >= :cutoff ORDER BY c.totalScore DESC")
+    @Query("SELECT c FROM ContentRanking c JOIN c.post p WHERE p.authorId IN :authorIds AND p.publishedAt >= :cutoff AND p.orgId IS NULL ORDER BY c.totalScore DESC")
     List<ContentRanking> findTopRankingsByAuthors(
             @Param("authorIds") List<UUID> authorIds,
             @Param("cutoff") LocalDateTime cutoff,
@@ -41,6 +42,7 @@ public interface ContentRankingRepository extends JpaRepository<ContentRanking, 
            "WHERE p.authorId IN :authorIds " +
            "AND p.publishedAt < :cursor " +
            "AND p.postCategory NOT IN :excludedCategories " +
+           "AND p.orgId IS NULL " +
            "ORDER BY c.totalScore DESC")
     List<ContentRanking> findTopRankingsByAuthorsAndCursor(
             @Param("authorIds") List<UUID> authorIds,

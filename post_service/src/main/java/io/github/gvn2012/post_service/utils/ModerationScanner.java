@@ -65,7 +65,6 @@ public class ModerationScanner {
             detected.add(matcher.group());
             sb.append(content, lastEnd, matcher.start());
 
-            // Replace with stars of same length
             String stars = "*".repeat(matcher.group().length());
             sb.append(stars);
 
@@ -76,16 +75,7 @@ public class ModerationScanner {
         return new ScanResult(sb.toString(), detected);
     }
 
-    /**
-     * Specifically handles HTML content by stripping tags before scanning,
-     * but we want to return the censored HTML.
-     * Note: A robust version would parse HTML to avoid censoring tags themselves.
-     * For now, we perform a simple replacement which is usually safe for \b
-     * matches.
-     */
     public ScanResult scanAndCensorHtml(String htmlContent) {
-        // We reuse the same logic. \b (word boundaries) usually protects HTML tags
-        // like <p> from being matched unless the bad word is "p".
         return scanAndCensor(htmlContent);
     }
 }

@@ -25,17 +25,36 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
         List<Post> findByAuthorIdAndStatus(UUID authorId, PostStatus status, Pageable pageable);
 
-        List<Post> findByAuthorIdInAndStatusOrderByPublishedAtDesc(List<UUID> authorIds, PostStatus status,
+        @Query("SELECT p FROM Post p WHERE p.authorId IN :authorIds AND p.status = :status AND p.orgId IS NULL ORDER BY p.publishedAt DESC")
+        List<Post> findByAuthorIdInAndStatusOrderByPublishedAtDesc(
+                        @Param("authorIds") List<UUID> authorIds,
+                        @Param("status") PostStatus status,
                         Pageable pageable);
 
+        @Query("SELECT p FROM Post p WHERE p.authorId IN :authorIds " +
+                        "AND p.status = :status " +
+                        "AND p.postCategory NOT IN :excludedCategories " +
+                        "AND p.publishedAt < :cursor " +
+                        "AND p.orgId IS NULL " +
+                        "ORDER BY p.publishedAt DESC")
         List<Post> findByAuthorIdInAndStatusAndPostCategoryNotInAndPublishedAtBeforeOrderByPublishedAtDesc(
-                        List<UUID> authorIds, PostStatus status, Collection<io.github.gvn2012.post_service.entities.enums.PostCategory> excludedCategories, LocalDateTime cursor, Pageable pageable);
+                        @Param("authorIds") List<UUID> authorIds,
+                        @Param("status") PostStatus status,
+                        @Param("excludedCategories") Collection<io.github.gvn2012.post_service.entities.enums.PostCategory> excludedCategories,
+                        @Param("cursor") LocalDateTime cursor,
+                        Pageable pageable);
 
+        @Query("SELECT p FROM Post p WHERE p.visibility = :visibility " +
+                        "AND p.status = :status " +
+                        "AND p.postCategory NOT IN :excludedCategories " +
+                        "AND p.publishedAt < :cursor " +
+                        "AND p.orgId IS NULL " +
+                        "ORDER BY p.publishedAt DESC")
         List<Post> findByVisibilityAndStatusAndPostCategoryNotInAndPublishedAtBeforeOrderByPublishedAtDesc(
-                        PostVisibility visibility,
-                        PostStatus status,
-                        Collection<io.github.gvn2012.post_service.entities.enums.PostCategory> excludedCategories,
-                        LocalDateTime cursor,
+                        @Param("visibility") PostVisibility visibility,
+                        @Param("status") PostStatus status,
+                        @Param("excludedCategories") Collection<io.github.gvn2012.post_service.entities.enums.PostCategory> excludedCategories,
+                        @Param("cursor") LocalDateTime cursor,
                         Pageable pageable);
 
         @Query("SELECT p FROM Post p WHERE LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')) AND p.status = 'PUBLISHED'")

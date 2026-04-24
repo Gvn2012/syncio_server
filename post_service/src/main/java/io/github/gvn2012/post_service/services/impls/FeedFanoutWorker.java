@@ -39,6 +39,11 @@ public class FeedFanoutWorker {
     public void handlePostCreated(PostCreatedEvent event) {
         Post post = event.post();
         log.info("Handling PostCreatedEvent for post: {}", post.getId());
+        
+        if (post.getOrgId() != null) {
+            log.info("Skipping fanout for organization post: {} (orgId: {})", post.getId(), post.getOrgId());
+            return;
+        }
 
         List<UUID> audience = lookupAudience(post.getAuthorId());
         log.info("Looked up audience for author: {}, found {} members", post.getAuthorId(), audience.size());

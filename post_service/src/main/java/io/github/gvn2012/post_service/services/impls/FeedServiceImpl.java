@@ -122,7 +122,9 @@ public class FeedServiceImpl implements IFeedService {
         // 2. Fetch Pushed Content (Fan-out Inbox) - Fetch more for a healthy pool
         List<FeedItem> pushedItems = feedItemRepository.findByRecipientIdAndCursor(
                 recipientId, effectiveCursor, excludedCategories, PageRequest.of(0, RANKED_POOL_SIZE / 2));
-        pushedItems.forEach(item -> candidates.add(item.getSourcePost()));
+        pushedItems.stream()
+                .filter(item -> !item.getSourcePost().getAuthorId().equals(recipientId))
+                .forEach(item -> candidates.add(item.getSourcePost()));
 
         // 3. Fetch Pulled Content (Top-K from followed users)
         if (!followedIds.isEmpty()) {
@@ -131,22 +133,23 @@ public class FeedServiceImpl implements IFeedService {
             pulledRankings.forEach(ranking -> candidates.add(ranking.getPost()));
         }
 
-        // 4. Global Discovery Content
+        // 4. Global Discovery Content (Allow self-posts if they are globally popular/trending)
         List<ContentRanking> discoveryRankings = contentRankingRepository.findGlobalTopRankings(
                 effectiveCursor, excludedCategories, PageRequest.of(0, 50));
-
+        
         discoveryRankings.stream()
                 .map(ContentRanking::getPost)
                 .filter(post -> post.getVisibility() == PostVisibility.PUBLIC)
                 .filter(post -> !followedIds.contains(post.getAuthorId()))
                 .filter(post -> !allBlocked.contains(post.getAuthorId()))
-                .filter(post -> !post.getAuthorId().equals(recipientId))
                 .forEach(candidates::add);
 
         // 4.1. Direct Pull for followed authors (Handle Relationship Lag)
         if (!followedIds.isEmpty()) {
             postRepository.findByAuthorIdInAndStatusAndPostCategoryNotInAndPublishedAtBeforeOrderByPublishedAtDesc(
                     followedIds, PostStatus.PUBLISHED, excludedCategories, effectiveCursor, PageRequest.of(0, 50))
+                    .stream()
+                    .filter(post -> !post.getAuthorId().equals(recipientId))
                     .forEach(candidates::add);
         }
 
@@ -158,10 +161,12 @@ public class FeedServiceImpl implements IFeedService {
                 .filter(post -> !post.getAuthorId().equals(recipientId))
                 .forEach(candidates::add);
 
-        // 5. Deduplicate
+        // 5. Deduplicate and Filter
         Map<UUID, Post> deduped = new LinkedHashMap<>();
         for (Post post : candidates) {
-            deduped.putIfAbsent(post.getId(), post);
+            if (post != null && !post.getAuthorId().equals(recipientId) && post.getOrgId() == null) {
+                deduped.putIfAbsent(post.getId(), post);
+            }
         }
 
         // 6. Feature Engineering for ML
@@ -262,12 +267,16 @@ public class FeedServiceImpl implements IFeedService {
 
         // 1. Pushed (Inbox)
         feedItemRepository.findByRecipientIdAndCursor(recipientId, cursor, excludedCategories, PageRequest.of(0, limit))
+                .stream()
+                .filter(item -> !item.getSourcePost().getAuthorId().equals(recipientId))
                 .forEach(item -> candidates.add(item.getSourcePost()));
 
         // 2. Pulled (Direct)
         if (candidates.size() < limit && !followedIds.isEmpty()) {
             postRepository.findByAuthorIdInAndStatusAndPostCategoryNotInAndPublishedAtBeforeOrderByPublishedAtDesc(
                     followedIds, PostStatus.PUBLISHED, excludedCategories, cursor, PageRequest.of(0, limit))
+                    .stream()
+                    .filter(post -> !post.getAuthorId().equals(recipientId))
                     .forEach(candidates::add);
         }
 
@@ -284,6 +293,7 @@ public class FeedServiceImpl implements IFeedService {
         // Deduplicate and return
         List<Post> results = candidates.stream()
                 .filter(Objects::nonNull)
+                .filter(post -> post.getOrgId() == null)
                 .filter(post -> !allBlocked.contains(post.getAuthorId()))
                 .collect(Collectors.toMap(Post::getId, p -> p, (p1, p2) -> p1, LinkedHashMap::new))
                 .values().stream()
@@ -312,7 +322,10 @@ public class FeedServiceImpl implements IFeedService {
         if (followedIds.isEmpty())
             return List.of();
         List<Post> posts = postRepository.findByAuthorIdInAndStatusOrderByPublishedAtDesc(
-                followedIds, PostStatus.PUBLISHED, PageRequest.of(0, limit));
+                followedIds, PostStatus.PUBLISHED, PageRequest.of(0, limit))
+                .stream()
+                .filter(post -> post.getOrgId() == null)
+                .toList();
         return enrichPosts(posts, recipientId);
     }
 
@@ -374,7 +387,8 @@ public class FeedServiceImpl implements IFeedService {
     }
 
     private boolean isVisible(Post post) {
-        return post.getStatus() == PostStatus.PUBLISHED
+        return post.getOrgId() == null
+                && post.getStatus() == PostStatus.PUBLISHED
                 && post.getModerationStatus() != PostModerationStatus.REMOVED
                 && post.getModerationStatus() != PostModerationStatus.RESTRICTED;
     }
