@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -46,7 +45,7 @@ public class ModerationScanner {
             return new ScanResult(content, new ArrayList<>());
         }
 
-        Set<String> bannedWords = bannedWordService.getAllBannedWords();
+        List<String> bannedWords = bannedWordService.getAllBannedWords();
         if (bannedWords == null || bannedWords.isEmpty()) {
             return new ScanResult(content, new ArrayList<>());
         }

@@ -10,9 +10,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Set;
-import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -22,12 +19,12 @@ public class BannedWordServiceImpl implements IBannedWordService {
 
     @Override
     @Cacheable(value = "banned_words", key = "'all'")
-    public Set<String> getAllBannedWords() {
+    public java.util.List<String> getAllBannedWords() {
         log.info("Fetching banned words from database");
         return bannedWordRepository.findAll().stream()
                 .map(BannedWord::getWord)
                 .map(String::toLowerCase)
-                .collect(Collectors.toSet());
+                .toList();
     }
 
     @Override
