@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: auth
-          image: vietpham18/auth-service:9bc6ca9c2f63fbf50af7330ba3568288b25b0abb
+          image: vietpham18/auth-service:a1104c1e76a6f6e73ceaf379f898b4cf118eb1df
           ports:
             - containerPort: 8081
           startupProbe:
