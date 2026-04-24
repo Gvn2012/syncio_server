@@ -39,6 +39,20 @@ public abstract class HttpClient {
                 .bodyToMono(responseType);
     }
 
+    protected <T> Mono<T> get(
+            @NonNull String uri,
+            @NonNull java.util.Map<String, String> headers,
+            @NonNull ParameterizedTypeReference<T> responseType,
+            @NonNull Object... uriVariables) {
+        WebClient.RequestHeadersSpec<?> spec = buildClient().get()
+                .uri(uri, uriVariables)
+                .accept(Objects.requireNonNull(MediaType.APPLICATION_JSON));
+        
+        headers.forEach(spec::header);
+        
+        return spec.retrieve().bodyToMono(responseType);
+    }
+
     protected <T, R> Mono<R> post(
             @NonNull String uri,
             @NonNull T body,

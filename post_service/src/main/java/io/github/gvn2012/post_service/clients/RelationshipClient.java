@@ -74,18 +74,18 @@ public class RelationshipClient extends HttpClient {
     public Mono<List<UUID>> getBlockedList(UUID userId) {
         return get(
                 "/api/v1/rs/relationships/blocks",
+                java.util.Map.of("X-User-Id", userId.toString()),
                 new ParameterizedTypeReference<APIResource<List<UUID>>>() {
-                },
-                userId.toString())
+                })
                 .flatMap(this::handleListResponse);
     }
 
     public Mono<List<UUID>> getBlockedByList(UUID userId) {
         return get(
                 "/api/v1/rs/relationships/blocked-by",
+                java.util.Map.of("X-User-Id", userId.toString()),
                 new ParameterizedTypeReference<APIResource<List<UUID>>>() {
-                },
-                userId.toString())
+                })
                 .flatMap(this::handleListResponse);
     }
 
