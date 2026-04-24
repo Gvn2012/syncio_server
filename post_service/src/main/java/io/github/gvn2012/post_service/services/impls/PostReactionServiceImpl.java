@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -29,7 +30,6 @@ public class PostReactionServiceImpl implements IPostReactionService {
     @Override
     @Transactional
     public void addPostReaction(UUID postId, UUID userId, ReactionType type) {
-        userValidationService.validateUserCanInteract(userId);
         Post post = fetchPostById(postId);
         userValidationService.validateCanView(post, userId);
 
@@ -53,7 +53,6 @@ public class PostReactionServiceImpl implements IPostReactionService {
     @Override
     @Transactional
     public void removePostReaction(UUID postId, UUID userId) {
-        userValidationService.validateUserCanInteract(userId);
         postReactionRepository.deleteByPostIdAndUserId(postId, userId);
         postRepository.incrementReactionCount(postId, -1);
     }
@@ -62,11 +61,19 @@ public class PostReactionServiceImpl implements IPostReactionService {
     @Transactional
     public void toggleReaction(UUID postId, UUID userId, ReactionType type) {
         userValidationService.validateUserCanInteract(userId);
-        if (hasUserReacted(postId, userId)) {
-            removePostReaction(postId, userId);
-        } else {
-            addPostReaction(postId, userId, type);
-        }
+        
+        postReactionRepository.findByPostIdAndUserId(postId, userId).ifPresentOrElse(
+            existing -> {
+                if (existing.getReactionType() == type) {
+                    removePostReaction(postId, userId);
+                } else {
+                    existing.setReactionType(type);
+                    postReactionRepository.save(existing);
+                    velocityService.recordInteraction(postId, IInteractionVelocityService.InteractionType.LIKE);
+                }
+            },
+            () -> addPostReaction(postId, userId, type)
+        );
     }
 
     @Override
@@ -84,7 +91,6 @@ public class PostReactionServiceImpl implements IPostReactionService {
     @Override
     @Transactional
     public void addCommentReaction(UUID commentId, UUID userId, ReactionType type) {
-        userValidationService.validateUserCanInteract(userId);
         PostComment comment = postCommentRepository.findById(commentId)
                 .orElseThrow(() -> new NotFoundException("Comment not found: " + commentId));
         userValidationService.validateNotBlocked(comment.getUserId(), userId);
@@ -102,7 +108,6 @@ public class PostReactionServiceImpl implements IPostReactionService {
     @Override
     @Transactional
     public void removeCommentReaction(UUID commentId, UUID userId) {
-        userValidationService.validateUserCanInteract(userId);
         postCommentReactionRepository.deleteByCommentIdAndUserId(commentId, userId);
         postCommentRepository.incrementReactionCount(commentId, -1);
     }
@@ -111,10 +116,17 @@ public class PostReactionServiceImpl implements IPostReactionService {
     @Transactional
     public void toggleCommentReaction(UUID commentId, UUID userId, ReactionType type) {
         userValidationService.validateUserCanInteract(userId);
-        if (postCommentReactionRepository.existsByCommentIdAndUserId(commentId, userId)) {
-            removeCommentReaction(commentId, userId);
-        } else {
-            addCommentReaction(commentId, userId, type);
-        }
+        
+        postCommentReactionRepository.findByCommentIdAndUserId(commentId, userId).ifPresentOrElse(
+            existing -> {
+                if (existing.getReactionType() == type) {
+                    removeCommentReaction(commentId, userId);
+                } else {
+                    existing.setReactionType(type);
+                    postCommentReactionRepository.save(existing);
+                }
+            },
+            () -> addCommentReaction(commentId, userId, type)
+        );
     }
 }
