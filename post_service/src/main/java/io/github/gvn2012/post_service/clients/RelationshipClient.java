@@ -8,7 +8,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory;
@@ -29,17 +28,14 @@ public class RelationshipClient extends HttpClient {
                 .flatMap(this::handleListResponse);
     }
 
-    public Mono<Set<UUID>> getAudience(UUID userId) {
+    public Mono<List<UUID>> getAudience(UUID userId) {
         return get(
                 "/api/v1/rs/relationships/audience/{userId}",
-                new ParameterizedTypeReference<APIResource<Set<UUID>>>() {
+                new ParameterizedTypeReference<APIResource<List<UUID>>>() {
                 },
                 userId.toString())
-                .map(response -> {
-                    Set<UUID> data = response.getData();
-                    return data != null ? data : Set.<UUID>of();
-                })
-                .onErrorReturn(Set.of());
+                .flatMap(this::handleListResponse)
+                .onErrorReturn(List.of());
     }
 
     public Mono<List<UUID>> getFollowing(UUID userId) {

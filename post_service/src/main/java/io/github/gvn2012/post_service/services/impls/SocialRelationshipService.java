@@ -19,6 +19,11 @@ public class SocialRelationshipService {
         return relationshipClient.getFriendIds(userId).block();
     }
 
+    @Cacheable(value = "userFollowing", key = "#userId")
+    public List<UUID> getFollowingIds(UUID userId) {
+        return relationshipClient.getFollowing(userId).block();
+    }
+
     @Cacheable(value = "userBlocks", key = "#userId")
     public List<UUID> getBlockedList(UUID userId) {
         return relationshipClient.getBlockedList(userId).block();

@@ -1,7 +1,6 @@
 package io.github.gvn2012.post_service.services.impls;
 
 import io.github.gvn2012.post_service.clients.RankingClient;
-import io.github.gvn2012.post_service.clients.RelationshipClient;
 import io.github.gvn2012.post_service.dtos.requests.RankingRequestDTO;
 import io.github.gvn2012.post_service.dtos.responses.RankingResponseDTO;
 import io.github.gvn2012.post_service.entities.ContentRanking;
@@ -41,12 +40,12 @@ public class FeedServiceImpl implements IFeedService {
     private final ContentRankingRepository contentRankingRepository;
     private final PostRepository postRepository;
     private final FeedRankingService rankingService;
-    private final RelationshipClient relationshipClient;
     private final UserAffinityRepository userAffinityRepository;
     private final UserSummaryService userSummaryService;
     private final PostReactionRepository postReactionRepository;
     private final PostMapper postMapper;
     private final IInteractionVelocityService velocityService;
+    private final SocialRelationshipService socialRelationshipService;
     private final RankingClient rankingClient;
     private final RedisTemplate<String, String> interactionRedisTemplate;
 
@@ -59,24 +58,24 @@ public class FeedServiceImpl implements IFeedService {
             ContentRankingRepository contentRankingRepository,
             PostRepository postRepository,
             FeedRankingService rankingService,
-            RelationshipClient relationshipClient,
             UserAffinityRepository userAffinityRepository,
             UserSummaryService userSummaryService,
             PostReactionRepository postReactionRepository,
             PostMapper postMapper,
             IInteractionVelocityService velocityService,
+            SocialRelationshipService socialRelationshipService,
             RankingClient rankingClient,
             RedisTemplate<String, String> interactionRedisTemplate) {
         this.feedItemRepository = feedItemRepository;
         this.contentRankingRepository = contentRankingRepository;
         this.postRepository = postRepository;
         this.rankingService = rankingService;
-        this.relationshipClient = relationshipClient;
         this.userAffinityRepository = userAffinityRepository;
         this.userSummaryService = userSummaryService;
         this.postReactionRepository = postReactionRepository;
         this.postMapper = postMapper;
         this.velocityService = velocityService;
+        this.socialRelationshipService = socialRelationshipService;
         this.rankingClient = rankingClient;
         this.interactionRedisTemplate = interactionRedisTemplate;
     }
@@ -333,7 +332,7 @@ public class FeedServiceImpl implements IFeedService {
             postReactionRepository.findByUserIdAndPostIdIn(viewerId, postIds)
                     .forEach(r -> reactionsMap.put(r.getPost().getId(), r.getReactionType().name()));
 
-            sharedPostIds = postRepository.findSharedPostIdsByAuthor(viewerId, postIds);
+            sharedPostIds = new HashSet<>(postRepository.findSharedPostIdsByAuthor(viewerId, postIds));
         }
 
         final Set<UUID> sharedIdsFinal = sharedPostIds;
@@ -359,36 +358,19 @@ public class FeedServiceImpl implements IFeedService {
     }
 
     private List<UUID> resolveFollows(UUID userId) {
-        try {
-            return relationshipClient.getFollowing(userId)
-                    .timeout(java.time.Duration.ofMillis(3000))
-                    .onErrorReturn(List.of())
-                    .block();
-        } catch (Exception e) {
-            return List.of();
-        }
+        List<UUID> following = socialRelationshipService.getFollowingIds(userId);
+        List<UUID> friends = socialRelationshipService.getFriendIds(userId);
+        Set<UUID> all = new HashSet<>(following);
+        all.addAll(friends);
+        return new ArrayList<>(all);
     }
 
     private List<UUID> resolveBlocks(UUID userId) {
-        try {
-            return relationshipClient.getBlockedList(userId)
-                    .timeout(java.time.Duration.ofMillis(3000))
-                    .onErrorReturn(List.of())
-                    .block();
-        } catch (Exception e) {
-            return List.of();
-        }
+        return socialRelationshipService.getBlockedList(userId);
     }
 
     private List<UUID> resolveBlockedBy(UUID userId) {
-        try {
-            return relationshipClient.getBlockedByList(userId)
-                    .timeout(java.time.Duration.ofMillis(3000))
-                    .onErrorReturn(List.of())
-                    .block();
-        } catch (Exception e) {
-            return List.of();
-        }
+        return socialRelationshipService.getBlockedByList(userId);
     }
 
     private boolean isVisible(Post post) {

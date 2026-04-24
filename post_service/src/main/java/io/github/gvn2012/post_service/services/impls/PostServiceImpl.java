@@ -231,8 +231,8 @@ public class PostServiceImpl implements IPostService {
             postReactionRepository.findByPostIdAndUserId(response.getId(), viewerId)
                     .ifPresent(reaction -> response.setViewerReaction(reaction.getReactionType().name()));
 
-            boolean isShared = postRepository
-                    .findSharedPostIdsByAuthor(viewerId, Collections.singleton(response.getId()))
+            boolean isShared = new HashSet<>(postRepository
+                    .findSharedPostIdsByAuthor(viewerId, Collections.singleton(response.getId())))
                     .contains(response.getId());
             response.setSharedByViewer(isShared);
         }
@@ -263,7 +263,7 @@ public class PostServiceImpl implements IPostService {
             postReactionRepository.findByUserIdAndPostIdIn(viewerId, postIds)
                     .forEach(r -> reactionsMap.put(r.getPost().getId(), r.getReactionType().name()));
 
-            sharedPostIds = postRepository.findSharedPostIdsByAuthor(viewerId, postIds);
+            sharedPostIds = new HashSet<>(postRepository.findSharedPostIdsByAuthor(viewerId, postIds));
         }
 
         final Set<UUID> sharedIdsFinal = sharedPostIds;
