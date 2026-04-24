@@ -6,7 +6,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -16,7 +15,7 @@ public class SocialRelationshipService {
     private final RelationshipClient relationshipClient;
 
     @Cacheable(value = "userFriends", key = "#userId")
-    public Set<UUID> getFriendIds(UUID userId) {
+    public List<UUID> getFriendIds(UUID userId) {
         return relationshipClient.getFriendIds(userId).block();
     }
 

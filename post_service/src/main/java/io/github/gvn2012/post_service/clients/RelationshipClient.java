@@ -89,7 +89,7 @@ public class RelationshipClient extends HttpClient {
                 .flatMap(this::handleListResponse);
     }
 
-    public Mono<Set<UUID>> getFriendIds(UUID userId) {
+    public Mono<List<UUID>> getFriendIds(UUID userId) {
         return get(
                 "/api/v1/rs/relationships/friends/{userId}",
                 new ParameterizedTypeReference<APIResource<List<io.github.gvn2012.post_service.dtos.RelationshipResponse>>>() {
@@ -99,11 +99,11 @@ public class RelationshipClient extends HttpClient {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData().stream()
                                 .map(rel -> rel.getTargetUserId().equals(userId) ? rel.getSourceUserId() : rel.getTargetUserId())
-                                .collect(java.util.stream.Collectors.toSet());
+                                .collect(java.util.stream.Collectors.toList());
                     }
-                    return Set.<UUID>of();
+                    return List.<UUID>of();
                 })
-                .onErrorReturn(Set.of());
+                .onErrorReturn(List.of());
     }
 
     private <T> Mono<T> handleListResponse(APIResource<T> response) {

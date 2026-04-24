@@ -142,7 +142,7 @@ public class PostReactionServiceImpl implements IPostReactionService {
 
         // Use cached services
         Map<UUID, UserSummaryResponse> userMap = userSummaryService.getSummaries(reactorIds);
-        Set<UUID> friendIds = socialRelationshipService.getFriendIds(currentUserId);
+        Set<UUID> friendIds = new HashSet<>(socialRelationshipService.getFriendIds(currentUserId));
         Set<UUID> blockedIds = new HashSet<>(socialRelationshipService.getBlockedList(currentUserId));
         Set<UUID> blockedByIds = new HashSet<>(socialRelationshipService.getBlockedByList(currentUserId));
 
