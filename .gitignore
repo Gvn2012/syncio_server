@@ -23,9 +23,6 @@ dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
 
-REPOSITORY_CONTEXT.md
-repomix-output.xml
-
 .idea/
 *.iws
 *.iml

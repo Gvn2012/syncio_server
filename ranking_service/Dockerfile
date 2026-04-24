@@ -7,10 +7,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY ranking_service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY ranking_service/ .
 
 ENV PYTHONPATH=/app
 
