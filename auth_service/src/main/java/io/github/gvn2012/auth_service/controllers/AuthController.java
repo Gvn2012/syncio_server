@@ -145,6 +145,8 @@ public class AuthController {
 
         if (response.isSuccess() && response.getData() != null) {
             setCookies(httpResponse, response.getData());
+            response.getData().setAccessToken(null);
+            response.getData().setRefreshToken(null);
         }
 
         return ResponseEntity.status(response.getStatus()).body(response);
