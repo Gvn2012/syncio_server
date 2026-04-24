@@ -1,3 +1,5 @@
+package io.github.gvn2012.auth_service.dtos.responses;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
