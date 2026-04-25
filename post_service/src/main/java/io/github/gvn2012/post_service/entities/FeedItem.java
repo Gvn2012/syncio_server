@@ -56,7 +56,6 @@ public class FeedItem {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @NotNull
-    @Column(name = "org_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
+    @Column(name = "org_id", nullable = true, updatable = false, columnDefinition = "BINARY(16)")
     private UUID orgId;
 }

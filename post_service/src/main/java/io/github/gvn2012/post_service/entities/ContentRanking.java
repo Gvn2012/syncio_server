@@ -51,7 +51,6 @@ public class ContentRanking {
     @Column(name = "last_computed_at", nullable = false)
     private LocalDateTime lastComputedAt = LocalDateTime.now();
 
-    @NotNull
-    @Column(name = "org_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
+    @Column(name = "org_id", nullable = true, updatable = false, columnDefinition = "BINARY(16)")
     private UUID orgId;
 }

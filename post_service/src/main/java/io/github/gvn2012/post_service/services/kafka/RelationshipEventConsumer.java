@@ -50,7 +50,7 @@ public class RelationshipEventConsumer {
         Optional<UserAffinity> existing = affinityRepository.findByUserIdAndAuthorId(actorId, authorId);
         UserAffinity aff = existing.orElseGet(() -> {
             UserAffinity newAff = new UserAffinity(null, actorId, authorId, 0.0, LocalDateTime.now(),
-                    UUID.randomUUID());
+                    null);
             return newAff;
         });
 
@@ -76,7 +76,7 @@ public class RelationshipEventConsumer {
     private void updatePeerAffinity(UUID actorId, UUID authorId, double boost) {
         Optional<UserAffinity> existing = affinityRepository.findByUserIdAndAuthorId(actorId, authorId);
         UserAffinity aff = existing.orElseGet(() -> {
-            return new UserAffinity(null, actorId, authorId, 0.0, LocalDateTime.now(), UUID.randomUUID());
+            return new UserAffinity(null, actorId, authorId, 0.0, LocalDateTime.now(), null);
         });
 
         if (boost < 0) {

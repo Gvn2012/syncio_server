@@ -44,7 +44,6 @@ public class UserAffinity {
     @Column(name = "last_updated", nullable = false)
     private LocalDateTime lastUpdated = LocalDateTime.now();
 
-    @NotNull
-    @Column(name = "org_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
+    @Column(name = "org_id", nullable = true, updatable = false, columnDefinition = "BINARY(16)")
     private UUID orgId;
 }

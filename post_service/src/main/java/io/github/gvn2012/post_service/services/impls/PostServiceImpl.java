@@ -136,7 +136,6 @@ public class PostServiceImpl implements IPostService {
         processSubtypes(saved, request);
         log.debug("Processed subtypes for post: {}", saved.getId());
 
-        // Capture initial version via event
         eventPublisher.publishEvent(new PostContentVersionServiceImpl.PostVersionEvent(
                 saved.getId(), saved.getAuthorId(), saved.getContent()));
         log.debug("Captured content version for post: {}", saved.getId());
