@@ -134,13 +134,29 @@ public class PostReactionServiceImpl implements IPostReactionService {
     @Cacheable(value = "postDetailedReactions", key = "#postId.toString() + '-' + #currentUserId.toString()")
     public List<PostReactionGroupResponse> getDetailedPostReactions(UUID postId, UUID currentUserId) {
         List<PostReaction> reactions = postReactionRepository.findByPostId(postId);
-        if (reactions.isEmpty()) return List.of();
+        return groupReactions(reactions, currentUserId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(value = "commentDetailedReactions", key = "#commentId.toString() + '-' + #currentUserId.toString()")
+    public List<PostReactionGroupResponse> getDetailedCommentReactions(UUID commentId, UUID currentUserId) {
+        List<PostCommentReaction> reactions = postCommentReactionRepository.findByCommentId(commentId);
+        return groupReactions(reactions, currentUserId);
+    }
+
+    private List<PostReactionGroupResponse> groupReactions(List<?> reactions, UUID currentUserId) {
+        if (reactions == null || reactions.isEmpty()) return List.of();
 
         Set<UUID> reactorIds = reactions.stream()
-                .map(PostReaction::getUserId)
+                .map(r -> {
+                    if (r instanceof PostReaction) return ((PostReaction) r).getUserId();
+                    if (r instanceof PostCommentReaction) return ((PostCommentReaction) r).getUserId();
+                    return null;
+                })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        // Use cached services
         Map<UUID, UserSummaryResponse> userMap = userSummaryService.getSummaries(reactorIds);
         Set<UUID> friendIds = new HashSet<>(socialRelationshipService.getFriendIds(currentUserId));
         Set<UUID> blockedIds = new HashSet<>(socialRelationshipService.getBlockedList(currentUserId));
@@ -148,7 +164,16 @@ public class PostReactionServiceImpl implements IPostReactionService {
 
         Map<ReactionType, List<ReactorSummaryResponse>> grouped = reactions.stream()
                 .map(r -> {
-                    UUID rid = r.getUserId();
+                    UUID rid;
+                    ReactionType type;
+                    if (r instanceof PostReaction) {
+                        rid = ((PostReaction) r).getUserId();
+                        type = ((PostReaction) r).getReactionType();
+                    } else if (r instanceof PostCommentReaction) {
+                        rid = ((PostCommentReaction) r).getUserId();
+                        type = ((PostCommentReaction) r).getReactionType();
+                    } else return null;
+
                     boolean isSelf = rid.equals(currentUserId);
                     boolean isBlocked = !isSelf && (blockedIds.contains(rid) || blockedByIds.contains(rid));
                     
@@ -156,7 +181,7 @@ public class PostReactionServiceImpl implements IPostReactionService {
                     boolean isDeleted = !isSelf && (summary == null || !Boolean.TRUE.equals(summary.getActive()));
 
                     if (isBlocked || isDeleted) {
-                        return Map.entry(r.getReactionType(), ReactorSummaryResponse.builder()
+                        return Map.entry(type, ReactorSummaryResponse.builder()
                                 .userId(null)
                                 .username("unknown")
                                 .fullName("Unknown User")
@@ -171,7 +196,7 @@ public class PostReactionServiceImpl implements IPostReactionService {
                         avatarUrl = String.format("%s/api/v1/upload/view?path=%s", gatewayHost, summary.getAvatarPath());
                     }
 
-                    return Map.entry(r.getReactionType(), ReactorSummaryResponse.builder()
+                    return Map.entry(type, ReactorSummaryResponse.builder()
                             .userId(rid)
                             .username(summary.getUsername())
                             .fullName(summary.getDisplayName())
@@ -180,6 +205,7 @@ public class PostReactionServiceImpl implements IPostReactionService {
                             .isBlocked(false)
                             .build());
                 })
+                .filter(Objects::nonNull)
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())

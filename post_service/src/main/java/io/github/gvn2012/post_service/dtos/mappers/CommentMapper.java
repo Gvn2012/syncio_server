@@ -17,9 +17,14 @@ public class CommentMapper {
                 .content(comment.getContent())
                 .reactionCount(comment.getReactionCount())
                 .replyCount(comment.getReplyCount())
+                .status(comment.getStatus())
                 .moderationStatus(comment.getModerationStatus())
+                .isPinned(comment.getIsPinned())
+                .isEdited(comment.getIsEdited())
+                .editCount(comment.getEditCount())
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())
+                .editedAt(comment.getEditedAt())
                 .build();
     }
 }

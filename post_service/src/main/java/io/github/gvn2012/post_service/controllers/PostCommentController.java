@@ -1,10 +1,13 @@
 package io.github.gvn2012.post_service.controllers;
 
 import io.github.gvn2012.post_service.dtos.APIResource;
+import io.github.gvn2012.post_service.dtos.requests.CommentRequest;
+import io.github.gvn2012.post_service.dtos.responses.CommentPagedResponse;
 import io.github.gvn2012.post_service.dtos.responses.CommentResponse;
 import io.github.gvn2012.post_service.services.interfaces.IPostCommentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
@@ -24,50 +27,59 @@ public class PostCommentController {
     public ResponseEntity<APIResource<CommentResponse>> addComment(
             @NonNull @PathVariable("pid") UUID postId,
             @RequestHeader("X-User-Id") UUID authorId,
-            @RequestParam String content,
-            @RequestParam(required = false) UUID parentId) {
+            @RequestBody CommentRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(APIResource.success(commentService.addComment(postId, authorId, content, parentId)));
+                .body(APIResource.success(commentService.addComment(postId, authorId, request.getContent(), request.getParentCommentId())));
     }
 
-    @GetMapping("/comments/{cmid}")
-    public ResponseEntity<APIResource<CommentResponse>> getCommentById(@NonNull @PathVariable("cmid") UUID commentId) {
-        return ResponseEntity.ok(APIResource.success(commentService.getCommentById(commentId)));
+    @GetMapping("/{pid}/comments/{cmid}")
+    public ResponseEntity<APIResource<CommentResponse>> getCommentById(
+            @NonNull @PathVariable("pid") UUID postId,
+            @NonNull @PathVariable("cmid") UUID commentId,
+            @RequestHeader(value = "X-User-Id", required = false) UUID viewerId) {
+        return ResponseEntity.ok(APIResource.success(commentService.getCommentById(postId, commentId, viewerId)));
     }
 
-    @PutMapping("/comments/{cmid}")
+    @PutMapping("/{pid}/comments/{cmid}")
     public ResponseEntity<APIResource<CommentResponse>> updateComment(
+            @NonNull @PathVariable("pid") UUID postId,
             @NonNull @PathVariable("cmid") UUID commentId,
             @RequestHeader("X-User-Id") UUID authorId,
-            @RequestParam String content) {
-        return ResponseEntity.ok(APIResource.success(commentService.updateComment(commentId, authorId, content)));
+            @RequestBody CommentRequest request) {
+        return ResponseEntity.ok(APIResource.success(commentService.updateComment(postId, commentId, authorId, request.getContent())));
     }
 
-    @DeleteMapping("/comments/{cmid}")
+    @DeleteMapping("/{pid}/comments/{cmid}")
     public ResponseEntity<APIResource<Void>> deleteComment(
+            @NonNull @PathVariable("pid") UUID postId,
             @NonNull @PathVariable("cmid") UUID commentId,
             @NonNull @RequestHeader("X-User-Id") UUID authorId) {
-        commentService.deleteComment(commentId, authorId);
+        commentService.deleteComment(postId, commentId, authorId);
         return ResponseEntity.ok(APIResource.success(null));
     }
 
     @GetMapping("/{pid}/comments")
-    public ResponseEntity<APIResource<List<CommentResponse>>> getCommentsByPost(
+    public ResponseEntity<APIResource<CommentPagedResponse>> getCommentsByPost(
             @NonNull @PathVariable("pid") UUID postId,
-            Pageable pageable) {
-        return ResponseEntity.ok(APIResource.success(commentService.getCommentsByPost(postId, pageable)));
+            @RequestHeader(value = "X-User-Id", required = false) UUID viewerId,
+            @PageableDefault(size = 30) Pageable pageable) {
+        return ResponseEntity.ok(APIResource.success(commentService.getCommentsByPost(postId, viewerId, pageable)));
     }
 
-    @GetMapping("/comments/{cmid}/replies")
+    @GetMapping("/{pid}/comments/{cmid}/replies")
     public ResponseEntity<APIResource<List<CommentResponse>>> getReplies(
+            @NonNull @PathVariable("pid") UUID postId,
             @NonNull @PathVariable("cmid") UUID commentId,
-            Pageable pageable) {
-        return ResponseEntity.ok(APIResource.success(commentService.getReplies(commentId, pageable)));
+            @RequestHeader(value = "X-User-Id", required = false) UUID viewerId,
+            @PageableDefault(size = 30) Pageable pageable) {
+        return ResponseEntity.ok(APIResource.success(commentService.getReplies(postId, commentId, viewerId, pageable)));
     }
 
-    @PostMapping("/comments/{cmid}/pin")
-    public ResponseEntity<APIResource<Void>> pinComment(@NonNull @PathVariable("cmid") UUID commentId) {
-        commentService.pinComment(commentId);
+    @PostMapping("/{pid}/comments/{cmid}/pin")
+    public ResponseEntity<APIResource<Void>> pinComment(
+            @NonNull @PathVariable("pid") UUID postId,
+            @NonNull @PathVariable("cmid") UUID commentId) {
+        commentService.pinComment(postId, commentId);
         return ResponseEntity.ok(APIResource.success(null));
     }
 }

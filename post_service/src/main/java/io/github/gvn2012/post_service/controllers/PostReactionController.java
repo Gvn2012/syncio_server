@@ -43,4 +43,11 @@ public class PostReactionController {
             @RequestHeader("X-User-Id") UUID userId) {
         return ResponseEntity.ok(APIResource.success(postReactionService.getDetailedPostReactions(postId, userId)));
     }
+
+    @GetMapping("/comments/{cmid}/detailed")
+    public ResponseEntity<APIResource<List<PostReactionGroupResponse>>> getDetailedCommentReactions(
+            @PathVariable("cmid") UUID commentId,
+            @RequestHeader("X-User-Id") UUID userId) {
+        return ResponseEntity.ok(APIResource.success(postReactionService.getDetailedCommentReactions(commentId, userId)));
+    }
 }

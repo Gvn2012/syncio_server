@@ -11,4 +11,6 @@ public interface PostCommentReactionRepository extends JpaRepository<PostComment
     void deleteByCommentIdAndUserId(UUID commentId, UUID userId);
     boolean existsByCommentIdAndUserId(UUID commentId, UUID userId);
     java.util.Optional<PostCommentReaction> findByCommentIdAndUserId(UUID commentId, UUID userId);
+    java.util.List<PostCommentReaction> findByUserIdAndCommentIdIn(UUID userId, java.util.Collection<UUID> commentIds);
+    java.util.List<PostCommentReaction> findByCommentId(UUID commentId);
 }

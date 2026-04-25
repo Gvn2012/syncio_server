@@ -18,4 +18,5 @@ public interface IPostReactionService {
     void removeCommentReaction(UUID commentId, UUID userId);
     void toggleCommentReaction(UUID commentId, UUID userId, ReactionType type);
     List<PostReactionGroupResponse> getDetailedPostReactions(UUID postId, UUID currentUserId);
+    List<PostReactionGroupResponse> getDetailedCommentReactions(UUID commentId, UUID currentUserId);
 }

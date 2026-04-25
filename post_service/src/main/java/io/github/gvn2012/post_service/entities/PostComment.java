@@ -25,7 +25,8 @@ import java.util.UUID;
         @Index(name = "ix_post_comments_user", columnList = "user_id"),
         @Index(name = "ix_post_comments_parent", columnList = "parent_comment_id"),
         @Index(name = "ix_post_comments_status", columnList = "status"),
-        @Index(name = "ix_post_comments_created_at", columnList = "created_at")
+        @Index(name = "ix_post_comments_created_at", columnList = "created_at"),
+        @Index(name = "ix_post_comments_popularity", columnList = "popularity")
 })
 public class PostComment extends AuditableEntity {
 
@@ -91,6 +92,9 @@ public class PostComment extends AuditableEntity {
 
     @Column(name = "metadata", columnDefinition = "json")
     private String metadata;
+
+    @Column(name = "popularity", nullable = false)
+    private Double popularity = 0.0;
 
     // ================= RELATIONSHIPS =================
 
