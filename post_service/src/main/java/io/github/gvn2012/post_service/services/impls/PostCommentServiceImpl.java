@@ -19,6 +19,7 @@ import io.github.gvn2012.post_service.services.interfaces.IPostCommentService;
 import io.github.gvn2012.post_service.services.kafka.PostEventProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
@@ -154,33 +155,36 @@ public class PostCommentServiceImpl implements IPostCommentService {
     @Transactional(readOnly = true)
     public CommentPagedResponse getCommentsByPost(@NonNull UUID postId, UUID viewerId, Pageable pageable) {
         fetchAndValidatePost(postId, viewerId);
-        List<PostComment> comments = commentRepository.findRootComments(postId, CommentStatus.VISIBLE, pageable);
-        long totalCount = commentRepository.countByPostIdAndStatus(postId, CommentStatus.VISIBLE);
-
-        List<CommentResponse> responses = comments.stream()
-                .map(commentMapper::toResponse)
-                .collect(Collectors.toList());
-
-        return CommentPagedResponse.builder()
-                .comments(enrichComments(responses, viewerId))
-                .totalCount(totalCount)
-                .build();
+        Page<PostComment> commentPage = commentRepository.findRootComments(postId, CommentStatus.VISIBLE, pageable);
+        return toPagedResponse(commentPage, viewerId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<CommentResponse> getReplies(@NonNull UUID postId, @NonNull UUID parentCommentId, UUID viewerId,
+    public CommentPagedResponse getReplies(@NonNull UUID postId, @NonNull UUID parentCommentId, UUID viewerId,
             Pageable pageable) {
         fetchAndValidatePost(postId, viewerId);
         PostComment parent = fetchCommentById(parentCommentId);
         validateCommentPostCorrelation(parent, postId);
 
-        List<PostComment> replies = commentRepository
+        Page<PostComment> replyPage = commentRepository
                 .findByParentCommentIdAndStatusOrderByCreatedAtDesc(parentCommentId, CommentStatus.VISIBLE, pageable);
-        List<CommentResponse> responses = replies.stream()
+        return toPagedResponse(replyPage, viewerId);
+    }
+
+    private CommentPagedResponse toPagedResponse(Page<PostComment> page, UUID viewerId) {
+        List<CommentResponse> responses = page.getContent().stream()
                 .map(commentMapper::toResponse)
                 .collect(Collectors.toList());
-        return enrichComments(responses, viewerId);
+
+        return CommentPagedResponse.builder()
+                .comments(enrichComments(responses, viewerId))
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .page(page.getNumber())
+                .size(page.getSize())
+                .hasNext(page.hasNext())
+                .build();
     }
 
     @Override

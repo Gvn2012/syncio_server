@@ -19,7 +19,7 @@ public interface IPostCommentService {
 
     CommentPagedResponse getCommentsByPost(@NonNull UUID postId, UUID viewerId, Pageable pageable);
 
-    List<CommentResponse> getReplies(@NonNull UUID postId, @NonNull UUID parentCommentId, UUID viewerId, Pageable pageable);
+    CommentPagedResponse getReplies(@NonNull UUID postId, @NonNull UUID parentCommentId, UUID viewerId, Pageable pageable);
 
     void pinComment(@NonNull UUID postId, @NonNull UUID commentId);
 

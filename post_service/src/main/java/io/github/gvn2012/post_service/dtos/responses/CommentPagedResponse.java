@@ -13,5 +13,9 @@ import java.util.List;
 @AllArgsConstructor
 public class CommentPagedResponse {
     private List<CommentResponse> comments;
-    private long totalCount;
+    private long totalElements;
+    private int totalPages;
+    private int page;
+    private int size;
+    private boolean hasNext;
 }

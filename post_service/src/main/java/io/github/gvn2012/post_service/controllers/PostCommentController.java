@@ -29,7 +29,8 @@ public class PostCommentController {
             @RequestHeader("X-User-Id") UUID authorId,
             @RequestBody CommentRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(APIResource.success(commentService.addComment(postId, authorId, request.getContent(), request.getParentCommentId())));
+                .body(APIResource.success(commentService.addComment(postId, authorId, request.getContent(),
+                        request.getParentCommentId())));
     }
 
     @GetMapping("/{pid}/comments/{cmid}")
@@ -46,7 +47,8 @@ public class PostCommentController {
             @NonNull @PathVariable("cmid") UUID commentId,
             @RequestHeader("X-User-Id") UUID authorId,
             @RequestBody CommentRequest request) {
-        return ResponseEntity.ok(APIResource.success(commentService.updateComment(postId, commentId, authorId, request.getContent())));
+        return ResponseEntity.ok(
+                APIResource.success(commentService.updateComment(postId, commentId, authorId, request.getContent())));
     }
 
     @DeleteMapping("/{pid}/comments/{cmid}")
@@ -67,7 +69,7 @@ public class PostCommentController {
     }
 
     @GetMapping("/{pid}/comments/{cmid}/replies")
-    public ResponseEntity<APIResource<List<CommentResponse>>> getReplies(
+    public ResponseEntity<APIResource<CommentPagedResponse>> getReplies(
             @NonNull @PathVariable("pid") UUID postId,
             @NonNull @PathVariable("cmid") UUID commentId,
             @RequestHeader(value = "X-User-Id", required = false) UUID viewerId,
