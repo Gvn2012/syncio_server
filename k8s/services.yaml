@@ -242,7 +242,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:24eb9e33910726c0f6aef84e14084297b9464098
+          image: vietpham18/post-service:c38c01e16fb88e24f0833991a8a67b5e89aed288
           ports:
             - containerPort: 8085
           startupProbe:
@@ -311,7 +311,7 @@ spec:
     spec:
       containers:
         - name: ranking
-          image: vietpham18/ranking-service:a08c26f1861476515f3f652f7007cabb574288a5
+          image: vietpham18/ranking-service:c38c01e16fb88e24f0833991a8a67b5e89aed288
           ports:
             - containerPort: 8000
           startupProbe:
