@@ -133,10 +133,11 @@ public class FeedServiceImpl implements IFeedService {
             pulledRankings.forEach(ranking -> candidates.add(ranking.getPost()));
         }
 
-        // 4. Global Discovery Content (Allow self-posts if they are globally popular/trending)
+        // 4. Global Discovery Content (Allow self-posts if they are globally
+        // popular/trending)
         List<ContentRanking> discoveryRankings = contentRankingRepository.findGlobalTopRankings(
                 effectiveCursor, excludedCategories, PageRequest.of(0, 50));
-        
+
         discoveryRankings.stream()
                 .map(ContentRanking::getPost)
                 .filter(post -> post.getVisibility() == PostVisibility.PUBLIC)
@@ -184,10 +185,10 @@ public class FeedServiceImpl implements IFeedService {
                                 ? affinities.get(post.getAuthorId()).getAffinityScore()
                                 : 0.0)
                         .velocityScore(velocityService.getVelocityScore(post.getId()))
-                        .recencyHours((double) Duration
+                        .recencyHours(Math.max(0.0, (double) Duration
                                 .between(post.getPublishedAt() != null ? post.getPublishedAt() : post.getCreatedAt(),
                                         effectiveCursor)
-                                .toHours())
+                                .toHours()))
                         .category(post.getPostCategory().name())
                         .mediaCount(post.getAttachments() != null ? post.getAttachments().size() : 0)
                         .build())
@@ -199,6 +200,8 @@ public class FeedServiceImpl implements IFeedService {
                 .candidates(features)
                 .build();
 
+        log.info("Ranking request: {}", rankingRequest);
+
         RankingResponseDTO rankingResponse = rankingClient.rankPosts(rankingRequest).block();
 
         List<UUID> sortedIds = new ArrayList<>();
@@ -207,7 +210,9 @@ public class FeedServiceImpl implements IFeedService {
                     .map(RankingResponseDTO.RankedPostDTO::getPostId)
                     .collect(Collectors.toList());
         } else {
-            // Local fallback sorting
+            log.warn(
+                    "Ranking service unavailable or failed for user {}. Falling back to local heuristic ranking service.",
+                    recipientId);
             sortedIds = deduped.values().stream()
                     .sorted((a, b) -> {
                         UserAffinity aff = affinities.get(b.getAuthorId());

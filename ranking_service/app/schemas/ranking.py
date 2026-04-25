@@ -5,7 +5,7 @@ from uuid import UUID
 class PostFeature(BaseModel):
     post_id: UUID
     author_id: UUID
-    author_affinity: float = Field(default=0.0, ge=0.0, le=1.0)
+    author_affinity: float = Field(default=0.0, ge=0.0)
     velocity_score: float = Field(default=0.0, ge=0.0)
     recency_hours: float = Field(default=0.0, ge=0.0)
     category: str

@@ -22,13 +22,12 @@ public class RankingClient extends HttpClient {
     public Mono<RankingResponseDTO> rankPosts(RankingRequestDTO request) {
         log.debug("Sending {} candidates for ranking to {}", request.getCandidates().size(), baseUrl);
 
-        return post(
-                "/rank",
-                request,
-                new ParameterizedTypeReference<RankingResponseDTO>() {
-                })
-                .timeout(Duration.ofMillis(500))
-                .doOnError(e -> log.error("Ranking service call failed: {}", e.getMessage()))
-                .onErrorResume(e -> Mono.empty());
+        return cbFactory.create("ranking-service").run(
+                post("/rank", request, new ParameterizedTypeReference<RankingResponseDTO>() {}),
+                throwable -> {
+                    log.error("Ranking service call failed (Circuit Breaker): {}", throwable.getMessage());
+                    return Mono.empty();
+                }
+        ).timeout(Duration.ofMillis(500));
     }
 }

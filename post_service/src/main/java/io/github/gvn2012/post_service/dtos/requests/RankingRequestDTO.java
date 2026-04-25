@@ -1,5 +1,7 @@
 package io.github.gvn2012.post_service.dtos.requests;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,6 +14,7 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class RankingRequestDTO {
     private UUID userId;
     private List<PostFeatureDTO> candidates;
@@ -20,6 +23,7 @@ public class RankingRequestDTO {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static class PostFeatureDTO {
         private UUID postId;
         private UUID authorId;
