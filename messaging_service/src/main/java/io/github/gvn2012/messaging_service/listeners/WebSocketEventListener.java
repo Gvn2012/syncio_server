@@ -10,8 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
-import java.util.Objects;
-
 @Component
 @Slf4j
 @RequiredArgsConstructor
@@ -32,9 +30,9 @@ public class WebSocketEventListener {
     @EventListener
     public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
-        String userId = (String) Objects.requireNonNull(headerAccessor.getSessionAttributes()).get("userId");
-        if (userId == null) {
-            userId = headerAccessor.getFirstNativeHeader("X-User-Id");
+        String userId = null;
+        if (headerAccessor.getSessionAttributes() != null) {
+            userId = (String) headerAccessor.getSessionAttributes().get("userId");
         }
         
         if (userId != null) {
