@@ -19,5 +19,7 @@ public class MessageResponse {
     private String senderId;
     private String content;
     private LocalDateTime timestamp;
+    private boolean isEdited;
+    private boolean isDeleted;
     private Map<String, Message.StatusInfo> status;
 }

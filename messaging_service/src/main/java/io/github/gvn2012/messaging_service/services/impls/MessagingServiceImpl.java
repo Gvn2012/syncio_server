@@ -1,5 +1,6 @@
 package io.github.gvn2012.messaging_service.services.impls;
 
+import io.github.gvn2012.messaging_service.dtos.ConversationResponse;
 import io.github.gvn2012.messaging_service.dtos.MessageRequest;
 import io.github.gvn2012.messaging_service.dtos.MessageResponse;
 import io.github.gvn2012.messaging_service.models.Conversation;
@@ -18,6 +19,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -92,8 +94,42 @@ public class MessagingServiceImpl implements IMessagingService {
     }
 
     @Override
-    public List<Conversation> getConversations(String userId) {
-        return conversationRepository.findActiveConversationsForUser(userId);
+    public List<ConversationResponse> getConversations(String userId) {
+        List<Conversation> conversations = conversationRepository.findActiveConversationsForUser(userId);
+        if (conversations == null) {
+            return new ArrayList<>();
+        }
+
+        return conversations.stream()
+                .map(this::mapToConversationResponse)
+                .collect(Collectors.toList());
+    }
+
+    private ConversationResponse mapToConversationResponse(Conversation conv) {
+        MessageResponse lastMessageDto = null;
+        if (conv.getLastMessage() != null) {
+            lastMessageDto = MessageResponse.builder()
+                    .id(conv.getLastMessage().getId())
+                    .conversationId(conv.getLastMessage().getConversationId())
+                    .senderId(conv.getLastMessage().getSenderId())
+                    .content(conv.getLastMessage().isDeleted() ? "This message was recalled"
+                            : conv.getLastMessage().getContent())
+                    .timestamp(conv.getLastMessage().getTimestamp())
+                    .isEdited(conv.getLastMessage().isEdited())
+                    .isDeleted(conv.getLastMessage().isDeleted())
+                    .build();
+        }
+
+        return ConversationResponse.builder()
+                .id(conv.getId())
+                .name(conv.getName())
+                .participants(conv.getParticipants())
+                .type(conv.getType())
+                .lastMessage(lastMessageDto)
+                .unreadCount(0)
+                .createdAt(conv.getCreatedAt())
+                .updatedAt(conv.getUpdatedAt())
+                .build();
     }
 
     @Override
