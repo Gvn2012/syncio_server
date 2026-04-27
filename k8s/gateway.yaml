@@ -30,6 +30,11 @@ spec:
               value: "false"
             - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
               value: "false"
+            - name: SPRING_CONFIG_LOCATION
+              value: "file:/config/application.properties"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
@@ -42,6 +47,10 @@ spec:
               port: 8080
             initialDelaySeconds: 45
             periodSeconds: 15
+      volumes:
+        - name: config-volume
+          configMap:
+            name: gateway-config
 ---
 apiVersion: v1
 kind: Service
