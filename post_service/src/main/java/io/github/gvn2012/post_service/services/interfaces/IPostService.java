@@ -22,4 +22,5 @@ public interface IPostService {
     PostResponse sharePost(UUID originalPostId, UUID sharerId, String shareContent);
     List<PostResponse> searchPosts(String keyword, UUID viewerId, Pageable pageable);
     void updateEngagementMetrics(UUID postId, int viewInc, int reactionInc, int commentInc, int shareInc);
+    void reindexAllPosts();
 }

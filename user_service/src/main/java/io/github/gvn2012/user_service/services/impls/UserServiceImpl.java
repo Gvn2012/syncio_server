@@ -34,6 +34,7 @@ import io.github.gvn2012.user_service.exceptions.DataIntegrityViolationException
 import io.github.gvn2012.user_service.exceptions.NotFoundException;
 import io.github.gvn2012.user_service.repositories.UserPhoneRepository;
 import io.github.gvn2012.user_service.repositories.UserRepository;
+import io.github.gvn2012.user_service.services.interfaces.IBloomFilterService;
 import io.github.gvn2012.user_service.services.interfaces.IPendingEmailVerificationService;
 import io.github.gvn2012.user_service.services.interfaces.IUserEmailService;
 import io.github.gvn2012.user_service.services.interfaces.IUserService;
@@ -65,6 +66,7 @@ public class UserServiceImpl implements IUserService {
 
     private final UserRepository userRepository;
     private final UserPhoneRepository userPhoneRepository;
+    private final IBloomFilterService bloomFilterService;
 
     private final AuthClient authClient;
     private final OrgClient orgClient;
@@ -264,6 +266,8 @@ public class UserServiceImpl implements IUserService {
 
         try {
             userRepository.save(user);
+            bloomFilterService.addUsername(user.getUsername());
+            bloomFilterService.addEmail(verification.getEmail());
         } catch (org.springframework.dao.DataIntegrityViolationException ex) {
             throw new DataIntegrityViolationException("Username, email, or phone already exists");
         }
@@ -303,7 +307,8 @@ public class UserServiceImpl implements IUserService {
     }
 
     private void validateRegisterRequest(UserRegisterRequest request) {
-        if (userRepository.existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse(request.getUsername())) {
+        if (bloomFilterService.mightContainUsername(request.getUsername()) && 
+            userRepository.existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse(request.getUsername())) {
             throw new BadRequestException("The username already exists");
         }
 
@@ -504,9 +509,50 @@ public class UserServiceImpl implements IUserService {
     public APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse> checkAvailableEmailAndUsernameWhenRegister(
             String email, String username) {
         Boolean isEmailAvailable = userEmailService.isEmailAvailable(email);
-        Boolean isUsernameAvailable = !userRepository.existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse(username);
+        Boolean isUsernameAvailable = !bloomFilterService.mightContainUsername(username);
+        
+        // If bloom filter says it might exist, we check DB to be sure
+        if (!isUsernameAvailable && userRepository.existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse(username)) {
+            isUsernameAvailable = false;
+        } else {
+            isUsernameAvailable = true;
+        }
+
         return APIResource.ok("Check available email and username when register successfully",
                 new CheckAvailableEmailAndUsernameWhenRegisterResponse(isEmailAvailable, isUsernameAvailable));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public void reindexAllUsers() {
+        log.info("Starting manual re-indexing of all users to Kafka...");
+        userRepository.findAll().forEach(user -> {
+            if (Boolean.TRUE.equals(user.getActive()) && !Boolean.TRUE.equals(user.getSoftDeleted())) {
+                try {
+                    UserSearchEvent searchEvent = UserSearchEvent.builder()
+                            .userId(user.getId())
+                            .username(user.getUsername())
+                            .fullName(user.getFirstName() + " " + user.getLastName())
+                            .avatarUrl(user.getProfile() != null && user.getProfile().getPictures() != null ? 
+                                user.getProfile().getPictures().stream()
+                                    .filter(p -> Boolean.TRUE.equals(p.getPrimary()))
+                                    .findFirst()
+                                    .map(UserProfilePicture::getUrl)
+                                    .orElse(null) : null)
+                            .avatarPath(user.getProfile() != null && user.getProfile().getPictures() != null ? 
+                                user.getProfile().getPictures().stream()
+                                    .filter(p -> Boolean.TRUE.equals(p.getPrimary()))
+                                    .findFirst()
+                                    .map(UserProfilePicture::getObjectPath)
+                                    .orElse(null) : null)
+                            .operationType(UserSearchEvent.OperationType.UPSERT)
+                            .build();
+                    kafkaTemplate.send("user-search-indexing", String.valueOf(user.getId()), searchEvent);
+                } catch (Exception e) {
+                    log.error("Failed to send re-indexing event for user: {}", user.getId(), e);
+                }
+            }
+        });
+        log.info("Re-indexing of all users completed.");
+    }
 }

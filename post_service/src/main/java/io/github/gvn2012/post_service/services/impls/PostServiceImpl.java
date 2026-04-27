@@ -245,7 +245,7 @@ public class PostServiceImpl implements IPostService {
                 .map(Enum::name)
                 .collect(Collectors.toList());
         response.setTopReactions(topReactions);
-        
+
         enrichMediaUrls(Collections.singletonList(response));
 
         return response;
@@ -295,7 +295,8 @@ public class PostServiceImpl implements IPostService {
     }
 
     private void enrichMediaUrls(List<PostResponse> responses) {
-        if (responses == null || responses.isEmpty()) return;
+        if (responses == null || responses.isEmpty())
+            return;
 
         Set<String> pathsToSign = new HashSet<>();
         for (PostResponse res : responses) {
@@ -310,7 +311,8 @@ public class PostServiceImpl implements IPostService {
             }
         }
 
-        if (pathsToSign.isEmpty()) return;
+        if (pathsToSign.isEmpty())
+            return;
 
         DownloadUrlResponseDTO urlRes = uploadClient.getDownloadUrls(new DownloadUrlRequestDTO(pathsToSign));
         Map<String, String> signedUrls = urlRes != null ? urlRes.getDownloadUrls() : Collections.emptyMap();
@@ -324,7 +326,8 @@ public class PostServiceImpl implements IPostService {
                 }
             }
             if (res.getAuthorInfo() != null && res.getAuthorInfo().getAvatarPath() != null) {
-                res.getAuthorInfo().setAvatarUrl(signedUrls.getOrDefault(res.getAuthorInfo().getAvatarPath(), res.getAuthorInfo().getAvatarUrl()));
+                res.getAuthorInfo().setAvatarUrl(signedUrls.getOrDefault(res.getAuthorInfo().getAvatarPath(),
+                        res.getAuthorInfo().getAvatarUrl()));
             }
         }
     }
@@ -584,5 +587,29 @@ public class PostServiceImpl implements IPostService {
             postRepository.incrementCommentCount(postId, commentInc);
         if (shareInc != 0)
             postRepository.incrementShareCount(postId, shareInc);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void reindexAllPosts() {
+        log.info("Starting manual re-indexing of all posts to Kafka...");
+        postRepository.findAll().forEach(post -> {
+            if (post.getStatus() != PostStatus.DELETED) {
+                try {
+                    PostSearchEvent searchEvent = PostSearchEvent.builder()
+                            .postId(post.getId())
+                            .authorId(post.getAuthorId())
+                            .content(post.getContent())
+                            .publishedAt(post.getPublishedAt())
+                            .status(post.getStatus().name())
+                            .operationType(PostSearchEvent.OperationType.UPSERT)
+                            .build();
+                    postEventProducer.publishPostSearchIndexing(searchEvent);
+                } catch (Exception e) {
+                    log.error("Failed to send re-indexing event for post: {}", post.getId(), e);
+                }
+            }
+        });
+        log.info("Re-indexing of all posts completed.");
     }
 }

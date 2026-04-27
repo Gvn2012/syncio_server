@@ -27,4 +27,6 @@ public interface IUserService {
 
     APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse> checkAvailableEmailAndUsernameWhenRegister(
             String email, String username);
+
+    void reindexAllUsers();
 }

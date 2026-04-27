@@ -17,6 +17,7 @@ import io.github.gvn2012.user_service.exceptions.BadRequestException;
 import io.github.gvn2012.user_service.exceptions.NotFoundException;
 import io.github.gvn2012.user_service.repositories.UserEmailRepository;
 import io.github.gvn2012.user_service.repositories.UserRepository;
+import io.github.gvn2012.user_service.services.interfaces.IBloomFilterService;
 import io.github.gvn2012.user_service.services.interfaces.ITokenService;
 import io.github.gvn2012.user_service.services.interfaces.IUserEmailService;
 import io.github.gvn2012.user_service.services.kafka.EmailEventProducer;
@@ -51,6 +52,7 @@ public class UserEmailServiceImpl implements IUserEmailService {
     private final UserRepository userRepository;
     private final EmailEventProducer emailEventProducer;
     private final ObjectMapper objectMapper;
+    private final IBloomFilterService bloomFilterService;
 
     private record PendingEmail(UserEmail email, String rawSecret) {
     }
@@ -198,6 +200,7 @@ public class UserEmailServiceImpl implements IUserEmailService {
         }
 
         userEmailRepository.save(email);
+        bloomFilterService.addEmail(email.getEmail());
 
         return APIResource.ok(
                 "Email verified successfully",
@@ -425,11 +428,8 @@ public class UserEmailServiceImpl implements IUserEmailService {
     public void validateEmailNotUsed(String email) {
         String normalizedEmail = normalizeEmail(email);
 
-        boolean exists = userEmailRepository.existsByEmailAndStatusNot(
-                normalizedEmail,
-                EmailStatus.REMOVED);
-
-        if (exists) {
+        if (bloomFilterService.mightContainEmail(normalizedEmail) && 
+            userEmailRepository.existsByEmailAndStatusNot(normalizedEmail, EmailStatus.REMOVED)) {
             throw new BadRequestException("Email already existed");
         }
     }
@@ -443,6 +443,9 @@ public class UserEmailServiceImpl implements IUserEmailService {
 
     public Boolean isEmailAvailable(String email) {
         String normalizedEmail = normalizeEmail(email);
+        if (!bloomFilterService.mightContainEmail(normalizedEmail)) {
+            return true;
+        }
         return !userEmailRepository.existsByEmailAndStatusNot(
                 normalizedEmail,
                 EmailStatus.REMOVED);

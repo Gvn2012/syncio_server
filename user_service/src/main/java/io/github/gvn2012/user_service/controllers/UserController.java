@@ -122,4 +122,10 @@ public class UserController {
         HttpStatus status = response.getStatus() != null ? response.getStatus() : HttpStatus.OK;
         return ResponseEntity.status(status).body(response);
     }
+
+    @PostMapping("/internal/reindex")
+    public ResponseEntity<APIResource<Void>> reindexAllUsers() {
+        userService.reindexAllUsers();
+        return ResponseEntity.ok(APIResource.ok("Re-indexing started successfully", null));
+    }
 }

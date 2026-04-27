@@ -125,4 +125,10 @@ public class PostController {
         return ResponseEntity.ok(APIResource.ok("Post shared",
                 postService.sharePost(id, sharerId, shareContent)));
     }
+
+    @PostMapping("/internal/reindex")
+    public ResponseEntity<APIResource<Void>> reindexAllPosts() {
+        postService.reindexAllPosts();
+        return ResponseEntity.ok(APIResource.ok("Re-indexing started successfully", null));
+    }
 }

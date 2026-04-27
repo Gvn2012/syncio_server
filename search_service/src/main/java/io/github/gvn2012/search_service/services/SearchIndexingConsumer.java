@@ -22,7 +22,7 @@ public class SearchIndexingConsumer {
     @KafkaListener(topics = "user-search-indexing", groupId = "search-service-group")
     public void consumeUserIndexing(UserSearchEvent event) {
         log.info("Received UserSearchEvent: {} for user: {}", event.getOperationType(), event.getUserId());
-        
+
         if (event.getOperationType() == UserSearchEvent.OperationType.DELETE) {
             userSearchRepository.deleteById(event.getUserId().toString());
             log.debug("Deleted user index for ID: {}", event.getUserId());
@@ -47,7 +47,6 @@ public class SearchIndexingConsumer {
             postSearchRepository.deleteById(event.getPostId().toString());
             log.debug("Deleted post index for ID: {}", event.getPostId());
         } else {
-            // Only index active/published posts usually, but here we follow the event status
             if ("DELETED".equals(event.getStatus())) {
                 postSearchRepository.deleteById(event.getPostId().toString());
                 return;
