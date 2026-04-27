@@ -32,6 +32,9 @@ public class Message {
     private boolean isEdited;
     private boolean isDeleted;
     
+    // UserId -> DeleteTimestamp (Unidirectional deletion)
+    private Map<String, LocalDateTime> deletedAtPerUser;
+    
     private Map<String, StatusInfo> status;
 
     @Data

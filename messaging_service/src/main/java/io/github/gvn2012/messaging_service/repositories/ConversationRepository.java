@@ -13,4 +13,6 @@ public interface ConversationRepository extends MongoRepository<Conversation, St
     
     @Query("{ 'participants': ?0, 'deletedAtPerUser.?0': { $exists: false } }")
     List<Conversation> findActiveConversationsForUser(String userId);
+    @Query("{ 'participants': { $all: ?0, $size: ?1 }, 'type': 'DIRECT' }")
+    java.util.Optional<Conversation> findDirectConversation(List<String> participants, int size);
 }
