@@ -9,6 +9,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -20,21 +21,23 @@ import java.util.Map;
 public class Message {
     @Id
     private String id;
-    
+
     @Indexed
     private String conversationId;
-    
+
     private String senderId;
     private String content;
     private LocalDateTime timestamp;
     private LocalDateTime updatedAt;
-    
+
+    @JsonProperty("isEdited")
     private boolean isEdited;
+    @JsonProperty("isRecalled")
     private boolean isRecalled;
-    
+
     // UserId -> DeleteTimestamp (Unidirectional deletion)
     private Map<String, LocalDateTime> deletedAtPerUser;
-    
+
     private Map<String, StatusInfo> status;
 
     @Data

@@ -1,5 +1,6 @@
 package io.github.gvn2012.messaging_service.dtos;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.gvn2012.messaging_service.models.Message;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,7 +20,9 @@ public class MessageResponse {
     private String senderId;
     private String content;
     private LocalDateTime timestamp;
+    @JsonProperty("isEdited")
     private boolean isEdited;
+    @JsonProperty("isRecalled")
     private boolean isRecalled;
     private Map<String, Message.StatusInfo> status;
 }

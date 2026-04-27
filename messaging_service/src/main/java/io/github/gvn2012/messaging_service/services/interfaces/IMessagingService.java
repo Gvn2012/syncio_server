@@ -13,6 +13,7 @@ public interface IMessagingService {
     void editMessage(String messageId, String newContent, String userId);
 
     void deleteMessage(String messageId, String userId);
+
     void recallMessage(String messageId, String userId);
 
     void markAsDelivered(String messageId, String userId);

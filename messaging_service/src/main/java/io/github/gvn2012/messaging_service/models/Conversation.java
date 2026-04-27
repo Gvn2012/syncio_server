@@ -26,7 +26,7 @@ public class Conversation {
     private List<String> participants;
     private ConversationType type;
     private Message lastMessage;
-    
+
     private Map<String, LocalDateTime> deletedAtPerUser;
 
     @CreatedDate

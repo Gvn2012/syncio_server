@@ -210,7 +210,7 @@ public class MessagingServiceImpl implements IMessagingService {
             if (message.getSenderId().equals(userId) && !message.isRecalled()) {
                 message.setContent(newContent);
                 message.setEdited(true);
-                message.setUpdatedAt(LocalDateTime.now());
+                message.setUpdatedAt(getCurrentTime());
                 messageRepository.save(message);
 
                 notifyParticipantsOfUpdate(message, "MESSAGE_EDITED");
@@ -226,7 +226,7 @@ public class MessagingServiceImpl implements IMessagingService {
             if (message.getDeletedAtPerUser() == null) {
                 message.setDeletedAtPerUser(new HashMap<>());
             }
-            message.getDeletedAtPerUser().put(userId, LocalDateTime.now());
+            message.getDeletedAtPerUser().put(userId, getCurrentTime());
             messageRepository.save(message);
 
             messagingTemplate.convertAndSendToUser(userId, "/queue/updates",
@@ -245,12 +245,13 @@ public class MessagingServiceImpl implements IMessagingService {
                 return;
             }
 
-            if (message.getTimestamp().plusHours(6).isBefore(LocalDateTime.now())) {
+            if (message.getTimestamp().plusHours(6).isBefore(getCurrentTime())) {
                 throw new RuntimeException("Messages can only be recalled within 6 hours");
             }
 
             message.setRecalled(true);
-            message.setUpdatedAt(LocalDateTime.now());
+            message.setContent("");
+            message.setUpdatedAt(getCurrentTime());
             messageRepository.save(message);
 
             notifyParticipantsOfUpdate(message, "MESSAGE_RECALLED");
@@ -330,7 +331,7 @@ public class MessagingServiceImpl implements IMessagingService {
         messageRepository.findById(messageId).ifPresent(message -> {
             if (message.getStatus().containsKey(userId)) {
                 message.getStatus().get(userId).setStatus(MessageStatusType.DELIVERED);
-                message.getStatus().get(userId).setUpdateTime(LocalDateTime.now());
+                message.getStatus().get(userId).setUpdateTime(getCurrentTime());
                 messageRepository.save(message);
 
                 messagingTemplate.convertAndSendToUser(message.getSenderId(), "/queue/status",
@@ -360,7 +361,7 @@ public class MessagingServiceImpl implements IMessagingService {
         for (Message msg : undeliveredMessages) {
             if (msg.getStatus().containsKey(userId)) {
                 msg.getStatus().get(userId).setStatus(MessageStatusType.DELIVERED);
-                msg.getStatus().get(userId).setUpdateTime(LocalDateTime.now());
+                msg.getStatus().get(userId).setUpdateTime(getCurrentTime());
             }
         }
 
@@ -401,7 +402,7 @@ public class MessagingServiceImpl implements IMessagingService {
         for (Message msg : unreadMessages) {
             if (msg.getStatus().containsKey(userId)) {
                 msg.getStatus().get(userId).setStatus(MessageStatusType.SEEN);
-                msg.getStatus().get(userId).setUpdateTime(LocalDateTime.now());
+                msg.getStatus().get(userId).setUpdateTime(getCurrentTime());
             }
         }
 

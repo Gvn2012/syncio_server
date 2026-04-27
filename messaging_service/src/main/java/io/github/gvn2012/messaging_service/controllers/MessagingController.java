@@ -18,8 +18,10 @@ public class MessagingController {
     private final IMessagingService messagingService;
 
     @GetMapping("/conversations")
-    public ResponseEntity<APIResource<List<ConversationResponse>>> getConversations(@RequestHeader("X-User-Id") String userId) {
-        return ResponseEntity.ok(APIResource.ok("Conversations retrieved successfully", messagingService.getConversations(userId)));
+    public ResponseEntity<APIResource<List<ConversationResponse>>> getConversations(
+            @RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity
+                .ok(APIResource.ok("Conversations retrieved successfully", messagingService.getConversations(userId)));
     }
 
     @GetMapping("/conversations/{conversationId}/messages")
@@ -35,17 +37,20 @@ public class MessagingController {
 
     @GetMapping("/unread-count")
     public ResponseEntity<APIResource<Long>> getTotalUnreadCount(@RequestHeader("X-User-Id") String userId) {
-        return ResponseEntity.ok(APIResource.ok("Total unread count retrieved", messagingService.getTotalUnreadCount(userId)));
+        return ResponseEntity
+                .ok(APIResource.ok("Total unread count retrieved", messagingService.getTotalUnreadCount(userId)));
     }
 
     @DeleteMapping("/messages/{messageId}/recall")
-    public ResponseEntity<APIResource<Void>> recallMessage(@PathVariable String messageId, @RequestHeader("X-User-Id") String userId) {
+    public ResponseEntity<APIResource<Void>> recallMessage(@PathVariable String messageId,
+            @RequestHeader("X-User-Id") String userId) {
         messagingService.recallMessage(messageId, userId);
         return ResponseEntity.ok(APIResource.ok("Message recalled successfully", null));
     }
 
     @DeleteMapping("/messages/{messageId}")
-    public ResponseEntity<APIResource<Void>> deleteMessage(@PathVariable String messageId, @RequestHeader("X-User-Id") String userId) {
+    public ResponseEntity<APIResource<Void>> deleteMessage(@PathVariable String messageId,
+            @RequestHeader("X-User-Id") String userId) {
         messagingService.deleteMessage(messageId, userId);
         return ResponseEntity.ok(APIResource.ok("Message deleted successfully", null));
     }
