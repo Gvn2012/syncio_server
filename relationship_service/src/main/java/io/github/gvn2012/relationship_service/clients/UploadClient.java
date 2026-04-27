@@ -12,7 +12,7 @@ import java.util.Set;
 @Component
 public class UploadClient {
 
-    @GrpcClient("uploading-service")
+    @GrpcClient("upload-service")
     private UploadServiceGrpc.UploadServiceBlockingStub uploadServiceStub;
 
     public Map<String, String> getDownloadUrls(Set<String> objectPaths) {
