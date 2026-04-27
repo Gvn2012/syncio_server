@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -142,13 +143,14 @@ public class UserServiceImpl implements IUserService {
         ensureUserAccessible(user);
 
         GetUserDetailResponse response = userDetailMapper.toDto(user);
+        filterPrimaryProfilePicture(response);
         mediaEnrichmentService.enrichUserDetailMediaUrls(Collections.singletonList(response));
         return APIResource.ok("Get user detail successfully", response);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public APIResource<Map<UUID, GetUserDetailResponse>> getUsersDetail(java.util.Set<UUID> userIds) {
+    public APIResource<Map<UUID, GetUserDetailResponse>> getUsersDetail(Set<UUID> userIds) {
         if (userIds == null || userIds.isEmpty()) {
             return APIResource.ok("No users requested", new HashMap<>());
         }
@@ -159,7 +161,9 @@ public class UserServiceImpl implements IUserService {
         for (User user : users) {
             try {
                 ensureUserAccessible(user);
-                responseMap.put(user.getId(), userDetailMapper.toDto(user));
+                GetUserDetailResponse dto = userDetailMapper.toDto(user);
+                filterPrimaryProfilePicture(dto);
+                responseMap.put(user.getId(), dto);
             } catch (Exception e) {
                 log.warn("User {} is not accessible or failed to map, skipping", user.getId(), e);
             }
@@ -168,6 +172,16 @@ public class UserServiceImpl implements IUserService {
         mediaEnrichmentService.enrichUserDetailMediaUrls(new java.util.ArrayList<>(responseMap.values()));
 
         return APIResource.ok("Batch user details retrieved successfully", responseMap);
+    }
+
+    private void filterPrimaryProfilePicture(GetUserDetailResponse response) {
+        if (response.getUserProfileResponse() != null
+                && response.getUserProfileResponse().getUserProfilePictureResponseList() != null) {
+            response.getUserProfileResponse().setUserProfilePictureResponseList(
+                    response.getUserProfileResponse().getUserProfilePictureResponseList().stream()
+                            .filter(pic -> Boolean.TRUE.equals(pic.getPrimary()))
+                            .collect(Collectors.toSet()));
+        }
     }
 
     @Override
@@ -211,7 +225,6 @@ public class UserServiceImpl implements IUserService {
 
         return APIResource.ok("Batch user summaries retrieved successfully", responseMap);
     }
-
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -267,8 +280,8 @@ public class UserServiceImpl implements IUserService {
     }
 
     private void validateRegisterRequest(UserRegisterRequest request) {
-        if (bloomFilterService.mightContainUsername(request.getUsername()) && 
-            userRepository.existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse(request.getUsername())) {
+        if (bloomFilterService.mightContainUsername(request.getUsername()) &&
+                userRepository.existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse(request.getUsername())) {
             throw new BadRequestException("The username already exists");
         }
 
@@ -469,12 +482,9 @@ public class UserServiceImpl implements IUserService {
     public APIResource<CheckAvailableEmailAndUsernameWhenRegisterResponse> checkAvailableEmailAndUsernameWhenRegister(
             String email, String username) {
         Boolean isEmailAvailable = userEmailService.isEmailAvailable(email);
+
         Boolean isUsernameAvailable = !bloomFilterService.mightContainUsername(username);
-        
-        // If bloom filter says it might exist, we check DB to be sure
-        if (!isUsernameAvailable && userRepository.existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse(username)) {
-            isUsernameAvailable = false;
-        } else {
+        if (!isUsernameAvailable && !userRepository.existsByUsernameAndSoftDeletedFalseAndHardDeletedFalse(username)) {
             isUsernameAvailable = true;
         }
 
@@ -485,7 +495,10 @@ public class UserServiceImpl implements IUserService {
     @Override
     @Transactional(readOnly = true)
     public void reindexAllUsers() {
-        log.info("Starting manual re-indexing of all users to Kafka...");
+        log.info("Starting manual re-indexing of all users to Kafka and repopulating Bloom filters...");
+
+        bloomFilterService.repopulate();
+
         userRepository.findAll().forEach(user -> {
             if (Boolean.TRUE.equals(user.getActive()) && !Boolean.TRUE.equals(user.getSoftDeleted())) {
                 try {
@@ -493,18 +506,20 @@ public class UserServiceImpl implements IUserService {
                             .userId(user.getId())
                             .username(user.getUsername())
                             .fullName(user.getFirstName() + " " + user.getLastName())
-                            .avatarUrl(user.getProfile() != null && user.getProfile().getPictures() != null ? 
-                                user.getProfile().getPictures().stream()
-                                    .filter(p -> Boolean.TRUE.equals(p.getPrimary()))
-                                    .findFirst()
-                                    .map(UserProfilePicture::getUrl)
-                                    .orElse(null) : null)
-                            .avatarPath(user.getProfile() != null && user.getProfile().getPictures() != null ? 
-                                user.getProfile().getPictures().stream()
-                                    .filter(p -> Boolean.TRUE.equals(p.getPrimary()))
-                                    .findFirst()
-                                    .map(UserProfilePicture::getObjectPath)
-                                    .orElse(null) : null)
+                            .avatarUrl(user.getProfile() != null && user.getProfile().getPictures() != null
+                                    ? user.getProfile().getPictures().stream()
+                                            .filter(p -> Boolean.TRUE.equals(p.getPrimary()))
+                                            .findFirst()
+                                            .map(UserProfilePicture::getUrl)
+                                            .orElse(null)
+                                    : null)
+                            .avatarPath(user.getProfile() != null && user.getProfile().getPictures() != null
+                                    ? user.getProfile().getPictures().stream()
+                                            .filter(p -> Boolean.TRUE.equals(p.getPrimary()))
+                                            .findFirst()
+                                            .map(UserProfilePicture::getObjectPath)
+                                            .orElse(null)
+                                    : null)
                             .operationType(UserSearchEvent.OperationType.UPSERT)
                             .build();
                     kafkaTemplate.send("user-search-indexing", String.valueOf(user.getId()), searchEvent);

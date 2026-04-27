@@ -1,6 +1,7 @@
 package io.github.gvn2012.user_service.services.impls;
 
 import io.github.gvn2012.user_service.repositories.UserEmailRepository;
+import io.github.gvn2012.user_service.repositories.UserPhoneRepository;
 import io.github.gvn2012.user_service.repositories.UserRepository;
 import io.github.gvn2012.user_service.services.interfaces.IBloomFilterService;
 import jakarta.annotation.PostConstruct;
@@ -21,12 +22,15 @@ public class BloomFilterServiceImpl implements IBloomFilterService {
 
     private static final String USERNAME_FILTER = "bf:usernames";
     private static final String EMAIL_FILTER = "bf:emails";
+    private static final String PHONE_FILTER = "bf:phones";
 
     private static final long EXPECTED_INSERTIONS = 1000000L;
     private static final double FALSE_POSITIVE_PROBABILITY = 0.01;
 
     private RBloomFilter<String> usernameFilter;
     private RBloomFilter<String> emailFilter;
+    private RBloomFilter<String> phoneFilter;
+    private final UserPhoneRepository userPhoneRepository;
 
     @PostConstruct
     public void init() {
@@ -35,6 +39,9 @@ public class BloomFilterServiceImpl implements IBloomFilterService {
 
         emailFilter = redissonClient.getBloomFilter(EMAIL_FILTER);
         emailFilter.tryInit(EXPECTED_INSERTIONS, FALSE_POSITIVE_PROBABILITY);
+
+        phoneFilter = redissonClient.getBloomFilter(PHONE_FILTER);
+        phoneFilter.tryInit(EXPECTED_INSERTIONS, FALSE_POSITIVE_PROBABILITY);
 
         log.info("Bloom filters initialized.");
     }
@@ -59,6 +66,16 @@ public class BloomFilterServiceImpl implements IBloomFilterService {
         emailFilter.add(email);
     }
 
+    @Override
+    public boolean mightContainPhone(String phoneNumber) {
+        return phoneFilter.contains(phoneNumber);
+    }
+
+    @Override
+    public void addPhone(String phoneNumber) {
+        phoneFilter.add(phoneNumber);
+    }
+
     private static final String INITIALIZED_FLAG = "bf:initialized";
 
     @Override
@@ -67,8 +84,20 @@ public class BloomFilterServiceImpl implements IBloomFilterService {
             log.info("Bloom filters already populated. Skipping...");
             return;
         }
+        repopulate();
+    }
 
+    @Override
+    public void repopulate() {
         log.info("Starting Bloom filter population from database...");
+
+        usernameFilter.delete();
+        emailFilter.delete();
+        phoneFilter.delete();
+
+        usernameFilter.tryInit(EXPECTED_INSERTIONS, FALSE_POSITIVE_PROBABILITY);
+        emailFilter.tryInit(EXPECTED_INSERTIONS, FALSE_POSITIVE_PROBABILITY);
+        phoneFilter.tryInit(EXPECTED_INSERTIONS, FALSE_POSITIVE_PROBABILITY);
 
         userRepository.findAll().forEach(user -> {
             if (user.getUsername() != null) {
@@ -79,6 +108,12 @@ public class BloomFilterServiceImpl implements IBloomFilterService {
         userEmailRepository.findAll().forEach(userEmail -> {
             if (userEmail.getEmail() != null) {
                 addEmail(userEmail.getEmail());
+            }
+        });
+
+        userPhoneRepository.findAll().forEach(userPhone -> {
+            if (userPhone.getPhoneNumber() != null) {
+                addPhone(userPhone.getPhoneNumber());
             }
         });
 

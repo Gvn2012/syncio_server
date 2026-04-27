@@ -12,6 +12,7 @@ import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.query.Query;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -23,65 +24,101 @@ public class SearchServiceImpl implements ISearchService {
 
         private final ElasticsearchOperations elasticsearchOperations;
         private final MediaEnrichmentService mediaEnrichmentService;
+        private final RestTemplate restTemplate = new RestTemplate();
+
+        @org.springframework.beans.factory.annotation.Value("${services.user.url}")
+        private String userServiceUrl;
+
+        @org.springframework.beans.factory.annotation.Value("${services.post.url}")
+        private String postServiceUrl;
 
         @Override
         public UniversalSearchResponse search(String keyword, int page, int size, String currentUserId) {
                 long startTime = System.currentTimeMillis();
                 log.info("Performing universal fuzzy search for keyword: '{}', requester: {}", keyword, currentUserId);
 
-                boolean isUsernameSearch = keyword.startsWith("@");
-                String finalKeyword = isUsernameSearch ? keyword.substring(1) : keyword;
+                try {
+                        boolean isUsernameSearch = keyword.startsWith("@");
+                        String finalKeyword = isUsernameSearch ? keyword.substring(1) : keyword;
 
-                Query userQuery = NativeQuery.builder()
-                                .withQuery(q -> q
-                                                .bool(b -> {
-                                                        b.must(m -> m
-                                                                        .match(mm -> mm
-                                                                                        .field(isUsernameSearch
-                                                                                                        ? "username"
-                                                                                                        : "fullName")
-                                                                                        .query(finalKeyword)
-                                                                                        .fuzziness("AUTO")));
-                                                        if (currentUserId != null) {
-                                                                b.mustNot(mn -> mn
-                                                                                .term(t -> t
-                                                                                                .field("_id")
-                                                                                                .value(currentUserId)));
-                                                        }
-                                                        return b;
-                                                }))
-                                .withPageable(PageRequest.of(page, size))
-                                .build();
+                        Query userQuery = NativeQuery.builder()
+                                        .withQuery(q -> q
+                                                        .bool(b -> {
+                                                                b.must(m -> m
+                                                                                .match(mm -> mm
+                                                                                                .field(isUsernameSearch
+                                                                                                                ? "username"
+                                                                                                                : "fullName")
+                                                                                                .query(finalKeyword)
+                                                                                                .fuzziness("AUTO")));
+                                                                if (currentUserId != null) {
+                                                                        b.mustNot(mn -> mn
+                                                                                        .term(t -> t
+                                                                                                        .field("_id")
+                                                                                                        .value(currentUserId)));
+                                                                }
+                                                                return b;
+                                                        }))
+                                        .withPageable(PageRequest.of(page, size))
+                                        .build();
 
-                SearchHits<UserIndex> userHits = elasticsearchOperations.search(userQuery, UserIndex.class);
-                List<UserIndex> users = userHits.getSearchHits().stream()
-                                .map(hit -> hit.getContent())
-                                .collect(Collectors.toList());
+                        SearchHits<UserIndex> userHits = elasticsearchOperations.search(userQuery, UserIndex.class);
+                        List<UserIndex> users = userHits.getSearchHits().stream()
+                                        .map(hit -> hit.getContent())
+                                        .collect(Collectors.toList());
 
-                // 2. Search Posts
-                Query postQuery = NativeQuery.builder()
-                                .withQuery(q -> q
-                                                .match(m -> m
-                                                                .field("content")
-                                                                .query(keyword)
-                                                                .fuzziness("AUTO")))
-                                .withPageable(PageRequest.of(page, size))
-                                .build();
+                        Query postQuery = NativeQuery.builder()
+                                        .withQuery(q -> q
+                                                        .match(m -> m
+                                                                        .field("content")
+                                                                        .query(keyword)
+                                                                        .fuzziness("AUTO")))
+                                        .withPageable(PageRequest.of(page, size))
+                                        .build();
 
-                SearchHits<PostIndex> postHits = elasticsearchOperations.search(postQuery, PostIndex.class);
-                List<PostIndex> posts = postHits.getSearchHits().stream()
-                                .map(hit -> hit.getContent())
-                                .collect(Collectors.toList());
+                        SearchHits<PostIndex> postHits = elasticsearchOperations.search(postQuery, PostIndex.class);
+                        List<PostIndex> posts = postHits.getSearchHits().stream()
+                                        .map(hit -> hit.getContent())
+                                        .collect(Collectors.toList());
 
-                mediaEnrichmentService.enrichUserMediaUrls(users);
+                        mediaEnrichmentService.enrichUserMediaUrls(users);
 
-                return UniversalSearchResponse.builder()
-                                .people(users)
-                                .posts(posts)
-                                .totalPeople(userHits.getTotalHits())
-                                .totalPosts(postHits.getTotalHits())
-                                .processingTimeMs(System.currentTimeMillis() - startTime)
-                                .build();
+                        return UniversalSearchResponse.builder()
+                                        .people(users)
+                                        .posts(posts)
+                                        .totalPeople(userHits.getTotalHits())
+                                        .totalPosts(postHits.getTotalHits())
+                                        .processingTimeMs(System.currentTimeMillis() - startTime)
+                                        .build();
+                } catch (Exception e) {
+                        log.error("Search failed due to index or cluster issue. This may happen if the persistent storage was purged. Error: {}",
+                                        e.getMessage());
+                        return UniversalSearchResponse.builder()
+                                        .people(Collections.emptyList())
+                                        .posts(Collections.emptyList())
+                                        .totalPeople(0L)
+                                        .totalPosts(0L)
+                                        .processingTimeMs(System.currentTimeMillis() - startTime)
+                                        .build();
+                }
         }
 
+        @Override
+        public void triggerReindexing() {
+                log.info("Triggering re-indexing across all services...");
+
+                try {
+                        restTemplate.postForLocation(userServiceUrl + "/internal/reindex", null);
+                        log.info("Triggered re-indexing for User Service");
+                } catch (Exception e) {
+                        log.error("Failed to trigger re-indexing for User Service: {}", e.getMessage());
+                }
+
+                try {
+                        restTemplate.postForLocation(postServiceUrl + "/internal/reindex", null);
+                        log.info("Triggered re-indexing for Post Service");
+                } catch (Exception e) {
+                        log.error("Failed to trigger re-indexing for Post Service: {}", e.getMessage());
+                }
+        }
 }

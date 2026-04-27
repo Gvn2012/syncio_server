@@ -23,4 +23,10 @@ public class SearchController {
 
         return ResponseEntity.ok(searchService.search(keyword, page, size, currentUserId));
     }
+
+    @PostMapping("/reindex")
+    public ResponseEntity<Void> triggerReindexing() {
+        searchService.triggerReindexing();
+        return ResponseEntity.accepted().build();
+    }
 }
