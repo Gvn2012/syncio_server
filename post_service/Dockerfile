@@ -8,9 +8,11 @@ COPY pom.xml .
 RUN chmod +x mvnw && ./mvnw install -N -DskipTests
 RUN sed -i '/<modules>/,/<\/modules>/d' pom.xml
 COPY shared shared
+COPY grpc_common grpc_common
 COPY post_service post_service
 
 RUN ./mvnw clean install -f shared/pom.xml -DskipTests && \
+    ./mvnw clean install -f grpc_common/pom.xml -DskipTests && \
     ./mvnw clean package -f post_service/pom.xml -DskipTests
 
 FROM eclipse-temurin:21-jre

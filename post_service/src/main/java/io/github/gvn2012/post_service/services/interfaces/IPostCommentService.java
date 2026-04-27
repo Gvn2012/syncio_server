@@ -5,7 +5,6 @@ import io.github.gvn2012.post_service.dtos.responses.CommentResponse;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface IPostCommentService {
@@ -19,7 +18,8 @@ public interface IPostCommentService {
 
     CommentPagedResponse getCommentsByPost(@NonNull UUID postId, UUID viewerId, Pageable pageable);
 
-    CommentPagedResponse getReplies(@NonNull UUID postId, @NonNull UUID parentCommentId, UUID viewerId, Pageable pageable);
+    CommentPagedResponse getReplies(@NonNull UUID postId, @NonNull UUID parentCommentId, UUID viewerId,
+            Pageable pageable);
 
     void pinComment(@NonNull UUID postId, @NonNull UUID commentId);
 

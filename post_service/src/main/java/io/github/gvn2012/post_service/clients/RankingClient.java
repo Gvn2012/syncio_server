@@ -2,7 +2,6 @@ package io.github.gvn2012.post_service.clients;
 
 import io.github.gvn2012.grpc.ranking.RankingRequest;
 import io.github.gvn2012.grpc.ranking.PostFeature;
-import io.github.gvn2012.grpc.ranking.RankingResponse;
 import io.github.gvn2012.grpc.ranking.RankingServiceGrpc;
 import io.github.gvn2012.post_service.dtos.requests.RankingRequestDTO;
 import io.github.gvn2012.post_service.dtos.responses.RankingResponseDTO;
