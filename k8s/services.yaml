@@ -743,7 +743,7 @@ spec:
             - name: ARGOCD_APP_NAME
               value: syncio-app
             - name: SCALABLE_DEPLOYMENTS
-              value: syncio-auth,syncio-user,syncio-rs,syncio-post,syncio-permission,syncio-org,syncio-notification,syncio-uploading,syncio-search,syncio-ranking
+              value: syncio-auth,syncio-user,syncio-rs,syncio-post,syncio-permission,syncio-org,syncio-notification,syncio-uploading,syncio-search,syncio-ranking,syncio-messaging
             - name: GITHUB_REPO
               value: Gvn2012/syncio_server
             - name: GITHUB_BRANCH
@@ -908,3 +908,73 @@ spec:
     app: syncio-search
   ports:
     - port: 8086
+
+# ===================== MESSAGING =====================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-messaging
+  namespace: syncio
+spec:
+  replicas: 1
+  minReadySeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: syncio-messaging
+  template:
+    metadata:
+      labels:
+        app: syncio-messaging
+    spec:
+      containers:
+        - name: messaging
+          image: vietpham18/messaging-service:latest
+          ports:
+            - containerPort: 8089
+          startupProbe:
+            tcpSocket:
+              port: 8089
+            periodSeconds: 10
+            failureThreshold: 18
+            timeoutSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: 8089
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
+          env:
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb+srv://vietp6861_db_user:OxvEjMko11affa2A@syncio-clt.fgkymji.mongodb.net/?appName=syncio-clt"
+            - name: SPRING_REDIS_HOST
+              value: "syncio-redis"
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "syncio-kafka.syncio.svc.cluster.local:9092"
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: http://syncio-zipkin:9411/api/v2/spans
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              cpu: "300m"
+              memory: "768Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-messaging
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-messaging
+  ports:
+    - port: 8089
+      targetPort: 8089
+

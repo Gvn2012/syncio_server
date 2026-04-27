@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-messaging
+  namespace: syncio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syncio-messaging
+  template:
+    metadata:
+      labels:
+        app: syncio-messaging
+    spec:
+      containers:
+        - name: messaging-service
+          image: gvn2012/messaging-service:latest
+          ports:
+            - containerPort: 8089
+          env:
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb+srv://vietp6861_db_user:OxvEjMko11affa2A@syncio-clt.fgkymji.mongodb.net/?appName=syncio-clt"
+            - name: SPRING_REDIS_HOST
+              value: "syncio-redis"
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "syncio-kafka:9092"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              cpu: "300m"
+              memory: "768Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-messaging
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-messaging
+  ports:
+    - port: 8089
+      targetPort: 8089

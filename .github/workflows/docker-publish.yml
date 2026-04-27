@@ -102,6 +102,7 @@ jobs:
           build_if_needed "permission-service" "permission_service" "permission_service/Dockerfile" "permission-service"
           build_if_needed "search-service" "search_service" "search_service/Dockerfile" "search-service"
           build_if_needed "ranking-service" "ranking_service" "ranking_service/Dockerfile" "ranking-service"
+          build_if_needed "messaging-service" "messaging_service" "messaging_service/Dockerfile" "messaging-service"
 
           echo "REBUILT_LIST<<EOF" >> $GITHUB_ENV
           cat /tmp/rebuilt_list.txt >> $GITHUB_ENV

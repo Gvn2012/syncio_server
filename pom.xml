@@ -38,6 +38,7 @@
         <module>search_service</module>
         <module>shared</module>
         <module>grpc_common</module>
+        <module>messaging_service</module>
     </modules>
 
     <dependencyManagement>
