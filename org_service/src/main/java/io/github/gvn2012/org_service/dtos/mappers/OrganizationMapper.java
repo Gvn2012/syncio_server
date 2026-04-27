@@ -22,6 +22,7 @@ public class OrganizationMapper implements IMapper<Organization, OrganizationDto
                 .industry(entity.getIndustry())
                 .website(entity.getWebsite())
                 .logoUrl(entity.getLogoUrl())
+                .logoPath(entity.getLogoPath())
                 .foundedDate(entity.getFoundedDate())
                 .registrationNumber(entity.getRegistrationNumber())
                 .taxId(entity.getTaxId())
@@ -54,6 +55,7 @@ public class OrganizationMapper implements IMapper<Organization, OrganizationDto
         entity.setIndustry(dto.getIndustry());
         entity.setWebsite(dto.getWebsite());
         entity.setLogoUrl(dto.getLogoUrl());
+        entity.setLogoPath(dto.getLogoPath());
         entity.setFoundedDate(dto.getFoundedDate());
         entity.setRegistrationNumber(dto.getRegistrationNumber());
         entity.setTaxId(dto.getTaxId());

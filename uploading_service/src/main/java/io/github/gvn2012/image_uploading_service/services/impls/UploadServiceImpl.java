@@ -8,6 +8,8 @@ import io.github.gvn2012.image_uploading_service.dtos.requests.SignedUrlRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadBatchRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadConfirmRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadRequest;
+import io.github.gvn2012.image_uploading_service.dtos.requests.DownloadUrlRequest;
+import io.github.gvn2012.image_uploading_service.dtos.responses.DownloadUrlResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.SignedUrlResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadBatchResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmResponse;
@@ -173,8 +175,15 @@ public class UploadServiceImpl implements UploadServiceInterface {
     }
 
     @Override
+    public APIResource<DownloadUrlResponse> getDownloadUrls(DownloadUrlRequest request) {
+        log.info("Generating download URLs for {} paths", request.getObjectPaths().size());
+        Map<String, String> downloadUrls = gcsService.generateDownloadUrls(request.getObjectPaths());
+        return APIResource.success(new DownloadUrlResponse(downloadUrls));
+    }
+
+    @Override
     public String getSignedUrl(String path) {
-        return gcsService.generateDownloadUrl(path).toString();
+        return gcsService.generateDownloadUrl(path);
     }
 
     private String resolveTopicByPrefix(String objectPath) {

@@ -2,10 +2,13 @@ package io.github.gvn2012.post_service.services.impls;
 
 import io.github.gvn2012.post_service.dtos.mappers.MediaAttachmentMapper;
 import io.github.gvn2012.post_service.dtos.mappers.PostMapper;
+import io.github.gvn2012.post_service.dtos.requests.DownloadUrlRequestDTO;
 import io.github.gvn2012.post_service.dtos.requests.MediaAttachmentRequest;
 import io.github.gvn2012.post_service.dtos.requests.PostCreateRequest;
 import io.github.gvn2012.post_service.dtos.requests.PostUpdateRequest;
 import io.github.gvn2012.post_service.dtos.requests.SignedUrlRequestDTO;
+import io.github.gvn2012.post_service.dtos.responses.DownloadUrlResponseDTO;
+import io.github.gvn2012.post_service.dtos.responses.MediaAttachmentResponse;
 import io.github.gvn2012.post_service.dtos.responses.PostResponse;
 import io.github.gvn2012.post_service.dtos.responses.SignedUrlResponseDTO;
 import io.github.gvn2012.post_service.dtos.responses.UserSummaryResponse;
@@ -242,6 +245,8 @@ public class PostServiceImpl implements IPostService {
                 .map(Enum::name)
                 .collect(Collectors.toList());
         response.setTopReactions(topReactions);
+        
+        enrichMediaUrls(Collections.singletonList(response));
 
         return response;
     }
@@ -267,7 +272,7 @@ public class PostServiceImpl implements IPostService {
 
         final Set<UUID> sharedIdsFinal = sharedPostIds;
 
-        return posts.stream().map(post -> {
+        List<PostResponse> responses = posts.stream().map(post -> {
             PostResponse res = postMapper.toResponse(post);
             res.setAuthorInfo(summaries.get(post.getAuthorId()));
 
@@ -282,9 +287,46 @@ public class PostServiceImpl implements IPostService {
                     .map(Enum::name)
                     .collect(Collectors.toList());
             res.setTopReactions(topReactions);
-
             return res;
         }).collect(Collectors.toList());
+
+        enrichMediaUrls(responses);
+        return responses;
+    }
+
+    private void enrichMediaUrls(List<PostResponse> responses) {
+        if (responses == null || responses.isEmpty()) return;
+
+        Set<String> pathsToSign = new HashSet<>();
+        for (PostResponse res : responses) {
+            if (res.getAttachments() != null) {
+                res.getAttachments().stream()
+                        .map(MediaAttachmentResponse::getObjectPath)
+                        .filter(Objects::nonNull)
+                        .forEach(pathsToSign::add);
+            }
+            if (res.getAuthorInfo() != null && res.getAuthorInfo().getAvatarPath() != null) {
+                pathsToSign.add(res.getAuthorInfo().getAvatarPath());
+            }
+        }
+
+        if (pathsToSign.isEmpty()) return;
+
+        DownloadUrlResponseDTO urlRes = uploadClient.getDownloadUrls(new DownloadUrlRequestDTO(pathsToSign));
+        Map<String, String> signedUrls = urlRes != null ? urlRes.getDownloadUrls() : Collections.emptyMap();
+
+        for (PostResponse res : responses) {
+            if (res.getAttachments() != null) {
+                for (MediaAttachmentResponse attachment : res.getAttachments()) {
+                    if (attachment.getObjectPath() != null) {
+                        attachment.setUrl(signedUrls.getOrDefault(attachment.getObjectPath(), attachment.getUrl()));
+                    }
+                }
+            }
+            if (res.getAuthorInfo() != null && res.getAuthorInfo().getAvatarPath() != null) {
+                res.getAuthorInfo().setAvatarUrl(signedUrls.getOrDefault(res.getAuthorInfo().getAvatarPath(), res.getAuthorInfo().getAvatarUrl()));
+            }
+        }
     }
 
     @Override

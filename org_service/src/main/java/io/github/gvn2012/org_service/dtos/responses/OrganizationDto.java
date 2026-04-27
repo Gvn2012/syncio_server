@@ -25,6 +25,7 @@ public class OrganizationDto {
     private String industry;
     private String website;
     private String logoUrl;
+    private String logoPath;
     private LocalDate foundedDate;
     private String registrationNumber;
     private String taxId;

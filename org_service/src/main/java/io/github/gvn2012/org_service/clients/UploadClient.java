@@ -1,14 +1,18 @@
-package io.github.gvn2012.user_service.clients;
+package io.github.gvn2012.org_service.clients;
 
-import io.github.gvn2012.grpc.upload.*;
-import io.github.gvn2012.user_service.dtos.requests.DownloadUrlRequestDTO;
-import io.github.gvn2012.user_service.dtos.responses.DownloadUrlResponseDTO;
+import io.github.gvn2012.grpc.upload.DownloadUrlGrpcRequest;
+import io.github.gvn2012.grpc.upload.DownloadUrlGrpcResponse;
+import io.github.gvn2012.grpc.upload.UploadServiceGrpc;
+import io.github.gvn2012.org_service.dtos.requests.DownloadUrlRequestDTO;
+import io.github.gvn2012.org_service.dtos.responses.DownloadUrlResponseDTO;
+import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
-@Component
+@Slf4j
+@Service
 public class UploadClient {
 
     @GrpcClient("upload-service")
@@ -24,6 +28,7 @@ public class UploadClient {
 
             return new DownloadUrlResponseDTO(grpcResponse.getDownloadUrlsMap());
         } catch (Exception e) {
+            log.error("Failed to fetch download URLs from uploading-service: {}", e.getMessage());
             return new DownloadUrlResponseDTO(Map.of());
         }
     }

@@ -34,6 +34,7 @@ public class OrganizationServiceImpl implements IOrganizationService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationMapper organizationMapper;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final io.github.gvn2012.org_service.clients.UploadClient uploadClient;
 
     @Override
     @Transactional
@@ -54,6 +55,7 @@ public class OrganizationServiceImpl implements IOrganizationService {
         org.setIndustry(request.getIndustry());
         org.setWebsite(request.getWebsite());
         org.setLogoUrl(request.getLogoUrl());
+        org.setLogoPath(request.getLogoPath());
         org.setFoundedDate(request.getFoundedDate() != null ? request.getFoundedDate() : LocalDate.now());
         org.setRegistrationNumber(request.getRegistrationNumber());
         org.setTaxId(request.getTaxId());
@@ -84,10 +86,11 @@ public class OrganizationServiceImpl implements IOrganizationService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public OrganizationDto getOrganization(UUID orgId) {
         Organization org = getOrganizationOrThrow(orgId);
-        return organizationMapper.toDto(org);
+        OrganizationDto dto = organizationMapper.toDto(org);
+        enrichOrganizationUrls(Collections.singletonList(dto));
+        return dto;
     }
 
     @Override
@@ -113,6 +116,8 @@ public class OrganizationServiceImpl implements IOrganizationService {
             org.setWebsite(request.getWebsite());
         if (request.getLogoUrl() != null)
             org.setLogoUrl(request.getLogoUrl());
+        if (request.getLogoPath() != null)
+            org.setLogoPath(request.getLogoPath());
         if (request.getFoundedDate() != null)
             org.setFoundedDate(request.getFoundedDate());
         if (request.getRegistrationNumber() != null)
@@ -180,12 +185,33 @@ public class OrganizationServiceImpl implements IOrganizationService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<OrganizationDto> getOrgsByOwner(UUID ownerId) {
         List<Organization> orgs = organizationRepository.findByOwnerId(ownerId);
-        return orgs.stream()
+        List<OrganizationDto> dtos = orgs.stream()
                 .map(organizationMapper::toDto)
                 .collect(Collectors.toList());
+        enrichOrganizationUrls(dtos);
+        return dtos;
+    }
+
+    private void enrichOrganizationUrls(List<OrganizationDto> dtos) {
+        if (dtos == null || dtos.isEmpty()) return;
+
+        Set<String> pathsToSign = dtos.stream()
+                .map(OrganizationDto::getLogoPath)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        if (pathsToSign.isEmpty()) return;
+
+        io.github.gvn2012.org_service.dtos.responses.DownloadUrlResponseDTO signedUrlsRes = uploadClient.getDownloadUrls(new io.github.gvn2012.org_service.dtos.requests.DownloadUrlRequestDTO(pathsToSign));
+        Map<String, String> signedUrls = signedUrlsRes != null ? signedUrlsRes.getDownloadUrls() : Map.of();
+
+        for (OrganizationDto dto : dtos) {
+            if (dto.getLogoPath() != null) {
+                dto.setLogoUrl(signedUrls.getOrDefault(dto.getLogoPath(), dto.getLogoUrl()));
+            }
+        }
     }
 
     private Organization getOrganizationOrThrow(UUID orgId) {

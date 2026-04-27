@@ -4,6 +4,8 @@ import io.github.gvn2012.image_uploading_service.dtos.APIResource;
 import io.github.gvn2012.image_uploading_service.dtos.requests.SignedUrlRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadConfirmRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadRequest;
+import io.github.gvn2012.image_uploading_service.dtos.requests.DownloadUrlRequest;
+import io.github.gvn2012.image_uploading_service.dtos.responses.DownloadUrlResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.SignedUrlResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadResponse;
@@ -19,5 +21,6 @@ public interface UploadServiceInterface{
     APIResource<UploadConfirmResponse> confirmUpload(UploadConfirmRequest request);
     void handle(Map<String, Object> body);
     APIResource<SignedUrlResponse> getSignedUrls(SignedUrlRequest request);
+    APIResource<DownloadUrlResponse> getDownloadUrls(DownloadUrlRequest request);
     String getSignedUrl(String path);
 }

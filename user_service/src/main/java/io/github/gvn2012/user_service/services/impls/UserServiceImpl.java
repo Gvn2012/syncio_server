@@ -3,6 +3,8 @@ package io.github.gvn2012.user_service.services.impls;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.*;
+
 import io.github.gvn2012.user_service.clients.AuthClient;
 import io.github.gvn2012.user_service.clients.OrgClient;
 import io.github.gvn2012.user_service.clients.PermissionClient;
@@ -14,12 +16,7 @@ import io.github.gvn2012.user_service.dtos.mappers.UserDetailMapper;
 import io.github.gvn2012.user_service.dtos.requests.GenerateLoginTokenRequest;
 import io.github.gvn2012.user_service.dtos.requests.LoginRequest;
 import io.github.gvn2012.user_service.dtos.requests.UserRegisterRequest;
-import io.github.gvn2012.user_service.dtos.responses.CheckAvailableEmailAndUsernameWhenRegisterResponse;
-import io.github.gvn2012.user_service.dtos.responses.GenerateLoginTokenResponse;
-import io.github.gvn2012.user_service.dtos.responses.GetUserDetailResponse;
-import io.github.gvn2012.user_service.dtos.responses.LoginResponse;
-import io.github.gvn2012.user_service.dtos.responses.UserRegisterResponse;
-import io.github.gvn2012.user_service.dtos.responses.UserSummaryResponse;
+import io.github.gvn2012.user_service.dtos.responses.*;
 import io.github.gvn2012.user_service.entities.PendingEmailVerification;
 import io.github.gvn2012.user_service.entities.User;
 import io.github.gvn2012.user_service.entities.UserAddress;
@@ -46,7 +43,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -80,6 +76,7 @@ public class UserServiceImpl implements IUserService {
     private final UserDetailMapper userDetailMapper;
     private final ObjectMapper objectMapper;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final io.github.gvn2012.user_service.clients.UploadClient uploadClient;
 
     @Override
     @Transactional(readOnly = true)
@@ -142,9 +139,9 @@ public class UserServiceImpl implements IUserService {
 
         ensureUserAccessible(user);
 
-        return APIResource.ok(
-                "Get user detail successfully",
-                userDetailMapper.toDto(user));
+        GetUserDetailResponse response = userDetailMapper.toDto(user);
+        enrichUserMediaUrls(Collections.singletonList(response));
+        return APIResource.ok("Get user detail successfully", response);
     }
 
     @Override
@@ -166,11 +163,10 @@ public class UserServiceImpl implements IUserService {
             }
         }
 
+        enrichUserMediaUrls(new java.util.ArrayList<>(responseMap.values()));
+
         return APIResource.ok("Batch user details retrieved successfully", responseMap);
     }
-
-    @Value("${syncio.gateway.host:http://syncio.site}")
-    private String gatewayHost;
 
     @Override
     @Transactional(readOnly = true)
@@ -182,6 +178,7 @@ public class UserServiceImpl implements IUserService {
         List<User> users = userRepository.findSummariesByIdIn(userIds);
         Map<UUID, UserSummaryResponse> responseMap = new HashMap<>();
 
+        Set<String> pathsToSign = new HashSet<>();
         for (User user : users) {
             String avatarUrl = null;
             String avatarPath = null;
@@ -193,9 +190,10 @@ public class UserServiceImpl implements IUserService {
 
                 if (primaryPic != null) {
                     avatarPath = primaryPic.getObjectPath();
-                    avatarUrl = primaryPic.getObjectPath() != null
-                            ? String.format("%s/api/v1/upload/view?path=%s", gatewayHost, primaryPic.getObjectPath())
-                            : primaryPic.getUrl();
+                    avatarUrl = primaryPic.getUrl();
+                    if (avatarPath != null) {
+                        pathsToSign.add(avatarPath);
+                    }
                 }
             }
 
@@ -211,7 +209,46 @@ public class UserServiceImpl implements IUserService {
                     .build());
         }
 
+        if (!pathsToSign.isEmpty()) {
+            io.github.gvn2012.user_service.dtos.responses.DownloadUrlResponseDTO signedUrlsRes = uploadClient.getDownloadUrls(new io.github.gvn2012.user_service.dtos.requests.DownloadUrlRequestDTO(pathsToSign));
+            Map<String, String> signedUrls = signedUrlsRes != null ? signedUrlsRes.getDownloadUrls() : Map.of();
+            for (UserSummaryResponse summary : responseMap.values()) {
+                if (summary.getAvatarPath() != null) {
+                    summary.setAvatarUrl(signedUrls.getOrDefault(summary.getAvatarPath(), summary.getAvatarUrl()));
+                }
+            }
+        }
+
         return APIResource.ok("Batch user summaries retrieved successfully", responseMap);
+    }
+
+    private void enrichUserMediaUrls(List<GetUserDetailResponse> responses) {
+        if (responses == null || responses.isEmpty()) return;
+
+        Set<String> pathsToSign = new HashSet<>();
+        for (GetUserDetailResponse res : responses) {
+            if (res.getUserProfileResponse() != null && res.getUserProfileResponse().getUserProfilePictureResponseList() != null) {
+                res.getUserProfileResponse().getUserProfilePictureResponseList().stream()
+                        .map(UserProfilePictureResponse::getObjectPath)
+                        .filter(Objects::nonNull)
+                        .forEach(pathsToSign::add);
+            }
+        }
+
+        if (pathsToSign.isEmpty()) return;
+
+        io.github.gvn2012.user_service.dtos.responses.DownloadUrlResponseDTO signedUrlsRes = uploadClient.getDownloadUrls(new io.github.gvn2012.user_service.dtos.requests.DownloadUrlRequestDTO(pathsToSign));
+        Map<String, String> signedUrls = signedUrlsRes != null ? signedUrlsRes.getDownloadUrls() : Map.of();
+
+        for (GetUserDetailResponse res : responses) {
+            if (res.getUserProfileResponse() != null && res.getUserProfileResponse().getUserProfilePictureResponseList() != null) {
+                for (UserProfilePictureResponse pic : res.getUserProfileResponse().getUserProfilePictureResponseList()) {
+                    if (pic.getObjectPath() != null) {
+                        pic.setUrl(signedUrls.getOrDefault(pic.getObjectPath(), pic.getUrl()));
+                    }
+                }
+            }
+        }
     }
 
     @Override

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.gvn2012.user_service.dtos.responses.UserProfilePictureResponse;
 import io.github.gvn2012.user_service.entities.UserProfilePicture;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -16,25 +15,13 @@ public class UserProfilePictureMapper implements IMapper<UserProfilePicture, Use
 
     private final ObjectMapper objectMapper;
 
-    @Value("${syncio.gateway.host:http://syncio.site}")
-    private String gatewayHost;
-
     @Override
     public UserProfilePictureResponse toDto(UserProfilePicture entity) {
-        String url = entity.getUrl();
-        if (entity.getObjectPath() != null) {
-            url = String.format("%s/api/v1/upload/view?path=%s", gatewayHost, entity.getObjectPath());
-        }
-        return buildResponse(entity, url);
+        return buildResponse(entity, entity.getUrl());
     }
 
     public UserProfilePictureResponse toDto(UserProfilePicture entity, String resolvedUrl) {
-        // If resolvedUrl is provided (e.g. from an override), use it, otherwise use our
-        // proxy logic
-        if (resolvedUrl != null && !resolvedUrl.isBlank()) {
-            return buildResponse(entity, resolvedUrl);
-        }
-        return toDto(entity);
+        return buildResponse(entity, resolvedUrl != null ? resolvedUrl : entity.getUrl());
     }
 
     private UserProfilePictureResponse buildResponse(UserProfilePicture entity, String url) {

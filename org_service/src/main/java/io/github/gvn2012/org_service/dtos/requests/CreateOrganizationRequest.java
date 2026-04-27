@@ -33,6 +33,7 @@ public class CreateOrganizationRequest {
 
     @Size(max = 1024)
     private String logoUrl;
+    private String logoPath;
 
     private LocalDate foundedDate;
 

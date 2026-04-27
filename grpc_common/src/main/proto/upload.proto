@@ -7,6 +7,7 @@ option java_package = "io.github.gvn2012.grpc.upload";
 
 service UploadService {
   rpc GetSignedUrls (SignedUrlGrpcRequest) returns (SignedUrlGrpcResponse);
+  rpc GetDownloadUrls (DownloadUrlGrpcRequest) returns (DownloadUrlGrpcResponse);
 }
 
 message SignedUrlGrpcRequest {
@@ -15,4 +16,12 @@ message SignedUrlGrpcRequest {
 
 message SignedUrlGrpcResponse {
   map<string, string> signedUrls = 1;
+}
+
+message DownloadUrlGrpcRequest {
+  repeated string objectPaths = 1;
+}
+
+message DownloadUrlGrpcResponse {
+  map<string, string> downloadUrls = 1;
 }

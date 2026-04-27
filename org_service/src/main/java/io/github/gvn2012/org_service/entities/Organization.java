@@ -62,6 +62,9 @@ public class Organization extends AuditableEntity {
     @Column(name = "logo_url", length = 1024)
     private String logoUrl;
 
+    @Column(name = "logo_path", length = 1024)
+    private String logoPath;
+
     @Column(name = "founded_date")
     private LocalDate foundedDate;
 

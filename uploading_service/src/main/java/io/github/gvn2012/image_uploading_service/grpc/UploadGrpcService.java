@@ -2,7 +2,9 @@ package io.github.gvn2012.image_uploading_service.grpc;
 
 import io.github.gvn2012.grpc.upload.*;
 import io.github.gvn2012.image_uploading_service.dtos.APIResource;
+import io.github.gvn2012.image_uploading_service.dtos.requests.DownloadUrlRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.SignedUrlRequest;
+import io.github.gvn2012.image_uploading_service.dtos.responses.DownloadUrlResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.SignedUrlResponse;
 import io.github.gvn2012.image_uploading_service.services.interfaces.UploadServiceInterface;
 import io.grpc.stub.StreamObserver;
@@ -23,6 +25,20 @@ public class UploadGrpcService extends UploadServiceGrpc.UploadServiceImplBase {
         SignedUrlGrpcResponse.Builder responseBuilder = SignedUrlGrpcResponse.newBuilder();
         if (resource.isSuccess() && resource.getData() != null) {
             responseBuilder.putAllSignedUrls(resource.getData().getSignedUrls());
+        }
+
+        responseObserver.onNext(responseBuilder.build());
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void getDownloadUrls(DownloadUrlGrpcRequest request, StreamObserver<DownloadUrlGrpcResponse> responseObserver) {
+        DownloadUrlRequest internalRequest = new DownloadUrlRequest(new java.util.HashSet<>(request.getObjectPathsList()));
+        APIResource<DownloadUrlResponse> resource = uploadService.getDownloadUrls(internalRequest);
+
+        DownloadUrlGrpcResponse.Builder responseBuilder = DownloadUrlGrpcResponse.newBuilder();
+        if (resource.isSuccess() && resource.getData() != null) {
+            responseBuilder.putAllDownloadUrls(resource.getData().getDownloadUrls());
         }
 
         responseObserver.onNext(responseBuilder.build());

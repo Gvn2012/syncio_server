@@ -1,10 +1,12 @@
 package io.github.gvn2012.image_uploading_service.controllers;
 
 import io.github.gvn2012.image_uploading_service.dtos.APIResource;
+import io.github.gvn2012.image_uploading_service.dtos.requests.DownloadUrlRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.SignedUrlRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadBatchRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadConfirmRequest;
 import io.github.gvn2012.image_uploading_service.dtos.requests.UploadRequest;
+import io.github.gvn2012.image_uploading_service.dtos.responses.DownloadUrlResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.SignedUrlResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadBatchResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmResponse;
@@ -76,6 +78,13 @@ public class UploadController {
             @RequestBody SignedUrlRequest request) {
         log.info("Received internal signed-urls request: {}", request);
         return ResponseEntity.ok(uploadService.getSignedUrls(request));
+    }
+
+    @PostMapping("/internal/download-urls")
+    public ResponseEntity<APIResource<DownloadUrlResponse>> getDownloadUrls(
+            @RequestBody DownloadUrlRequest request) {
+        log.info("Received internal download-urls request: {}", request);
+        return ResponseEntity.ok(uploadService.getDownloadUrls(request));
     }
 
     @GetMapping("/view")
