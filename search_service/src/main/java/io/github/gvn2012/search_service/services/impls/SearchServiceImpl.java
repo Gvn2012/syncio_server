@@ -24,86 +24,98 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SearchServiceImpl implements ISearchService {
 
-    private final ElasticsearchOperations elasticsearchOperations;
-    private final UploadClient uploadClient;
+        private final ElasticsearchOperations elasticsearchOperations;
+        private final UploadClient uploadClient;
 
-    @Override
-    public UniversalSearchResponse search(String keyword, int page, int size, String currentUserId) {
-        long startTime = System.currentTimeMillis();
-        log.info("Performing universal fuzzy search for keyword: '{}', requester: {}", keyword, currentUserId);
+        @Override
+        public UniversalSearchResponse search(String keyword, int page, int size, String currentUserId) {
+                long startTime = System.currentTimeMillis();
+                log.info("Performing universal fuzzy search for keyword: '{}', requester: {}", keyword, currentUserId);
 
-        boolean isUsernameSearch = keyword.startsWith("@");
-        String finalKeyword = isUsernameSearch ? keyword.substring(1) : keyword;
+                boolean isUsernameSearch = keyword.startsWith("@");
+                String finalKeyword = isUsernameSearch ? keyword.substring(1) : keyword;
 
-        // 1. Search Users
-        Query userQuery = NativeQuery.builder()
-                .withQuery(q -> q
-                        .bool(b -> {
-                            b.must(m -> m
-                                    .match(mm -> mm
-                                            .field(isUsernameSearch ? "username" : "fullName")
-                                            .query(finalKeyword)
-                                            .fuzziness("AUTO")));
-                            if (currentUserId != null) {
-                                b.mustNot(mn -> mn
-                                        .term(t -> t
-                                                .field("_id")
-                                                .value(currentUserId)));
-                            }
-                            return b;
-                        }))
-                .withPageable(PageRequest.of(page, size))
-                .build();
+                // 1. Search Users
+                Query userQuery = NativeQuery.builder()
+                                .withQuery(q -> q
+                                                .bool(b -> {
+                                                        b.must(m -> m
+                                                                        .match(mm -> mm
+                                                                                        .field(isUsernameSearch
+                                                                                                        ? "username"
+                                                                                                        : "fullName")
+                                                                                        .query(finalKeyword)
+                                                                                        .fuzziness("AUTO")));
+                                                        if (currentUserId != null) {
+                                                                b.mustNot(mn -> mn
+                                                                                .term(t -> t
+                                                                                                .field("_id")
+                                                                                                .value(currentUserId)));
+                                                        }
+                                                        return b;
+                                                }))
+                                .withPageable(PageRequest.of(page, size))
+                                .build();
 
-        SearchHits<UserIndex> userHits = elasticsearchOperations.search(userQuery, UserIndex.class);
-        List<UserIndex> users = userHits.getSearchHits().stream()
-                .map(hit -> hit.getContent())
-                .collect(Collectors.toList());
+                SearchHits<UserIndex> userHits = elasticsearchOperations.search(userQuery, UserIndex.class);
+                List<UserIndex> users = userHits.getSearchHits().stream()
+                                .map(hit -> hit.getContent())
+                                .collect(Collectors.toList());
 
-        // 2. Search Posts
-        Query postQuery = NativeQuery.builder()
-                .withQuery(q -> q
-                        .match(m -> m
-                                .field("content")
-                                .query(keyword)
-                                .fuzziness("AUTO")))
-                .withPageable(PageRequest.of(page, size))
-                .build();
+                // 2. Search Posts
+                Query postQuery = NativeQuery.builder()
+                                .withQuery(q -> q
+                                                .match(m -> m
+                                                                .field("content")
+                                                                .query(keyword)
+                                                                .fuzziness("AUTO")))
+                                .withPageable(PageRequest.of(page, size))
+                                .build();
 
-        SearchHits<PostIndex> postHits = elasticsearchOperations.search(postQuery, PostIndex.class);
-        List<PostIndex> posts = postHits.getSearchHits().stream()
-                .map(hit -> hit.getContent())
-                .collect(Collectors.toList());
+                SearchHits<PostIndex> postHits = elasticsearchOperations.search(postQuery, PostIndex.class);
+                List<PostIndex> posts = postHits.getSearchHits().stream()
+                                .map(hit -> hit.getContent())
+                                .collect(Collectors.toList());
 
-        // 3. Enrich URLs
-        enrichMediaUrls(users);
+                enrichUserMediaUrls(users);
+                enrichPostMediaUrls(posts);
 
-        return UniversalSearchResponse.builder()
-                .people(users)
-                .posts(posts)
-                .totalPeople(userHits.getTotalHits())
-                .totalPosts(postHits.getTotalHits())
-                .processingTimeMs(System.currentTimeMillis() - startTime)
-                .build();
-    }
-
-    private void enrichMediaUrls(List<UserIndex> users) {
-        if (users == null || users.isEmpty()) return;
-
-        Set<String> pathsToSign = users.stream()
-                .map(UserIndex::getAvatarPath)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        if (pathsToSign.isEmpty()) return;
-
-        DownloadUrlResponseDTO signedUrlsRes = uploadClient.getDownloadUrls(new DownloadUrlRequestDTO(pathsToSign));
-        Map<String, String> signedUrls = signedUrlsRes != null ? signedUrlsRes.getDownloadUrls() : Map.of();
-
-        for (UserIndex user : users) {
-            if (user.getAvatarPath() != null) {
-                user.setAvatarUrl(signedUrls.getOrDefault(user.getAvatarPath(), user.getAvatarUrl()));
-            }
+                return UniversalSearchResponse.builder()
+                                .people(users)
+                                .posts(posts)
+                                .totalPeople(userHits.getTotalHits())
+                                .totalPosts(postHits.getTotalHits())
+                                .processingTimeMs(System.currentTimeMillis() - startTime)
+                                .build();
         }
-    }
+
+        private void enrichUserMediaUrls(List<UserIndex> users) {
+                if (users == null || users.isEmpty())
+                        return;
+
+                Set<String> pathsToSign = users.stream()
+                                .map(UserIndex::getAvatarPath)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toSet());
+
+                if (pathsToSign.isEmpty())
+                        return;
+
+                DownloadUrlResponseDTO signedUrlsRes = uploadClient
+                                .getDownloadUrls(new DownloadUrlRequestDTO(pathsToSign));
+                Map<String, String> signedUrls = signedUrlsRes != null ? signedUrlsRes.getDownloadUrls() : Map.of();
+
+                for (UserIndex user : users) {
+                        if (user.getAvatarPath() != null) {
+                                user.setAvatarUrl(signedUrls.getOrDefault(user.getAvatarPath(), user.getAvatarUrl()));
+                        }
+                }
+        }
+
+        private void enrichPostMediaUrls(List<PostIndex> posts) {
+                // Implementation for post media enrichment if PostIndex ever stores them
+                // Currently PostIndex doesn't seem to store attachments based on the document
+                // definition
+                // but we should check if it needs to.
+        }
 }

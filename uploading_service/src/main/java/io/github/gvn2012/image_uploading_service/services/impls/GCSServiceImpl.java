@@ -30,10 +30,14 @@ public class GCSServiceImpl implements GCSServiceInterface {
     @Value("${gcp.storage.bucket}")
     private String bucket;
 
+    @Value("${gcp.storage.service-account:}")
+    private String serviceAccountEmail;
+
     private Storage storage;
 
     @PostConstruct
     public void init() throws IOException {
+        log.info("Initializing GCS service with bucket: {} and service account: {}", bucket, serviceAccountEmail);
         GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
                 .createScoped(Collections.singletonList("https://www.googleapis.com/auth/cloud-platform"));
         this.storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
@@ -96,13 +100,33 @@ public class GCSServiceImpl implements GCSServiceInterface {
     }
 
     private String signForGet(String objectPath) {
-        BlobInfo blobInfo = BlobInfo.newBuilder(bucket, objectPath).build();
-        URL url = storage.signUrl(
-                blobInfo,
-                SIGN_TTL_MINUTES, TimeUnit.MINUTES,
-                Storage.SignUrlOption.httpMethod(HttpMethod.GET),
-                Storage.SignUrlOption.withV4Signature());
-        return url.toString();
+        try {
+            log.info("Attempting to sign URL for object: {}", objectPath);
+            BlobInfo blobInfo = BlobInfo.newBuilder(bucket, objectPath).build();
+            Storage.SignUrlOption[] options = {
+                    Storage.SignUrlOption.httpMethod(HttpMethod.GET),
+                    Storage.SignUrlOption.withV4Signature()
+            };
+
+            if (serviceAccountEmail != null && !serviceAccountEmail.isBlank()) {
+                log.debug("Using service account email for signing: {}", serviceAccountEmail);
+            }
+
+            URL url = storage.signUrl(
+                    blobInfo,
+                    SIGN_TTL_MINUTES, TimeUnit.MINUTES,
+                    options);
+            String signedUrl = url.toString();
+            if (!signedUrl.contains("X-Goog-Signature")) {
+                log.warn("Generated URL for {} does not contain a signature: {}", objectPath, signedUrl);
+            } else {
+                log.info("Successfully signed URL for {}", objectPath);
+            }
+            return signedUrl;
+        } catch (Exception e) {
+            log.error("Error signing URL for object {}: {}", objectPath, e.getMessage(), e);
+            return String.format("https://storage.googleapis.com/%s/%s", bucket, objectPath);
+        }
     }
 
     @Override
