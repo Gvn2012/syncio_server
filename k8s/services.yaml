@@ -104,7 +104,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:fec8bd5c0af904a2568b4408ab19e3c0cc975b71
+          image: vietpham18/user-service:bfcc102adc1495922f19e4711782d79645c658fb
           startupProbe:
             tcpSocket:
               port: 8082
@@ -187,7 +187,7 @@ spec:
     spec:
       containers:
         - name: relationship
-          image: vietpham18/relationship-service:13fe3a04e66a9f940e5ae00e405e4e5b515efc9c
+          image: vietpham18/relationship-service:bfcc102adc1495922f19e4711782d79645c658fb
           startupProbe:
             tcpSocket:
               port: 8087
@@ -266,7 +266,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:fec8bd5c0af904a2568b4408ab19e3c0cc975b71
+          image: vietpham18/post-service:bfcc102adc1495922f19e4711782d79645c658fb
           ports:
             - containerPort: 8085
           startupProbe:
@@ -488,7 +488,7 @@ spec:
     spec:
       containers:
         - name: org
-          image: vietpham18/org-service:907966796c8efe2e5740a3ec22577cf48d916a81
+          image: vietpham18/org-service:bfcc102adc1495922f19e4711782d79645c658fb
           startupProbe:
             tcpSocket:
               port: 8084
@@ -868,7 +868,7 @@ spec:
     spec:
       containers:
         - name: search
-          image: vietpham18/search-service:d11d9bb3a6590e38579962214494e7da951c5b6f
+          image: vietpham18/search-service:bfcc102adc1495922f19e4711782d79645c658fb
           ports:
             - containerPort: 8086
           startupProbe:
