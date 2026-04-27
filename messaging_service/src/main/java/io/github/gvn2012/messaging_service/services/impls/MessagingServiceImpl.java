@@ -15,8 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -62,6 +62,7 @@ public class MessagingServiceImpl implements IMessagingService {
     }
 
     @Override
+    @Transactional
     public void processMessage(MessageRequest request) {
         String conversationId = request.getConversationId();
         Conversation conversation;
@@ -192,7 +193,7 @@ public class MessagingServiceImpl implements IMessagingService {
     }
 
     @Override
-    @Async
+    @Transactional
     public void editMessage(String messageId, String newContent, String userId) {
         messageRepository.findById(messageId).ifPresent(message -> {
             if (message.getSenderId().equals(userId) && !message.isDeleted()) {
@@ -207,7 +208,7 @@ public class MessagingServiceImpl implements IMessagingService {
     }
 
     @Override
-    @Async
+    @Transactional
     public void deleteMessage(String messageId, String userId) {
         messageRepository.findById(messageId).ifPresent(message -> {
             if (message.getSenderId().equals(userId)) {
@@ -245,7 +246,7 @@ public class MessagingServiceImpl implements IMessagingService {
     }
 
     @Override
-    @Async
+    @Transactional
     public void deleteConversation(String conversationId, String userId) {
         conversationRepository.findById(conversationId).ifPresent(conversation -> {
             if (conversation.getDeletedAtPerUser() == null) {
@@ -259,7 +260,6 @@ public class MessagingServiceImpl implements IMessagingService {
         });
     }
 
-    @Async
     protected void saveMessageAndNotify(Message message, Conversation conversation) {
         Message savedMessage = messageRepository.save(message);
 
@@ -289,7 +289,7 @@ public class MessagingServiceImpl implements IMessagingService {
     }
 
     @Override
-    @Async
+    @Transactional
     public void markAsDelivered(String messageId, String userId) {
         messageRepository.findById(messageId).ifPresent(message -> {
             if (message.getStatus().containsKey(userId)) {
@@ -304,11 +304,36 @@ public class MessagingServiceImpl implements IMessagingService {
     }
 
     @Override
-    @Async
+    @Transactional
     public void markAsSeen(String conversationId, String userId) {
-
         log.info("Marking messages as seen for conversation {} and user {}", conversationId, userId);
-
+        List<Message> unreadMessages = messageRepository.findUnreadMessages(conversationId, userId);
+        
+        if (unreadMessages.isEmpty()) return;
+        
+        for (Message msg : unreadMessages) {
+            if (msg.getStatus().containsKey(userId)) {
+                msg.getStatus().get(userId).setStatus(MessageStatusType.SEEN);
+                msg.getStatus().get(userId).setUpdateTime(LocalDateTime.now());
+            }
+        }
+        
+        messageRepository.saveAll(unreadMessages);
+        
+        Map<String, List<String>> messagesBySender = unreadMessages.stream()
+            .collect(Collectors.groupingBy(Message::getSenderId, 
+                     Collectors.mapping(Message::getId, Collectors.toList())));
+                     
+        messagesBySender.forEach((senderId, messageIds) -> {
+             messagingTemplate.convertAndSendToUser(senderId, "/queue/status",
+                 Map.of(
+                     "conversationId", conversationId,
+                     "messageIds", messageIds,
+                     "userId", userId,
+                     "status", MessageStatusType.SEEN
+                 )
+             );
+        });
     }
 
     private MessageResponse mapToResponse(Message message) {
