@@ -12,6 +12,7 @@ import io.github.gvn2012.messaging_service.repositories.MessageRepository;
 import io.github.gvn2012.messaging_service.services.interfaces.IMessagingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,6 +41,10 @@ public class MessagingServiceImpl implements IMessagingService {
     private final ConversationRepository conversationRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final MongoTemplate mongoTemplate;
+
+    private LocalDateTime getCurrentTime() {
+        return LocalDateTime.now(ZoneOffset.UTC);
+    }
 
     @Override
     public void createConversation(List<String> participantIds, String name, String type) {
@@ -91,7 +97,7 @@ public class MessagingServiceImpl implements IMessagingService {
                 for (String participantId : participantIds) {
                     messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
                             Map.of("type", "CONVERSATION_CREATED", "conversation",
-                                    mapToConversationResponse(conversation)));
+                                    mapToConversationResponse(conversation, participantId)));
                 }
             }
         } else {
@@ -105,7 +111,7 @@ public class MessagingServiceImpl implements IMessagingService {
             conversationRepository.save(conversation);
 
             messagingTemplate.convertAndSendToUser(request.getSenderId(), "/queue/updates",
-                    Map.of("type", "CONVERSATION_RESTORED", "conversation", mapToConversationResponse(conversation)));
+                    Map.of("type", "CONVERSATION_RESTORED", "conversation", mapToConversationResponse(conversation, request.getSenderId())));
         }
 
         Message message = Message.builder()
@@ -113,12 +119,12 @@ public class MessagingServiceImpl implements IMessagingService {
                 .conversationId(request.getConversationId())
                 .senderId(request.getSenderId())
                 .content(request.getContent())
-                .timestamp(LocalDateTime.now())
+                .timestamp(getCurrentTime())
                 .status(conversation.getParticipants().stream()
                         .filter(pid -> !pid.equals(request.getSenderId()))
                         .collect(Collectors.toMap(pid -> pid, pid -> Message.StatusInfo.builder()
                                 .status(MessageStatusType.SENT)
-                                .updateTime(LocalDateTime.now())
+                                .updateTime(getCurrentTime())
                                 .build())))
                 .isEdited(false)
                 .isDeleted(false)
@@ -135,11 +141,11 @@ public class MessagingServiceImpl implements IMessagingService {
         }
 
         return conversations.stream()
-                .map(this::mapToConversationResponse)
+                .map(conv -> mapToConversationResponse(conv, userId))
                 .collect(Collectors.toList());
     }
 
-    private ConversationResponse mapToConversationResponse(Conversation conv) {
+    private ConversationResponse mapToConversationResponse(Conversation conv, String userId) {
         MessageResponse lastMessageDto = null;
         if (conv.getLastMessage() != null) {
             lastMessageDto = MessageResponse.builder()
@@ -160,14 +166,15 @@ public class MessagingServiceImpl implements IMessagingService {
                 .participants(conv.getParticipants())
                 .type(conv.getType())
                 .lastMessage(lastMessageDto)
-                .unreadCount(0)
+                .unreadCount((int) messageRepository.countUnreadMessages(conv.getId(), userId))
                 .createdAt(conv.getCreatedAt())
                 .updatedAt(conv.getUpdatedAt())
                 .build();
     }
 
     @Override
-    public List<MessageResponse> getMessageHistory(String conversationId, String userId, int page, int size) {
+    public List<MessageResponse> getMessageHistory(String conversationId, String userId, LocalDateTime before,
+            int size) {
         Conversation conversation = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new RuntimeException("Conversation not found"));
 
@@ -175,27 +182,22 @@ public class MessagingServiceImpl implements IMessagingService {
             throw new RuntimeException("User not authorized to view this conversation");
         }
 
-        LocalDateTime deletedAt = null;
-        if (conversation.getDeletedAtPerUser() != null) {
-            deletedAt = conversation.getDeletedAtPerUser().get(userId);
-        }
+        Pageable pageable = PageRequest.of(0, size);
+        Page<Message> messagePage;
 
-        Pageable pageable = PageRequest.of(page, size);
-
-        if (deletedAt != null) {
-            return messageRepository
-                    .findByConversationIdAndTimestampAfterOrderByTimestampDesc(conversationId, deletedAt, pageable)
-                    .getContent().stream()
-                    .filter(msg -> msg.getDeletedAtPerUser() == null || !msg.getDeletedAtPerUser().containsKey(userId))
-                    .map(this::mapToResponse)
-                    .collect(Collectors.toList());
+        if (before == null) {
+            messagePage = messageRepository.findByConversationIdOrderByTimestampDesc(conversationId, pageable);
         } else {
-            return messageRepository.findByConversationIdOrderByTimestampDesc(conversationId, pageable)
-                    .getContent().stream()
-                    .filter(msg -> msg.getDeletedAtPerUser() == null || !msg.getDeletedAtPerUser().containsKey(userId))
-                    .map(this::mapToResponse)
-                    .collect(Collectors.toList());
+            messagePage = messageRepository.findByConversationIdAndTimestampBeforeOrderByTimestampDesc(conversationId,
+                    before, pageable);
         }
+
+        // Filter out messages that have been soft-deleted for this user (via
+        // message-level deletedAtPerUser)
+        return messagePage.getContent().stream()
+                .filter(msg -> msg.getDeletedAtPerUser() == null || !msg.getDeletedAtPerUser().containsKey(userId))
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -218,7 +220,6 @@ public class MessagingServiceImpl implements IMessagingService {
     public void deleteMessage(String messageId, String userId) {
         messageRepository.findById(messageId).ifPresent(message -> {
             if (message.getSenderId().equals(userId)) {
-                // Recall for everyone
                 message.setDeleted(true);
                 message.setContent("This message was recalled");
                 message.setUpdatedAt(LocalDateTime.now());
@@ -226,14 +227,12 @@ public class MessagingServiceImpl implements IMessagingService {
 
                 notifyParticipantsOfUpdate(message, "MESSAGE_RECALLED");
             } else {
-                // Delete for me only
                 if (message.getDeletedAtPerUser() == null) {
                     message.setDeletedAtPerUser(new HashMap<>());
                 }
                 message.getDeletedAtPerUser().put(userId, LocalDateTime.now());
                 messageRepository.save(message);
 
-                // Notify only the caller
                 messagingTemplate.convertAndSendToUser(userId, "/queue/updates",
                         Map.of("type", "MESSAGE_DELETED_LOCAL", "messageId", messageId));
             }
@@ -258,8 +257,21 @@ public class MessagingServiceImpl implements IMessagingService {
             if (conversation.getDeletedAtPerUser() == null) {
                 conversation.setDeletedAtPerUser(new HashMap<>());
             }
-            conversation.getDeletedAtPerUser().put(userId, LocalDateTime.now());
+            LocalDateTime now = getCurrentTime();
+            conversation.getDeletedAtPerUser().put(userId, now);
             conversationRepository.save(conversation);
+
+            List<Message> allMessages = messageRepository.findByConversationIdOrderByTimestampDesc(
+                    conversationId, PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+            for (Message msg : allMessages) {
+                if (msg.getDeletedAtPerUser() == null) {
+                    msg.setDeletedAtPerUser(new HashMap<>());
+                }
+                if (!msg.getDeletedAtPerUser().containsKey(userId)) {
+                    msg.getDeletedAtPerUser().put(userId, now);
+                }
+            }
+            messageRepository.saveAll(allMessages);
 
             messagingTemplate.convertAndSendToUser(userId, "/queue/updates",
                     Map.of("type", "CONVERSATION_DELETED", "conversationId", conversationId));

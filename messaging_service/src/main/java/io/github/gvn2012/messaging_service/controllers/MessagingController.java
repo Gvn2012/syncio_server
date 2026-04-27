@@ -26,8 +26,9 @@ public class MessagingController {
     public ResponseEntity<APIResource<List<MessageResponse>>> getMessageHistory(
             @PathVariable String conversationId,
             @RequestHeader("X-User-Id") String userId,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime before,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(APIResource.ok("Message history retrieved", messagingService.getMessageHistory(conversationId, userId, page, size)));
+        return ResponseEntity
+                .ok(APIResource.ok("Message history retrieved", messagingService.getMessageHistory(conversationId, userId, before, size)));
     }
 }

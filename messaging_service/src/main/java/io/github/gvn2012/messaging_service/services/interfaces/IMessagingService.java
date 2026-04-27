@@ -3,6 +3,8 @@ package io.github.gvn2012.messaging_service.services.interfaces;
 import io.github.gvn2012.messaging_service.dtos.ConversationResponse;
 import io.github.gvn2012.messaging_service.dtos.MessageRequest;
 import io.github.gvn2012.messaging_service.dtos.MessageResponse;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface IMessagingService {
@@ -13,7 +15,7 @@ public interface IMessagingService {
     void deleteMessage(String messageId, String userId);
 
     void markAsDelivered(String messageId, String userId);
-    
+
     void markAllAsDelivered(String userId);
 
     void markAsSeen(String conversationId, String userId);
@@ -24,5 +26,6 @@ public interface IMessagingService {
 
     List<ConversationResponse> getConversations(String userId);
 
-    List<MessageResponse> getMessageHistory(String conversationId, String userId, int page, int size);
+    List<MessageResponse> getMessageHistory(String conversationId, String userId, LocalDateTime before,
+            int size);
 }

@@ -20,6 +20,12 @@ public interface MessageRepository extends MongoRepository<Message, String> {
     Page<Message> findByConversationIdAndTimestampAfterOrderByTimestampDesc(String conversationId,
             LocalDateTime timestamp, Pageable pageable);
 
+    Page<Message> findByConversationIdAndTimestampBeforeOrderByTimestampDesc(String conversationId,
+            LocalDateTime timestamp, Pageable pageable);
+
+    @Query(value = "{ 'conversationId': ?0, 'senderId': { $ne: ?1 }, 'status.?1.status': { $ne: 'SEEN' } }", count = true)
+    long countUnreadMessages(String conversationId, String userId);
+
     @Query("{ 'conversationId': ?0, 'senderId': { $ne: ?1 }, 'status.?1.status': { $ne: 'SEEN' } }")
     List<Message> findUnreadMessages(String conversationId, String userId);
 }
