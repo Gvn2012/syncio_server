@@ -24,6 +24,7 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
             if (userId != null) {
                 log.info("WebSocket connection authenticated for user: {}", userId);
                 Objects.requireNonNull(accessor.getSessionAttributes()).put("userId", userId);
+                accessor.setUser(() -> userId);
             } else {
                 log.warn("WebSocket connection attempt without X-User-Id header");
             }
