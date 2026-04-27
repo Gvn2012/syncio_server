@@ -36,6 +36,7 @@
         <module>post_service</module>
         <module>search_service</module>
         <module>shared</module>
+        <module>grpc_common</module>
     </modules>
 
     <dependencyManagement>
@@ -52,6 +53,12 @@
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>${springdoc-openapi.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>net.devh</groupId>
+                <artifactId>grpc-spring-boot-starter</artifactId>
+                <version>3.1.0.RELEASE</version>
             </dependency>
 
             <dependency>

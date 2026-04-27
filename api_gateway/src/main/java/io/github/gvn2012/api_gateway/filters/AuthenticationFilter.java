@@ -1,28 +1,29 @@
 package io.github.gvn2012.api_gateway.filters;
 
-import io.github.gvn2012.api_gateway.dtos.APIResource;
-import io.github.gvn2012.api_gateway.dtos.ValidateResponse;
+import io.github.gvn2012.grpc.auth.AuthServiceGrpc;
+import io.github.gvn2012.grpc.auth.TokenRequest;
+import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Component
 public class AuthenticationFilter implements GlobalFilter {
         private static final Logger log = LoggerFactory.getLogger(AuthenticationFilter.class);
         private final RouteValidator routeValidator;
-        private final WebClient.Builder webClientBuilder;
 
-        public AuthenticationFilter(RouteValidator routeValidator, WebClient.Builder webClientBuilder) {
+        @GrpcClient("auth-service")
+        private AuthServiceGrpc.AuthServiceBlockingStub authServiceStub;
+
+        public AuthenticationFilter(RouteValidator routeValidator) {
                 this.routeValidator = routeValidator;
-                this.webClientBuilder = webClientBuilder;
         }
 
         @Override
@@ -37,49 +38,49 @@ public class AuthenticationFilter implements GlobalFilter {
                         return chain.filter(exchange);
                 }
 
-                String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-                
-                if (authHeader == null || authHeader.isBlank()) {
-                    var cookie = exchange.getRequest().getCookies().getFirst("accessToken");
-                    if (cookie != null) {
-                        authHeader = "Bearer " + cookie.getValue();
-                        log.debug("Extracted token from accessToken cookie for: {}", requestPath);
-                    }
+                String authHeaderValue = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+
+                if (authHeaderValue == null || authHeaderValue.isBlank()) {
+                        var cookie = exchange.getRequest().getCookies().getFirst("accessToken");
+                        if (cookie != null) {
+                                authHeaderValue = "Bearer " + cookie.getValue();
+                                log.debug("Extracted token from accessToken cookie for: {}", requestPath);
+                        }
                 }
 
-                if (authHeader == null || authHeader.isBlank()) {
-                        log.warn("Blocked request to secured route: [{}] {} - Missing Authorization header and accessToken cookie", httpMethod,
+                if (authHeaderValue == null || authHeaderValue.isBlank()) {
+                        log.warn("Blocked request to secured route: [{}] {} - Missing Authorization header and accessToken cookie",
+                                        httpMethod,
                                         requestPath);
                         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                         return exchange.getResponse().setComplete();
                 }
 
-                log.debug("Authorization token found, verifying via auth-service for: {}", requestPath);
+                log.debug("Authorization token found, verifying via auth-service gRPC for: {}", requestPath);
 
-                return webClientBuilder.build()
-                                .get()
-                                .uri("http://syncio-auth:8081/api/v1/auth/validate")
-                                .header(HttpHeaders.AUTHORIZATION, authHeader)
-                                .retrieve()
-                                .bodyToMono(new ParameterizedTypeReference<APIResource<ValidateResponse>>() {
-                                })
-                                .doOnNext(apiResource -> log.debug("Token successfully validated. UserID: {}, Role: {}",
-                                                apiResource.getData().getUserId(), apiResource.getData().getUserRole()))
-                                .flatMap(apiResource -> {
-                                        var authData = apiResource.getData();
+                final String finalAuthHeader = authHeaderValue;
 
-                                        log.debug("Mutating request: Injecting X-User-Id header ({}) into downstream request",
-                                                        authData.getUserId());
-                                        var modifiedExchange = exchange.mutate()
-                                                        .request(r -> r.header("X-User-Id",
-                                                                        authData.getUserId()))
-                                                        .build();
-                                        return chain.filter(modifiedExchange);
+                return Mono.fromCallable(() -> authServiceStub.validateToken(TokenRequest.newBuilder().setToken(finalAuthHeader).build()))
+                                .subscribeOn(Schedulers.boundedElastic())
+                                .flatMap(response -> {
+                                        if (response.getIsValid()) {
+                                                log.debug("Token successfully validated via gRPC. UserID: {}, Roles: {}",
+                                                                response.getUserId(), response.getUserRolesList());
+
+                                                var modifiedExchange = exchange.mutate()
+                                                                .request(r -> r.header("X-User-Id", response.getUserId()))
+                                                                .build();
+                                                return chain.filter(modifiedExchange);
+                                        } else {
+                                                log.error("Authentication check failed via gRPC for [{}] {}. Reason: {}",
+                                                                httpMethod, requestPath, response.getErrorMessage());
+                                                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                                                return exchange.getResponse().setComplete();
+                                        }
                                 })
                                 .onErrorResume(error -> {
-                                        log.error("Authentication check failed for [{}] {}. Reason: {}", httpMethod,
-                                                        requestPath,
-                                                        error.getMessage());
+                                        log.error("Error during gRPC authentication check for [{}] {}. Reason: {}",
+                                                        httpMethod, requestPath, error.getMessage());
                                         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                                         return exchange.getResponse().setComplete();
                                 });

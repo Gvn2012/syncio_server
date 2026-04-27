@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package io.github.gvn2012.grpc;
+
+option java_multiple_files = true;
+option java_package = "io.github.gvn2012.grpc.user";
+option java_outer_classname = "UserProto";
+
+service UserService {
+  rpc GetUserProfile (UserRequest) returns (UserDetailResponse);
+  rpc GetUsersSummary (UserBatchRequest) returns (UserSummaryBatchResponse);
+}
+
+message UserRequest {
+  string user_id = 1;
+}
+
+message UserBatchRequest {
+  repeated string user_ids = 1;
+}
+
+message UserDetailResponse {
+  UserResponse user_response = 1;
+  UserProfileResponse user_profile_response = 2;
+}
+
+message UserResponse {
+  string id = 1;
+  string username = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string middle_name = 5;
+  bool active = 6;
+  bool suspended = 7;
+  bool banned = 8;
+}
+
+message UserProfileResponse {
+  string id = 1;
+  string bio = 2;
+  repeated UserProfilePicture user_profile_picture_list = 3;
+}
+
+message UserProfilePicture {
+  string url = 1;
+  string object_path = 2;
+  bool primary = 3;
+}
+
+message UserSummaryBatchResponse {
+  map<string, UserSummary> summaries = 1;
+}
+
+message UserSummary {
+  string user_id = 1;
+  string username = 2;
+  string display_name = 3;
+  string avatar_url = 4;
+  string avatar_path = 5;
+  bool active = 6;
+  bool suspended = 7;
+  bool banned = 8;
+}

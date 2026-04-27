@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package io.github.gvn2012.grpc;
+
+option java_multiple_files = true;
+option java_package = "io.github.gvn2012.grpc.ranking";
+option java_outer_classname = "RankingProto";
+
+service RankingService {
+  rpc RankPosts (RankingRequest) returns (RankingResponse);
+}
+
+message RankingRequest {
+  string user_id = 1;
+  repeated PostFeature candidates = 2;
+}
+
+message PostFeature {
+  string post_id = 1;
+  string author_id = 2;
+  double author_affinity = 3;
+  double velocity_score = 4;
+  double recency_hours = 5;
+  string category = 6;
+  int32 media_count = 7;
+}
+
+message RankingResponse {
+  string user_id = 1;
+  repeated RankedPost ranked_candidates = 2;
+}
+
+message RankedPost {
+  string post_id = 1;
+  double score = 2;
+}

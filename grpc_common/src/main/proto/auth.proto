@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package io.github.gvn2012.grpc;
+
+option java_multiple_files = true;
+option java_package = "io.github.gvn2012.grpc.auth";
+option java_outer_classname = "AuthProto";
+
+service AuthService {
+  rpc ValidateToken (TokenRequest) returns (ValidateTokenResponse);
+  rpc GenerateToken (GenerateTokenGrpcRequest) returns (GenerateTokenGrpcResponse);
+}
+
+message TokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool is_valid = 1;
+  string error_message = 2;
+  string user_id = 3;
+  repeated string user_roles = 4;
+}
+
+message GenerateTokenGrpcRequest {
+  string userId = 1;
+  string username = 2;
+  string ipAddress = 3;
+  string userAgent = 4;
+}
+
+message GenerateTokenGrpcResponse {
+  string accessToken = 1;
+  string refreshToken = 2;
+  repeated string roles = 3;
+}

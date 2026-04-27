@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package io.github.gvn2012.grpc.upload;
+
+option java_multiple_files = true;
+option java_package = "io.github.gvn2012.grpc.upload";
+
+service UploadService {
+  rpc GetSignedUrls (SignedUrlGrpcRequest) returns (SignedUrlGrpcResponse);
+}
+
+message SignedUrlGrpcRequest {
+  map<string, string> objectPathsWithContentType = 1;
+}
+
+message SignedUrlGrpcResponse {
+  map<string, string> signedUrls = 1;
+}

@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package io.github.gvn2012.grpc;
+
+option java_multiple_files = true;
+option java_package = "io.github.gvn2012.grpc.relationship";
+option java_outer_classname = "RelationshipProto";
+
+service RelationshipService {
+  rpc GetFollowers (RelationshipRequest) returns (IdsResponse);
+  rpc GetFollowing (RelationshipRequest) returns (IdsResponse);
+  rpc GetAudience (RelationshipRequest) returns (IdsResponse);
+  rpc IsFollowing (CheckRelationshipRequest) returns (BooleanResponse);
+  rpc IsBlocked (CheckRelationshipRequest) returns (BooleanResponse);
+  rpc GetBlockedList (RelationshipRequest) returns (IdsResponse);
+  rpc GetBlockedByList (RelationshipRequest) returns (IdsResponse);
+  rpc GetFriendIds (RelationshipRequest) returns (IdsResponse);
+}
+
+message RelationshipRequest {
+  string user_id = 1;
+}
+
+message CheckRelationshipRequest {
+  string source_id = 1;
+  string target_id = 2;
+}
+
+message IdsResponse {
+  repeated string ids = 1;
+}
+
+message BooleanResponse {
+  bool result = 1;
+}

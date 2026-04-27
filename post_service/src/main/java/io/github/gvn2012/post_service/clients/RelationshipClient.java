@@ -1,113 +1,84 @@
 package io.github.gvn2012.post_service.clients;
 
-import io.github.gvn2012.post_service.dtos.APIResource;
-import io.github.gvn2012.post_service.exceptions.InternalServerErrorException;
-import org.springframework.core.ParameterizedTypeReference;
+import io.github.gvn2012.grpc.relationship.*;
+import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 import java.util.UUID;
-
-import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory;
+import java.util.stream.Collectors;
 
 @Component
-public class RelationshipClient extends HttpClient {
+public class RelationshipClient {
 
-    public RelationshipClient(WebClient.Builder webClientBuilder, ReactiveCircuitBreakerFactory<?, ?> cbFactory) {
-        super(webClientBuilder, cbFactory, "http://syncio-rs:8087");
-    }
+    @GrpcClient("relationship-service")
+    private RelationshipServiceGrpc.RelationshipServiceBlockingStub relationshipServiceStub;
 
     public Mono<List<UUID>> getFollowers(UUID userId) {
-        return get(
-                "/api/v1/rs/relationships/followers/{userId}",
-                new ParameterizedTypeReference<APIResource<List<UUID>>>() {
-                },
-                userId.toString())
-                .flatMap(this::handleListResponse);
+        return Mono.fromCallable(() -> relationshipServiceStub.getFollowers(
+                RelationshipRequest.newBuilder().setUserId(userId.toString()).build()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(response -> response.getIdsList().stream().map(UUID::fromString).collect(Collectors.toList()));
     }
 
     public Mono<List<UUID>> getAudience(UUID userId) {
-        return get(
-                "/api/v1/rs/relationships/audience/{userId}",
-                new ParameterizedTypeReference<APIResource<List<UUID>>>() {
-                },
-                userId.toString())
-                .flatMap(this::handleListResponse)
+        return Mono.fromCallable(() -> relationshipServiceStub.getAudience(
+                RelationshipRequest.newBuilder().setUserId(userId.toString()).build()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(response -> response.getIdsList().stream().map(UUID::fromString).collect(Collectors.toList()))
                 .onErrorReturn(List.of());
     }
 
     public Mono<List<UUID>> getFollowing(UUID userId) {
-        return get(
-                "/api/v1/rs/relationships/following/{userId}",
-                new ParameterizedTypeReference<APIResource<List<UUID>>>() {
-                },
-                userId.toString())
-                .flatMap(this::handleListResponse);
+        return Mono.fromCallable(() -> relationshipServiceStub.getFollowing(
+                RelationshipRequest.newBuilder().setUserId(userId.toString()).build()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(response -> response.getIdsList().stream().map(UUID::fromString).collect(Collectors.toList()));
     }
 
     public Mono<Boolean> isFollowing(UUID sourceId, UUID targetId) {
-        return get(
-                "/api/v1/rs/relationships/{sourceId}/following/{targetId}",
-                new ParameterizedTypeReference<APIResource<Boolean>>() {
-                },
-                sourceId.toString(), targetId.toString())
-                .map(response -> response.isSuccess() && Boolean.TRUE.equals(response.getData()))
+        return Mono.fromCallable(() -> relationshipServiceStub.isFollowing(
+                CheckRelationshipRequest.newBuilder()
+                        .setSourceId(sourceId.toString())
+                        .setTargetId(targetId.toString())
+                        .build()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(response -> response.getResult())
                 .onErrorReturn(false);
     }
 
     public Mono<Boolean> isBlocked(UUID sourceId, UUID targetId) {
-        return get(
-                "/api/v1/rs/relationships/{sourceId}/blocked/{targetId}",
-                new ParameterizedTypeReference<APIResource<Boolean>>() {
-                },
-                sourceId.toString(), targetId.toString())
-                .map(response -> response.isSuccess() && Boolean.TRUE.equals(response.getData()))
+        return Mono.fromCallable(() -> relationshipServiceStub.isBlocked(
+                CheckRelationshipRequest.newBuilder()
+                        .setSourceId(sourceId.toString())
+                        .setTargetId(targetId.toString())
+                        .build()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(response -> response.getResult())
                 .onErrorReturn(false);
     }
 
     public Mono<List<UUID>> getBlockedList(UUID userId) {
-        return get(
-                "/api/v1/rs/relationships/blocks",
-                java.util.Map.of("X-User-Id", userId.toString()),
-                new ParameterizedTypeReference<APIResource<List<UUID>>>() {
-                })
-                .flatMap(this::handleListResponse);
+        return Mono.fromCallable(() -> relationshipServiceStub.getBlockedList(
+                RelationshipRequest.newBuilder().setUserId(userId.toString()).build()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(response -> response.getIdsList().stream().map(UUID::fromString).collect(Collectors.toList()));
     }
 
     public Mono<List<UUID>> getBlockedByList(UUID userId) {
-        return get(
-                "/api/v1/rs/relationships/blocked-by",
-                java.util.Map.of("X-User-Id", userId.toString()),
-                new ParameterizedTypeReference<APIResource<List<UUID>>>() {
-                })
-                .flatMap(this::handleListResponse);
+        return Mono.fromCallable(() -> relationshipServiceStub.getBlockedByList(
+                RelationshipRequest.newBuilder().setUserId(userId.toString()).build()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(response -> response.getIdsList().stream().map(UUID::fromString).collect(Collectors.toList()));
     }
 
     public Mono<List<UUID>> getFriendIds(UUID userId) {
-        return get(
-                "/api/v1/rs/relationships/friends/{userId}",
-                new ParameterizedTypeReference<APIResource<List<io.github.gvn2012.post_service.dtos.RelationshipResponse>>>() {
-                },
-                userId.toString())
-                .map(response -> {
-                    if (response.isSuccess() && response.getData() != null) {
-                        return response.getData().stream()
-                                .map(rel -> rel.getTargetUserId().equals(userId) ? rel.getSourceUserId() : rel.getTargetUserId())
-                                .collect(java.util.stream.Collectors.toList());
-                    }
-                    return List.<UUID>of();
-                })
+        return Mono.fromCallable(() -> relationshipServiceStub.getFriendIds(
+                RelationshipRequest.newBuilder().setUserId(userId.toString()).build()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(response -> response.getIdsList().stream().map(UUID::fromString).collect(Collectors.toList()))
                 .onErrorReturn(List.of());
-    }
-
-    private <T> Mono<T> handleListResponse(APIResource<T> response) {
-        if (!response.isSuccess() || response.getData() == null) {
-            String errorMsg = response.getError() != null ? response.getError().getMessage()
-                    : "Relationship service error";
-            return Mono.error(new InternalServerErrorException(errorMsg));
-        }
-        return Mono.just(response.getData());
     }
 }

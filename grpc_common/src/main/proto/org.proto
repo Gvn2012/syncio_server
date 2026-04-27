@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package io.github.gvn2012.grpc;
+
+option java_multiple_files = true;
+option java_package = "io.github.gvn2012.grpc.org";
+option java_outer_classname = "OrgProto";
+
+service OrgService {
+  rpc CreateOrganization (CreateOrgGrpcRequest) returns (CreateOrgGrpcResponse);
+}
+
+message CreateOrgGrpcRequest {
+  string name = 1;
+  string legalName = 2;
+  string description = 3;
+  string industry = 4;
+  string website = 5;
+  string logoUrl = 6;
+  string foundedDate = 7;
+  string registrationNumber = 8;
+  string taxId = 9;
+  string organizationSize = 10;
+  string address = 11;
+  string city = 12;
+  string state = 13;
+  string country = 14;
+  string postalCode = 15;
+  string ownerId = 16;
+  string email = 17;
+}
+
+message CreateOrgGrpcResponse {
+  string id = 1;
+  string slug = 2;
+}

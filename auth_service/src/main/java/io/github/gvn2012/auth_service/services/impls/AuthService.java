@@ -83,28 +83,26 @@ public class AuthService implements AuthServiceInterface {
     }
 
     private UserSession.UserSessionBuilder populateSessionDetails(UserSession.UserSessionBuilder builder,
-            HttpServletRequest httpRequest) {
-        if (httpRequest != null) {
-            String ipAddress = getClientIp(httpRequest);
-            builder.ipAddress(ipAddress != null && ipAddress.length() > 45 ? ipAddress.substring(0, 45) : ipAddress);
+            String ipAddress, String userAgentString) {
+        if (ipAddress != null) {
+            builder.ipAddress(ipAddress.length() > 45 ? ipAddress.substring(0, 45) : ipAddress);
+        }
 
-            String userAgentString = httpRequest.getHeader("User-Agent");
-            if (userAgentString != null) {
-                builder.userAgent(userAgentString.length() > 512 ? userAgentString.substring(0, 512) : userAgentString);
+        if (userAgentString != null) {
+            builder.userAgent(userAgentString.length() > 512 ? userAgentString.substring(0, 512) : userAgentString);
 
-                String lowercaseUA = userAgentString.toLowerCase();
-                if (lowercaseUA.contains("mobile") || lowercaseUA.contains("android")
-                        || lowercaseUA.contains("iphone")) {
-                    builder.deviceType("Mobile");
-                } else if (lowercaseUA.contains("tablet") || lowercaseUA.contains("ipad")) {
-                    builder.deviceType("Tablet");
-                } else {
-                    builder.deviceType("Desktop");
-                }
-
-                builder.deviceName(
-                        userAgentString.length() > 128 ? userAgentString.substring(0, 128) : userAgentString);
+            String lowercaseUA = userAgentString.toLowerCase();
+            if (lowercaseUA.contains("mobile") || lowercaseUA.contains("android")
+                    || lowercaseUA.contains("iphone")) {
+                builder.deviceType("Mobile");
+            } else if (lowercaseUA.contains("tablet") || lowercaseUA.contains("ipad")) {
+                builder.deviceType("Tablet");
+            } else {
+                builder.deviceType("Desktop");
             }
+
+            builder.deviceName(
+                    userAgentString.length() > 128 ? userAgentString.substring(0, 128) : userAgentString);
         }
         return builder;
     }
@@ -211,6 +209,12 @@ public class AuthService implements AuthServiceInterface {
     @Transactional
     public APIResource<GenerateLoginTokenResponse> generateLoginToken(GenerateLoginTokenRequest request,
             HttpServletRequest httpRequest) {
+        return generateLoginToken(request, getClientIp(httpRequest),
+                httpRequest != null ? httpRequest.getHeader("User-Agent") : null);
+    }
+
+    public APIResource<GenerateLoginTokenResponse> generateLoginToken(GenerateLoginTokenRequest request,
+            String ipAddress, String userAgent) {
         try {
             log.info("Fetching roles for userId: {} from permission-service", request.getUserId());
             long startTime = System.currentTimeMillis();
@@ -250,7 +254,7 @@ public class AuthService implements AuthServiceInterface {
                     .expiresAt(Instant.now().plusMillis(Long.parseLong(jwtConfig.getRefreshExpirationTime())))
                     .revoked(false);
 
-            UserSession newSession = populateSessionDetails(sessionBuilder, httpRequest).build();
+            UserSession newSession = populateSessionDetails(sessionBuilder, ipAddress, userAgent).build();
             userSessionRepository.save(newSession);
 
             return APIResource.ok("Tokens are generated successfully",
@@ -324,7 +328,8 @@ public class AuthService implements AuthServiceInterface {
                     .expiresAt(Instant.now().plusMillis(Long.parseLong(jwtConfig.getRefreshExpirationTime())))
                     .revoked(false);
 
-            UserSession newSession = populateSessionDetails(sessionBuilder, httpRequest).build();
+            UserSession newSession = populateSessionDetails(sessionBuilder, getClientIp(httpRequest),
+                    httpRequest != null ? httpRequest.getHeader("User-Agent") : null).build();
             userSessionRepository.save(newSession);
 
             return APIResource.ok("Tokens rotated successfully",

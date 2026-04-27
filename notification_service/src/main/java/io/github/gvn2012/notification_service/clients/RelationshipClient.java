@@ -1,32 +1,28 @@
 package io.github.gvn2012.notification_service.clients;
 
-import io.github.gvn2012.notification_service.dtos.APIResource;
-import org.springframework.core.ParameterizedTypeReference;
+import io.github.gvn2012.grpc.relationship.*;
+import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
-import java.util.UUID;
 import java.util.Set;
-
-import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
-public class RelationshipClient extends HttpClient {
+public class RelationshipClient {
 
-    public RelationshipClient(WebClient.Builder webClientBuilder, ReactiveCircuitBreakerFactory<?, ?> cbFactory) {
-        super(webClientBuilder, cbFactory, "http://rs");
-    }
+    @GrpcClient("relationship-service")
+    private RelationshipServiceGrpc.RelationshipServiceBlockingStub relationshipServiceStub;
 
     public Mono<Set<UUID>> getAudience(UUID userId) {
-        return get(
-                "/api/v1/rs/relationships/audience/{uid}",
-                new ParameterizedTypeReference<APIResource<Set<UUID>>>() {},
-                userId.toString())
-                .map(res -> {
-                    Set<UUID> data = res.getData();
-                    return data != null ? data : Set.<UUID>of();
-                })
+        return Mono.fromCallable(() -> relationshipServiceStub.getAudience(
+                RelationshipRequest.newBuilder().setUserId(userId.toString()).build()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(response -> response.getIdsList().stream()
+                        .map(UUID::fromString)
+                        .collect(Collectors.toSet()))
                 .onErrorReturn(Set.of());
     }
 }

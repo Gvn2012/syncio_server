@@ -1,198 +1,113 @@
 package io.github.gvn2012.relationship_service.clients;
 
+import io.github.gvn2012.grpc.user.*;
 import io.github.gvn2012.relationship_service.dtos.responses.UserProfileSummary;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Mono;
-
+import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory;
-
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Slf4j
 @Component
-public class UserProfileClient extends HttpClient {
+public class UserProfileClient {
 
     @Value("${syncio.gateway.host:http://syncio.site}")
     private String gatewayHost;
 
-    public UserProfileClient(WebClient.Builder webClientBuilder,
-            ReactiveCircuitBreakerFactory<?, ?> cbFactory,
-            @Value("${syncio.client.user-service.url:http://localhost:8082}") String baseUrl) {
-        super(webClientBuilder, cbFactory, baseUrl);
-    }
+    @GrpcClient("user-service")
+    private UserServiceGrpc.UserServiceBlockingStub userServiceStub;
 
     public Map<UUID, UserProfileSummary> getUserProfiles(Iterable<UUID> userIds) {
-        return getUserProfilesBatch(userIds instanceof java.util.Collection ? (java.util.Collection<UUID>) userIds
-                : java.util.stream.StreamSupport.stream(userIds.spliterator(), false).toList());
-    }
-
-    public Map<UUID, UserProfileSummary> getUserProfilesBatch(java.util.Collection<UUID> userIds) {
         if (userIds == null || !userIds.iterator().hasNext()) {
             return new ConcurrentHashMap<>();
         }
 
-        log.info("Fetching profiles for {} users in batch from user-service using WebClient", userIds.size());
+        java.util.List<String> idStrings = StreamSupport.stream(userIds.spliterator(), false)
+                .map(UUID::toString)
+                .collect(Collectors.toList());
+
+        log.info("Fetching profiles for {} users in batch from user-service using gRPC", idStrings.size());
 
         try {
-            Map<String, Object> body = postWithFallback(
-                    "/api/v1/users/batch/summaries",
-                    userIds,
-                    new ParameterizedTypeReference<Map<String, Object>>() {
-                    },
-                    throwable -> {
-                        log.warn("Circuit breaker fallback triggered for batch user summaries: {}",
-                                throwable.getMessage());
-                        return Mono.just(Map.of("success", true, "data", Map.of()));
-                    })
-                    .block();
-
-            if (body == null || !Boolean.TRUE.equals(body.get("success")) || body.get("data") == null) {
-                log.warn("Batch profile retrieval returned unsuccessful response or missing data. Response: {}", body);
-                return new ConcurrentHashMap<>();
-            }
+            UserSummaryBatchResponse response = userServiceStub.getUsersSummary(
+                    UserBatchRequest.newBuilder().addAllUserIds(idStrings).build()
+            );
 
             Map<UUID, UserProfileSummary> profiles = new ConcurrentHashMap<>();
-            Map<Object, Object> dataMap = asObjectMap(body.get("data"));
-
-            log.info("Successfully retrieved {} profiles in batch from user-service", dataMap.size());
-            dataMap.forEach((key, detail) -> {
-                try {
-                    UUID userId = null;
-                    if (key instanceof UUID u) {
-                        userId = u;
-                    } else if (key instanceof String s) {
-                        userId = UUID.fromString(s);
-                    }
-
-                    if (userId != null) {
-                        profiles.put(userId, mapSummary(userId, asMap(detail)));
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to parse user profile for key: {}", key, e);
+            response.getSummariesMap().forEach((id, summary) -> {
+                UUID userId = UUID.fromString(id);
+                String avatarUrl = summary.getAvatarUrl();
+                if (StringUtils.hasText(summary.getAvatarPath())) {
+                    avatarUrl = buildProxyUrl(summary.getAvatarPath());
                 }
+
+                profiles.put(userId, UserProfileSummary.builder()
+                        .userId(userId)
+                        .username(summary.getUsername())
+                        .displayName(summary.getDisplayName())
+                        .profilePictureUrl(avatarUrl)
+                        .build());
             });
 
             return profiles;
         } catch (Exception e) {
-            log.warn("Failed to fetch user profiles batch via WebClient: {}", e.getMessage());
+            log.warn("Failed to fetch user profiles batch via gRPC: {}", e.getMessage());
             return new ConcurrentHashMap<>();
         }
     }
 
-    private UserProfileSummary mapSummary(UUID userId, Map<String, Object> data) {
-        String username = asString(data.get("username"));
-        String displayName = asString(data.get("displayName"));
-        String avatarUrl = asString(data.get("avatarUrl"));
-        String avatarPath = asString(data.get("avatarPath"));
-
-        // Preference: Use Proxy URL if path is available, else use resolved URL
-        String finalAvatarUrl = avatarUrl;
-        if (org.springframework.util.StringUtils.hasText(avatarPath)) {
-            finalAvatarUrl = buildProxyUrl(avatarPath);
-        }
-
-        if (!org.springframework.util.StringUtils.hasText(displayName)) {
-            displayName = username != null ? username : "Unknown User";
-        }
-
-        return UserProfileSummary.builder()
-                .userId(userId)
-                .username(username)
-                .displayName(displayName)
-                .profilePictureUrl(finalAvatarUrl)
-                .build();
-    }
-
     public UserProfileSummary getUserProfile(UUID userId) {
-        if (userId == null)
-            return null;
+        if (userId == null) return null;
 
-        log.info("Fetching profile for user {} from user-service using WebClient", userId);
+        log.info("Fetching profile for user {} from user-service using gRPC", userId);
 
         try {
-            Map<String, Object> body = getWithFallback(
-                    "/api/v1/users/{uid}",
-                    new ParameterizedTypeReference<Map<String, Object>>() {
-                    },
-                    throwable -> {
-                        log.warn("Circuit breaker fallback triggered for single user profile {}: {}", userId,
-                                throwable.getMessage());
-                        return Mono.just(Map.of("success", true, "data", Map.of()));
-                    },
-                    userId.toString())
-                    .block();
+            UserDetailResponse response = userServiceStub.getUserProfile(
+                    UserRequest.newBuilder().setUserId(userId.toString()).build()
+            );
 
-            if (body == null || !Boolean.TRUE.equals(body.get("success")) || body.get("data") == null) {
-                log.warn("Single profile retrieval unsuccessful for user {}. Response: {}", userId, body);
-                return fallback(userId);
+            UserResponse user = response.getUserResponse();
+            UserProfileResponse profile = response.getUserProfileResponse();
+
+            String displayName = String.join(" ",
+                    filterBlank(user.getFirstName()),
+                    filterBlank(user.getMiddleName()),
+                    filterBlank(user.getLastName())).trim();
+
+            if (!StringUtils.hasText(displayName)) {
+                displayName = StringUtils.hasText(user.getUsername()) ? user.getUsername() : "Unknown User";
             }
 
-            return extractSummary(userId, asMap(body.get("data")));
-        } catch (Exception e) {
-            log.warn("Failed to fetch user profile for {} via WebClient: {}", userId, e.getMessage());
-            return fallback(userId);
-        }
-    }
-
-    private UserProfileSummary extractSummary(UUID userId, Map<String, Object> data) {
-        Map<String, Object> userResponse = asMap(getAny(data, "userResponse", "user_response"));
-        Map<String, Object> profileResponse = asMap(getAny(data, "userProfileResponse", "user_profile_response"));
-
-        String username = asString(getAny(userResponse, "username"));
-        String firstName = asString(getAny(userResponse, "firstName", "first_name"));
-        String middleName = asString(getAny(userResponse, "middleName", "middle_name"));
-        String lastName = asString(getAny(userResponse, "lastName", "last_name"));
-
-        String displayName = String.join(" ",
-                filterBlank(firstName), filterBlank(middleName), filterBlank(lastName)).trim();
-
-        if (!StringUtils.hasText(displayName)) {
-            displayName = username != null ? username : "Unknown User";
-        }
-
-        // Resolve profile picture from userProfilePictureResponseList
-        String profilePictureUrl = null;
-        Object picturesObj = getAny(profileResponse, "userProfilePictureResponseList",
-                "user_profile_picture_response_list");
-        if (picturesObj instanceof java.util.Collection<?> pictures) {
-            for (Object picObj : pictures) {
-                Map<String, Object> picMap = asMap(picObj);
-                Boolean isPrimary = (Boolean) getAny(picMap, "primary");
-
-                // If it's primary or we don't have a picture yet, try to extract URL/path
-                if (Boolean.TRUE.equals(isPrimary) || profilePictureUrl == null) {
-                    String url = asString(getAny(picMap, "url"));
-                    String objectPath = asString(getAny(picMap, "objectPath", "object_path"));
-
-                    if (StringUtils.hasText(objectPath)) {
-                        profilePictureUrl = buildProxyUrl(objectPath);
-                    } else if (StringUtils.hasText(url)) {
-                        profilePictureUrl = url;
+            String profilePictureUrl = null;
+            for (UserProfilePicture pic : profile.getUserProfilePictureListList()) {
+                if (pic.getPrimary() || profilePictureUrl == null) {
+                    if (StringUtils.hasText(pic.getObjectPath())) {
+                        profilePictureUrl = buildProxyUrl(pic.getObjectPath());
+                    } else if (StringUtils.hasText(pic.getUrl())) {
+                        profilePictureUrl = pic.getUrl();
                     }
-
-                    if (Boolean.TRUE.equals(isPrimary)) {
-                        break;
-                    }
+                    if (pic.getPrimary()) break;
                 }
             }
-        }
 
-        return UserProfileSummary.builder()
-                .userId(userId)
-                .username(username)
-                .displayName(displayName)
-                .profilePictureUrl(profilePictureUrl)
-                .build();
+            return UserProfileSummary.builder()
+                    .userId(userId)
+                    .username(user.getUsername())
+                    .displayName(displayName)
+                    .profilePictureUrl(profilePictureUrl)
+                    .build();
+        } catch (Exception e) {
+            log.warn("Failed to fetch user profile for {} via gRPC: {}", userId, e.getMessage());
+            return fallback(userId);
+        }
     }
 
     private String buildProxyUrl(String objectPath) {
@@ -208,37 +123,6 @@ public class UserProfileClient extends HttpClient {
                 .userId(userId)
                 .displayName("Unknown User")
                 .build();
-    }
-
-    private Map<Object, Object> asObjectMap(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            return (Map<Object, Object>) map;
-        }
-        return new LinkedHashMap<>();
-    }
-
-    private Map<String, Object> asMap(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            return (Map<String, Object>) map;
-        }
-        return new LinkedHashMap<>();
-    }
-
-    private String asString(Object value) {
-        if (value == null)
-            return null;
-        return String.valueOf(value);
-    }
-
-    private Object getAny(Map<String, Object> map, String... keys) {
-        if (map == null)
-            return null;
-        for (String key : keys) {
-            Object val = map.get(key);
-            if (val != null)
-                return val;
-        }
-        return null;
     }
 
     private String filterBlank(String value) {

@@ -1,54 +1,44 @@
 package io.github.gvn2012.user_service.clients;
 
-import io.github.gvn2012.user_service.dtos.APIResource;
+import io.github.gvn2012.grpc.permission.InitUserRoleRequest;
+import io.github.gvn2012.grpc.permission.PermissionServiceGrpc;
+import io.github.gvn2012.grpc.permission.UserRolesRequest;
 import io.github.gvn2012.user_service.dtos.responses.GetUserRoleResponse;
-import io.github.gvn2012.user_service.exceptions.InternalServerErrorException;
-import org.springframework.core.ParameterizedTypeReference;
+import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
-public class PermissionClient extends HttpClient {
+public class PermissionClient {
 
-    public PermissionClient(WebClient.Builder webClientBuilder) {
-        super(webClientBuilder, "http://syncio-permission:8088");
-    }
+    @GrpcClient("permission-service")
+    private PermissionServiceGrpc.PermissionServiceBlockingStub permissionServiceStub;
 
     public Mono<List<GetUserRoleResponse>> getUserRole(String userId) {
-        return get(
-                "/api/v1/permissions/user/{userId}/role",
-                new ParameterizedTypeReference<APIResource<List<GetUserRoleResponse>>>() {
-                },
-                userId)
-                .flatMap(response -> {
-                    if (!response.isSuccess() || response.getData() == null) {
-                        return Mono.error(new InternalServerErrorException(
-                                response.getError() != null
-                                        ? response.getError().getMessage()
-                                        : "Permission service error"));
-                    }
-                    return Mono.just(response.getData());
-                });
+        return Mono.fromCallable(() -> permissionServiceStub.getUserRoles(
+                UserRolesRequest.newBuilder().setUserId(userId).build()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(response -> response.getRolesList().stream()
+                        .map(role -> new GetUserRoleResponse(
+                                role.getRoleId(),
+                                role.getRoleName(),
+                                role.getColor(),
+                                role.getIcon(),
+                                role.getDisplayOrder()))
+                        .collect(Collectors.toList()));
     }
 
     public Mono<Boolean> initUserRole(String userId, String registrationType) {
-        return post(
-                "/api/v1/permissions/user/{uid}/initRole?registrationType={registrationType}",
-                new ParameterizedTypeReference<APIResource<Boolean>>() {
-                },
-                userId, registrationType)
-                .flatMap(response -> {
-                    if (!response.isSuccess() || response.getData() == null) {
-                        return Mono.error(new InternalServerErrorException(
-                                response.getError() != null
-                                        ? response.getError().getMessage()
-                                        : "Permission service error"));
-                    }
-                    return Mono.just(response.getData());
-                });
+        return Mono.fromCallable(() -> permissionServiceStub.initUserRole(
+                InitUserRoleRequest.newBuilder()
+                        .setUserId(userId)
+                        .setRegistrationType(registrationType)
+                        .build()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(response -> response.getSuccess());
     }
-
 }

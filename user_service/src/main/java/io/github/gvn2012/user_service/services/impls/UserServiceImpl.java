@@ -51,7 +51,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -115,21 +114,8 @@ public class UserServiceImpl implements IUserService {
                             user.getUsername(),
                             user.getId().toString()))
                     .block(Duration.ofSeconds(5));
-        } catch (WebClientResponseException e) {
-            String errorMsg = e.getResponseBodyAsString();
-            log.error("Auth service returned an error. Status: {}, Body: {}", e.getStatusCode(), errorMsg);
-            
-            String message = "Failed to generate token";
-            try {
-                if (errorMsg.contains("\"message\":\"")) {
-                    message = errorMsg.split("\"message\":\"")[1].split("\"")[0];
-                }
-            } catch (Exception ignored) {
-                message = e.getStatusText();
-            }
-            throw new BadRequestException("Failed to generate token: " + message);
         } catch (Exception e) {
-            log.error("Failed to generate token: {}", e.getMessage(), e);
+            log.error("Failed to generate token: {}", e.getMessage());
             throw new BadRequestException("Failed to generate token: " + e.getMessage());
         }
 
