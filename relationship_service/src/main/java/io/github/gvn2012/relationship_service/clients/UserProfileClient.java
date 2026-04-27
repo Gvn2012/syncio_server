@@ -4,10 +4,8 @@ import io.github.gvn2012.grpc.user.*;
 import io.github.gvn2012.relationship_service.dtos.responses.UserProfileSummary;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Map;
 import java.util.UUID;
@@ -19,8 +17,6 @@ import java.util.stream.StreamSupport;
 @Component
 public class UserProfileClient {
 
-    @Value("${syncio.gateway.host:http://syncio.site}")
-    private String gatewayHost;
 
     @GrpcClient("user-service")
     private UserServiceGrpc.UserServiceBlockingStub userServiceStub;
@@ -44,16 +40,12 @@ public class UserProfileClient {
             Map<UUID, UserProfileSummary> profiles = new ConcurrentHashMap<>();
             response.getSummariesMap().forEach((id, summary) -> {
                 UUID userId = UUID.fromString(id);
-                String avatarUrl = summary.getAvatarUrl();
-                if (StringUtils.hasText(summary.getAvatarPath())) {
-                    avatarUrl = buildProxyUrl(summary.getAvatarPath());
-                }
-
                 profiles.put(userId, UserProfileSummary.builder()
                         .userId(userId)
                         .username(summary.getUsername())
                         .displayName(summary.getDisplayName())
-                        .profilePictureUrl(avatarUrl)
+                        .profilePictureUrl(summary.getAvatarUrl())
+                        .profilePicturePath(summary.getAvatarPath())
                         .build());
             });
 
@@ -87,13 +79,11 @@ public class UserProfileClient {
             }
 
             String profilePictureUrl = null;
+            String profilePicturePath = null;
             for (UserProfilePicture pic : profile.getUserProfilePictureListList()) {
                 if (pic.getPrimary() || profilePictureUrl == null) {
-                    if (StringUtils.hasText(pic.getObjectPath())) {
-                        profilePictureUrl = buildProxyUrl(pic.getObjectPath());
-                    } else if (StringUtils.hasText(pic.getUrl())) {
-                        profilePictureUrl = pic.getUrl();
-                    }
+                    profilePictureUrl = pic.getUrl();
+                    profilePicturePath = pic.getObjectPath();
                     if (pic.getPrimary()) break;
                 }
             }
@@ -103,19 +93,12 @@ public class UserProfileClient {
                     .username(user.getUsername())
                     .displayName(displayName)
                     .profilePictureUrl(profilePictureUrl)
+                    .profilePicturePath(profilePicturePath)
                     .build();
         } catch (Exception e) {
             log.warn("Failed to fetch user profile for {} via gRPC: {}", userId, e.getMessage());
             return fallback(userId);
         }
-    }
-
-    private String buildProxyUrl(String objectPath) {
-        return UriComponentsBuilder.fromUriString(gatewayHost)
-                .path("/api/v1/upload/view")
-                .queryParam("path", objectPath)
-                .build()
-                .toUriString();
     }
 
     private UserProfileSummary fallback(UUID userId) {

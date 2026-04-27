@@ -52,6 +52,7 @@ public class RelationshipServiceImpl implements IRelationshipService {
     private final FriendRequestRepository friendRequestRepository;
     private final RelationshipEventProducer eventProducer;
     private final UserProfileClient userProfileClient;
+    private final MediaEnrichmentService mediaEnrichmentService;
 
     @Override
     @Transactional
@@ -104,7 +105,8 @@ public class RelationshipServiceImpl implements IRelationshipService {
 
     @Override
     public APIResource<List<RelationshipResponse>> getFollowers(UUID userId) {
-        List<RelationshipResponse> responses = followRepository.findAllByFolloweeUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+        List<RelationshipResponse> responses = followRepository
+                .findAllByFolloweeUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
                 .stream()
                 .map(this::toFollowResponse)
                 .collect(Collectors.toList());
@@ -154,10 +156,12 @@ public class RelationshipServiceImpl implements IRelationshipService {
     @Override
     public APIResource<List<RelationshipResponse>> searchFriends(UUID userId, String query) {
         String normalizedQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
-        List<RelationshipResponse> responses = friendRepository.findAllByUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+        List<RelationshipResponse> responses = friendRepository
+                .findAllByUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
                 .stream()
                 .filter(friend -> normalizedQuery.isBlank()
-                        || getOtherFriendId(friend, userId).toString().toLowerCase(Locale.ROOT).contains(normalizedQuery))
+                        || getOtherFriendId(friend, userId).toString().toLowerCase(Locale.ROOT)
+                                .contains(normalizedQuery))
                 .map(friend -> toFriendResponse(friend, userId))
                 .collect(Collectors.toList());
         return APIResource.ok("Search results retrieved", responses);
@@ -203,7 +207,8 @@ public class RelationshipServiceImpl implements IRelationshipService {
 
     @Override
     public APIResource<List<RelationshipResponse>> getFriendList(UUID userId) {
-        List<RelationshipResponse> responses = friendRepository.findAllByUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
+        List<RelationshipResponse> responses = friendRepository
+                .findAllByUserIdAndStatus(userId, RelationshipStatus.ACTIVE)
                 .stream()
                 .map(friend -> toFriendResponse(friend, userId))
                 .collect(Collectors.toList());
@@ -213,22 +218,26 @@ public class RelationshipServiceImpl implements IRelationshipService {
     @Override
     public APIResource<PageResponse<RelationshipUserSummaryResponse>> getFriendList(UUID userId, int page, int size) {
         Pageable pageable = defaultPageable(page, size);
-        Page<UserFriend> friends = friendRepository.findAllByUserIdAndStatus(userId, RelationshipStatus.ACTIVE, pageable);
+        Page<UserFriend> friends = friendRepository.findAllByUserIdAndStatus(userId, RelationshipStatus.ACTIVE,
+                pageable);
 
-        List<UUID> otherUserIds = friends.getContent().stream().map(friend -> getOtherFriendId(friend, userId)).toList();
+        List<UUID> otherUserIds = friends.getContent().stream().map(friend -> getOtherFriendId(friend, userId))
+                .toList();
         log.info("Fetching profiles for {} friends of user {}", otherUserIds.size(), userId);
         Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(otherUserIds);
 
         // Get current user's friends for mutual friends count
         Set<UUID> userFriends = new LinkedHashSet<>(getFriendIds(userId));
- 
+
         List<RelationshipUserSummaryResponse> content = friends.getContent().stream()
                 .map(friend -> {
                     UUID otherUserId = getOtherFriendId(friend, userId);
-                    return toUserSummary(friend.getId(), otherUserId, RelationshipType.FRIEND, friend.getAcceptedAt(), profiles, userFriends);
+                    return toUserSummary(friend.getId(), otherUserId, RelationshipType.FRIEND, friend.getAcceptedAt(),
+                            profiles, userFriends);
                 })
                 .toList();
 
+        mediaEnrichmentService.enrichRelationshipUserSummaries(content);
         return APIResource.ok("Friends retrieved", toPageResponse(friends, content));
     }
 
@@ -247,10 +256,12 @@ public class RelationshipServiceImpl implements IRelationshipService {
         List<RelationshipUserSummaryResponse> content = followers.getContent().stream()
                 .map(follow -> {
                     UUID followerId = follow.getFollowerUserId();
-                    return toUserSummary(follow.getId(), followerId, RelationshipType.FOLLOW, toLocalDateTime(follow.getCreatedAt()), profiles, userFriends);
+                    return toUserSummary(follow.getId(), followerId, RelationshipType.FOLLOW,
+                            toLocalDateTime(follow.getCreatedAt()), profiles, userFriends);
                 })
                 .toList();
 
+        mediaEnrichmentService.enrichRelationshipUserSummaries(content);
         return APIResource.ok("Followers retrieved", toPageResponse(followers, content));
     }
 
@@ -372,29 +383,30 @@ public class RelationshipServiceImpl implements IRelationshipService {
     }
 
     private RelationshipUserSummaryResponse toUserSummary(
-            UUID relationshipId, 
-            UUID userId, 
-            RelationshipType type, 
-            LocalDateTime createdAt, 
+            UUID relationshipId,
+            UUID userId,
+            RelationshipType type,
+            LocalDateTime createdAt,
             Map<UUID, UserProfileSummary> profiles,
             Set<UUID> userFriends) {
-        
+
         UserProfileSummary profile = profiles.get(userId);
         String username = null;
         String displayName = "Unknown User";
         String profilePictureUrl = null;
+        String profilePicturePath = null;
 
         if (profile != null) {
             username = profile.getUsername();
             displayName = profile.getDisplayName();
             profilePictureUrl = profile.getProfilePictureUrl();
+            profilePicturePath = profile.getProfilePicturePath();
         }
 
         if (profilePictureUrl == null) {
             profilePictureUrl = generateFallbackAvatar(displayName);
         }
- 
-        // Calculate mutual friends
+
         Integer mutualFriendsCount = 0;
         if (userFriends != null && !userFriends.isEmpty()) {
             List<UUID> targetFriends = getFriendIds(userId);
@@ -409,6 +421,7 @@ public class RelationshipServiceImpl implements IRelationshipService {
                 .username(username)
                 .displayName(displayName)
                 .profilePictureUrl(profilePictureUrl)
+                .profilePicturePath(profilePicturePath)
                 .relationshipType(type)
                 .mutualFriendsCount(mutualFriendsCount)
                 .createdAt(createdAt)
@@ -416,50 +429,57 @@ public class RelationshipServiceImpl implements IRelationshipService {
     }
 
     @Override
-    public APIResource<PageResponse<RelationshipUserSummaryResponse>> getFollowingList(UUID userId, int page, int size) {
+    public APIResource<PageResponse<RelationshipUserSummaryResponse>> getFollowingList(UUID userId, int page,
+            int size) {
         Pageable pageable = defaultPageable(page, size);
         Page<UserFollow> following = followRepository.findAllByFollowerUserIdAndStatus(
                 userId, RelationshipStatus.ACTIVE, pageable);
- 
+
         List<UUID> followingIds = following.getContent().stream().map(UserFollow::getFolloweeUserId).toList();
         log.info("Fetching profiles for {} following of user {}", followingIds.size(), userId);
         Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(followingIds);
-        
+
         Set<UUID> userFriends = new LinkedHashSet<>(getFriendIds(userId));
- 
+
         List<RelationshipUserSummaryResponse> content = following.getContent().stream()
                 .map(follow -> {
                     UUID followingId = follow.getFolloweeUserId();
-                    return toUserSummary(follow.getId(), followingId, RelationshipType.FOLLOW, toLocalDateTime(follow.getCreatedAt()), profiles, userFriends);
+                    return toUserSummary(follow.getId(), followingId, RelationshipType.FOLLOW,
+                            toLocalDateTime(follow.getCreatedAt()), profiles, userFriends);
                 })
                 .toList();
- 
+
+        mediaEnrichmentService.enrichRelationshipUserSummaries(content);
         return APIResource.ok("Following retrieved", toPageResponse(following, content));
     }
- 
+
     @Override
     public APIResource<PageResponse<RelationshipUserSummaryResponse>> getBlockedList(UUID userId, int page, int size) {
         Pageable pageable = defaultPageable(page, size);
-        Page<io.github.gvn2012.relationship_service.entities.UserBlock> blocks = userBlockRepository.findAllByBlockerUserIdAndIsActiveTrue(userId, pageable);
- 
-        List<UUID> blockedIds = blocks.getContent().stream().map(io.github.gvn2012.relationship_service.entities.UserBlock::getBlockedUserId).toList();
+        Page<io.github.gvn2012.relationship_service.entities.UserBlock> blocks = userBlockRepository
+                .findAllByBlockerUserIdAndIsActiveTrue(userId, pageable);
+
+        List<UUID> blockedIds = blocks.getContent().stream()
+                .map(io.github.gvn2012.relationship_service.entities.UserBlock::getBlockedUserId).toList();
         log.info("Fetching profiles for {} blocked users of user {}", blockedIds.size(), userId);
         Map<UUID, UserProfileSummary> profiles = userProfileClient.getUserProfiles(blockedIds);
-        
+
         Set<UUID> userFriends = new LinkedHashSet<>(getFriendIds(userId));
- 
+
         List<RelationshipUserSummaryResponse> content = blocks.getContent().stream()
                 .map(block -> {
                     UUID blockedId = block.getBlockedUserId();
-                    // Block entity uses Instant for createdAt, convert to LocalDateTime
-                    LocalDateTime blockedAt = block.getCreatedAt() != null ? LocalDateTime.ofInstant(block.getCreatedAt(), ZoneId.systemDefault()) : null;
+                    LocalDateTime blockedAt = block.getCreatedAt() != null
+                            ? LocalDateTime.ofInstant(block.getCreatedAt(), ZoneId.systemDefault())
+                            : null;
                     return toUserSummary(block.getId(), blockedId, null, blockedAt, profiles, userFriends);
                 })
                 .toList();
- 
+
+        mediaEnrichmentService.enrichRelationshipUserSummaries(content);
         return APIResource.ok("Blocked users retrieved", toPageResponse(blocks, content));
     }
- 
+
     private <T> PageResponse<T> toPageResponse(Page<?> page, List<T> content) {
         return PageResponse.<T>builder()
                 .content(content)

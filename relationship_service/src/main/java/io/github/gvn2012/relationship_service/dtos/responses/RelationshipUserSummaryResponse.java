@@ -19,6 +19,7 @@ public class RelationshipUserSummaryResponse {
     private String username;
     private String displayName;
     private String profilePictureUrl;
+    private String profilePicturePath;
     private RelationshipType relationshipType;
     private Integer mutualFriendsCount;
     private LocalDateTime createdAt;

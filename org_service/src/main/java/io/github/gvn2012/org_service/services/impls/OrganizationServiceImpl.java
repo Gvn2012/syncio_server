@@ -34,7 +34,7 @@ public class OrganizationServiceImpl implements IOrganizationService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationMapper organizationMapper;
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final io.github.gvn2012.org_service.clients.UploadClient uploadClient;
+    private final MediaEnrichmentService mediaEnrichmentService;
 
     @Override
     @Transactional
@@ -89,7 +89,7 @@ public class OrganizationServiceImpl implements IOrganizationService {
     public OrganizationDto getOrganization(UUID orgId) {
         Organization org = getOrganizationOrThrow(orgId);
         OrganizationDto dto = organizationMapper.toDto(org);
-        enrichOrganizationUrls(Collections.singletonList(dto));
+        mediaEnrichmentService.enrichOrganizationUrls(Collections.singletonList(dto));
         return dto;
     }
 
@@ -190,29 +190,10 @@ public class OrganizationServiceImpl implements IOrganizationService {
         List<OrganizationDto> dtos = orgs.stream()
                 .map(organizationMapper::toDto)
                 .collect(Collectors.toList());
-        enrichOrganizationUrls(dtos);
+        mediaEnrichmentService.enrichOrganizationUrls(dtos);
         return dtos;
     }
 
-    private void enrichOrganizationUrls(List<OrganizationDto> dtos) {
-        if (dtos == null || dtos.isEmpty()) return;
-
-        Set<String> pathsToSign = dtos.stream()
-                .map(OrganizationDto::getLogoPath)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        if (pathsToSign.isEmpty()) return;
-
-        io.github.gvn2012.org_service.dtos.responses.DownloadUrlResponseDTO signedUrlsRes = uploadClient.getDownloadUrls(new io.github.gvn2012.org_service.dtos.requests.DownloadUrlRequestDTO(pathsToSign));
-        Map<String, String> signedUrls = signedUrlsRes != null ? signedUrlsRes.getDownloadUrls() : Map.of();
-
-        for (OrganizationDto dto : dtos) {
-            if (dto.getLogoPath() != null) {
-                dto.setLogoUrl(signedUrls.getOrDefault(dto.getLogoPath(), dto.getLogoUrl()));
-            }
-        }
-    }
 
     private Organization getOrganizationOrThrow(UUID orgId) {
         return organizationRepository.findById(orgId)

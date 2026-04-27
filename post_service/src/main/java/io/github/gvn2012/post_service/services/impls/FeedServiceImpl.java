@@ -48,6 +48,7 @@ public class FeedServiceImpl implements IFeedService {
     private final SocialRelationshipService socialRelationshipService;
     private final RankingClient rankingClient;
     private final RedisTemplate<String, String> interactionRedisTemplate;
+    private final MediaEnrichmentService mediaEnrichmentService;
 
     private static final String RANKED_FEED_CACHE_PREFIX = "feed:ranked:";
     private static final int RANKED_POOL_SIZE = 200;
@@ -65,7 +66,8 @@ public class FeedServiceImpl implements IFeedService {
             IInteractionVelocityService velocityService,
             SocialRelationshipService socialRelationshipService,
             RankingClient rankingClient,
-            RedisTemplate<String, String> interactionRedisTemplate) {
+            RedisTemplate<String, String> interactionRedisTemplate,
+            MediaEnrichmentService mediaEnrichmentService) {
         this.feedItemRepository = feedItemRepository;
         this.contentRankingRepository = contentRankingRepository;
         this.postRepository = postRepository;
@@ -78,6 +80,7 @@ public class FeedServiceImpl implements IFeedService {
         this.socialRelationshipService = socialRelationshipService;
         this.rankingClient = rankingClient;
         this.interactionRedisTemplate = interactionRedisTemplate;
+        this.mediaEnrichmentService = mediaEnrichmentService;
     }
 
     @Override
@@ -355,7 +358,7 @@ public class FeedServiceImpl implements IFeedService {
 
         final Set<UUID> sharedIdsFinal = sharedPostIds;
 
-        return posts.stream().map(post -> {
+        List<PostResponse> responses = posts.stream().map(post -> {
             PostResponse response = postMapper.toResponse(post);
             response.setAuthorInfo(authorSummaries.get(post.getAuthorId()));
 
@@ -373,6 +376,9 @@ public class FeedServiceImpl implements IFeedService {
 
             return response;
         }).collect(Collectors.toList());
+
+        mediaEnrichmentService.enrichMediaUrls(responses);
+        return responses;
     }
 
     private List<UUID> resolveFollows(UUID userId) {

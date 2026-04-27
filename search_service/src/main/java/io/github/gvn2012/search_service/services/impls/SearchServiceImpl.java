@@ -1,10 +1,7 @@
 package io.github.gvn2012.search_service.services.impls;
 
-import io.github.gvn2012.search_service.clients.UploadClient;
 import io.github.gvn2012.search_service.documents.PostIndex;
 import io.github.gvn2012.search_service.documents.UserIndex;
-import io.github.gvn2012.search_service.dtos.requests.DownloadUrlRequestDTO;
-import io.github.gvn2012.search_service.dtos.responses.DownloadUrlResponseDTO;
 import io.github.gvn2012.search_service.dtos.responses.UniversalSearchResponse;
 import io.github.gvn2012.search_service.services.interfaces.ISearchService;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +22,7 @@ import java.util.stream.Collectors;
 public class SearchServiceImpl implements ISearchService {
 
         private final ElasticsearchOperations elasticsearchOperations;
-        private final UploadClient uploadClient;
+        private final MediaEnrichmentService mediaEnrichmentService;
 
         @Override
         public UniversalSearchResponse search(String keyword, int page, int size, String currentUserId) {
@@ -35,7 +32,6 @@ public class SearchServiceImpl implements ISearchService {
                 boolean isUsernameSearch = keyword.startsWith("@");
                 String finalKeyword = isUsernameSearch ? keyword.substring(1) : keyword;
 
-                // 1. Search Users
                 Query userQuery = NativeQuery.builder()
                                 .withQuery(q -> q
                                                 .bool(b -> {
@@ -77,8 +73,7 @@ public class SearchServiceImpl implements ISearchService {
                                 .map(hit -> hit.getContent())
                                 .collect(Collectors.toList());
 
-                enrichUserMediaUrls(users);
-                enrichPostMediaUrls(posts);
+                mediaEnrichmentService.enrichUserMediaUrls(users);
 
                 return UniversalSearchResponse.builder()
                                 .people(users)
@@ -89,33 +84,4 @@ public class SearchServiceImpl implements ISearchService {
                                 .build();
         }
 
-        private void enrichUserMediaUrls(List<UserIndex> users) {
-                if (users == null || users.isEmpty())
-                        return;
-
-                Set<String> pathsToSign = users.stream()
-                                .map(UserIndex::getAvatarPath)
-                                .filter(Objects::nonNull)
-                                .collect(Collectors.toSet());
-
-                if (pathsToSign.isEmpty())
-                        return;
-
-                DownloadUrlResponseDTO signedUrlsRes = uploadClient
-                                .getDownloadUrls(new DownloadUrlRequestDTO(pathsToSign));
-                Map<String, String> signedUrls = signedUrlsRes != null ? signedUrlsRes.getDownloadUrls() : Map.of();
-
-                for (UserIndex user : users) {
-                        if (user.getAvatarPath() != null) {
-                                user.setAvatarUrl(signedUrls.getOrDefault(user.getAvatarPath(), user.getAvatarUrl()));
-                        }
-                }
-        }
-
-        private void enrichPostMediaUrls(List<PostIndex> posts) {
-                // Implementation for post media enrichment if PostIndex ever stores them
-                // Currently PostIndex doesn't seem to store attachments based on the document
-                // definition
-                // but we should check if it needs to.
-        }
 }
