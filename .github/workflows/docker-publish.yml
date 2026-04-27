@@ -58,7 +58,7 @@ jobs:
           
           REBUILT_SERVICES=""
           ALL_CHANGED=false
-          if grep -Eq '^(pom.xml|common/|shared/)' changed_files.txt; then
+          if grep -Eq '^(pom.xml|common/|shared/|grpc_common/)' changed_files.txt; then
             ALL_CHANGED=true
           fi
 

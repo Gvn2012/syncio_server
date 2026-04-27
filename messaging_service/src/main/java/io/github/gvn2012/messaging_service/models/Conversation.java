@@ -25,6 +25,9 @@ public class Conversation {
     private List<String> participants;
     private ConversationType type;
     private Message lastMessage;
+    
+    // UserId -> DeleteTimestamp (Unidirectional deletion)
+    private Map<String, LocalDateTime> deletedAtPerUser;
 
     @CreatedDate
     private LocalDateTime createdAt;

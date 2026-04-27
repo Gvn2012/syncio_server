@@ -4,6 +4,7 @@ import io.github.gvn2012.messaging_service.dtos.MessageRequest;
 import io.github.gvn2012.messaging_service.dtos.MessageResponse;
 import io.github.gvn2012.messaging_service.models.Conversation;
 import io.github.gvn2012.messaging_service.models.Message;
+import io.github.gvn2012.messaging_service.models.enums.ConversationType;
 import io.github.gvn2012.messaging_service.models.enums.MessageStatusType;
 import io.github.gvn2012.messaging_service.repositories.ConversationRepository;
 import io.github.gvn2012.messaging_service.repositories.MessageRepository;
@@ -45,10 +46,86 @@ public class MessagingServiceImpl implements IMessagingService {
                                 .status(MessageStatusType.SENT)
                                 .updateTime(LocalDateTime.now())
                                 .build())))
+                .isEdited(false)
+                .isDeleted(false)
                 .build();
 
         // Save asynchronously
         saveMessageAndNotify(message, conversation);
+    }
+
+    @Override
+    @Async
+    public void editMessage(String messageId, String newContent, String userId) {
+        messageRepository.findById(messageId).ifPresent(message -> {
+            if (message.getSenderId().equals(userId) && !message.isDeleted()) {
+                message.setContent(newContent);
+                message.setEdited(true);
+                message.setUpdatedAt(LocalDateTime.now());
+                messageRepository.save(message);
+
+                notifyParticipantsOfUpdate(message, "MESSAGE_EDITED");
+            }
+        });
+    }
+
+    @Override
+    @Async
+    public void deleteMessage(String messageId, String userId) {
+        messageRepository.findById(messageId).ifPresent(message -> {
+            if (message.getSenderId().equals(userId)) {
+                message.setDeleted(true);
+                message.setContent("This message was deleted");
+                message.setUpdatedAt(LocalDateTime.now());
+                messageRepository.save(message);
+
+                notifyParticipantsOfUpdate(message, "MESSAGE_DELETED");
+            }
+        });
+    }
+
+    private void notifyParticipantsOfUpdate(Message message, String type) {
+        conversationRepository.findById(message.getConversationId()).ifPresent(conversation -> {
+            MessageResponse response = mapToResponse(message);
+            Map<String, Object> payload = Map.of("type", type, "message", response);
+            
+            for (String participantId : conversation.getParticipants()) {
+                messagingTemplate.convertAndSendToUser(participantId, "/queue/updates", payload);
+            }
+        });
+    }
+
+    @Override
+    @Async
+    public void deleteConversation(String conversationId, String userId) {
+        conversationRepository.findById(conversationId).ifPresent(conversation -> {
+            if (conversation.getDeletedAtPerUser() == null) {
+                conversation.setDeletedAtPerUser(new HashMap<>());
+            }
+            conversation.getDeletedAtPerUser().put(userId, LocalDateTime.now());
+            conversationRepository.save(conversation);
+            
+            messagingTemplate.convertAndSendToUser(userId, "/queue/updates", 
+                Map.of("type", "CONVERSATION_DELETED", "conversationId", conversationId));
+        });
+    }
+
+    @Override
+    public void createConversation(List<String> participantIds, String name, String type) {
+        Conversation conversation = Conversation.builder()
+                .participants(participantIds)
+                .name(name)
+                .type(ConversationType.valueOf(type))
+                .deletedAtPerUser(new HashMap<>())
+                .build();
+        
+        Conversation saved = conversationRepository.save(conversation);
+        
+        // Notify all participants
+        for (String participantId : participantIds) {
+            messagingTemplate.convertAndSendToUser(participantId, "/queue/updates", 
+                Map.of("type", "CONVERSATION_CREATED", "conversation", saved));
+        }
     }
 
     @Async

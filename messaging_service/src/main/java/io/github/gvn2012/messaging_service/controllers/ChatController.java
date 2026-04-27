@@ -2,6 +2,7 @@ package io.github.gvn2012.messaging_service.controllers;
 
 import io.github.gvn2012.messaging_service.dtos.MessageRequest;
 import io.github.gvn2012.messaging_service.dtos.MessageResponse;
+import io.github.gvn2012.messaging_service.dtos.ConversationRequest;
 import io.github.gvn2012.messaging_service.services.interfaces.IMessagingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,34 @@ public class ChatController {
         log.info("Received message from user {}: {}", userId, request.getContent());
         request.setSenderId(userId);
         messagingService.processMessage(request);
+    }
+
+    @MessageMapping("/chat.edit")
+    public void editMessage(@Payload MessageRequest request, SimpMessageHeaderAccessor headerAccessor) {
+        String userId = (String) headerAccessor.getSessionAttributes().get("userId");
+        log.info("User {} editing message {}", userId, request.getId());
+        messagingService.editMessage(request.getId(), request.getContent(), userId);
+    }
+
+    @MessageMapping("/chat.delete")
+    public void deleteMessage(@Payload String messageId, SimpMessageHeaderAccessor headerAccessor) {
+        String userId = (String) headerAccessor.getSessionAttributes().get("userId");
+        messagingService.deleteMessage(messageId, userId);
+    }
+
+    @MessageMapping("/conversation.delete")
+    public void deleteConversation(@Payload String conversationId, SimpMessageHeaderAccessor headerAccessor) {
+        String userId = (String) headerAccessor.getSessionAttributes().get("userId");
+        messagingService.deleteConversation(conversationId, userId);
+    }
+
+    @MessageMapping("/conversation.create")
+    public void createConversation(@Payload ConversationRequest request, SimpMessageHeaderAccessor headerAccessor) {
+        String userId = (String) headerAccessor.getSessionAttributes().get("userId");
+        if (!request.getParticipantIds().contains(userId)) {
+            request.getParticipantIds().add(userId);
+        }
+        messagingService.createConversation(request.getParticipantIds(), request.getName(), request.getType());
     }
 
     @MessageMapping("/chat.ack")

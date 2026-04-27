@@ -27,8 +27,11 @@ public class Message {
     private String senderId;
     private String content;
     private LocalDateTime timestamp;
+    private LocalDateTime updatedAt;
     
-    // RecipientId -> StatusInfo
+    private boolean isEdited;
+    private boolean isDeleted;
+    
     private Map<String, StatusInfo> status;
 
     @Data

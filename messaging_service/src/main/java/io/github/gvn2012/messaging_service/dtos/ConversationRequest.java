@@ -5,14 +5,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MessageRequest {
-    private String id;
-    private String conversationId;
-    private String senderId;
-    private String content;
-    private String type;
+public class ConversationRequest {
+    private String name;
+    private List<String> participantIds;
+    private String type; // DIRECT, GROUP
 }
