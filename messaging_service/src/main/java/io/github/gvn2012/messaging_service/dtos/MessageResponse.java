@@ -20,6 +20,6 @@ public class MessageResponse {
     private String content;
     private LocalDateTime timestamp;
     private boolean isEdited;
-    private boolean isDeleted;
+    private boolean isRecalled;
     private Map<String, Message.StatusInfo> status;
 }

@@ -18,6 +18,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -111,7 +113,8 @@ public class MessagingServiceImpl implements IMessagingService {
             conversationRepository.save(conversation);
 
             messagingTemplate.convertAndSendToUser(request.getSenderId(), "/queue/updates",
-                    Map.of("type", "CONVERSATION_RESTORED", "conversation", mapToConversationResponse(conversation, request.getSenderId())));
+                    Map.of("type", "CONVERSATION_RESTORED", "conversation",
+                            mapToConversationResponse(conversation, request.getSenderId())));
         }
 
         Message message = Message.builder()
@@ -127,7 +130,7 @@ public class MessagingServiceImpl implements IMessagingService {
                                 .updateTime(getCurrentTime())
                                 .build())))
                 .isEdited(false)
-                .isDeleted(false)
+                .isRecalled(false)
                 .build();
 
         saveMessageAndNotify(message, conversation);
@@ -152,11 +155,11 @@ public class MessagingServiceImpl implements IMessagingService {
                     .id(conv.getLastMessage().getId())
                     .conversationId(conv.getLastMessage().getConversationId())
                     .senderId(conv.getLastMessage().getSenderId())
-                    .content(conv.getLastMessage().isDeleted() ? "This message was recalled"
+                    .content(conv.getLastMessage().isRecalled() ? "This message was recalled"
                             : conv.getLastMessage().getContent())
                     .timestamp(conv.getLastMessage().getTimestamp())
                     .isEdited(conv.getLastMessage().isEdited())
-                    .isDeleted(conv.getLastMessage().isDeleted())
+                    .isRecalled(conv.getLastMessage().isRecalled())
                     .build();
         }
 
@@ -204,7 +207,7 @@ public class MessagingServiceImpl implements IMessagingService {
     @Transactional
     public void editMessage(String messageId, String newContent, String userId) {
         messageRepository.findById(messageId).ifPresent(message -> {
-            if (message.getSenderId().equals(userId) && !message.isDeleted()) {
+            if (message.getSenderId().equals(userId) && !message.isRecalled()) {
                 message.setContent(newContent);
                 message.setEdited(true);
                 message.setUpdatedAt(LocalDateTime.now());
@@ -219,23 +222,38 @@ public class MessagingServiceImpl implements IMessagingService {
     @Transactional
     public void deleteMessage(String messageId, String userId) {
         messageRepository.findById(messageId).ifPresent(message -> {
-            if (message.getSenderId().equals(userId)) {
-                message.setDeleted(true);
-                message.setContent("This message was recalled");
-                message.setUpdatedAt(LocalDateTime.now());
-                messageRepository.save(message);
-
-                notifyParticipantsOfUpdate(message, "MESSAGE_RECALLED");
-            } else {
-                if (message.getDeletedAtPerUser() == null) {
-                    message.setDeletedAtPerUser(new HashMap<>());
-                }
-                message.getDeletedAtPerUser().put(userId, LocalDateTime.now());
-                messageRepository.save(message);
-
-                messagingTemplate.convertAndSendToUser(userId, "/queue/updates",
-                        Map.of("type", "MESSAGE_DELETED_LOCAL", "messageId", messageId));
+            // Unidirectional deletion: Always just mark as deleted for this user
+            if (message.getDeletedAtPerUser() == null) {
+                message.setDeletedAtPerUser(new HashMap<>());
             }
+            message.getDeletedAtPerUser().put(userId, LocalDateTime.now());
+            messageRepository.save(message);
+
+            messagingTemplate.convertAndSendToUser(userId, "/queue/updates",
+                    Map.of("type", "MESSAGE_DELETED_LOCAL", "messageId", messageId));
+        });
+    }
+
+    @Override
+    @Transactional
+    public void recallMessage(String messageId, String userId) {
+        messageRepository.findById(messageId).ifPresent(message -> {
+            if (!message.getSenderId().equals(userId)) {
+                throw new RuntimeException("Only the sender can recall a message");
+            }
+            if (message.isRecalled()) {
+                return;
+            }
+
+            if (message.getTimestamp().plusHours(6).isBefore(LocalDateTime.now())) {
+                throw new RuntimeException("Messages can only be recalled within 6 hours");
+            }
+
+            message.setRecalled(true);
+            message.setUpdatedAt(LocalDateTime.now());
+            messageRepository.save(message);
+
+            notifyParticipantsOfUpdate(message, "MESSAGE_RECALLED");
         });
     }
 
@@ -403,6 +421,27 @@ public class MessagingServiceImpl implements IMessagingService {
         });
     }
 
+    @SuppressWarnings("unchecked")
+    @Override
+    public long getTotalUnreadCount(String userId) {
+        Aggregation aggregation = Aggregation.newAggregation(
+                Aggregation.match(Criteria.where("senderId").ne(userId)
+                        .and("status." + userId + ".status").ne(MessageStatusType.SEEN)
+                        .and("deletedAtPerUser." + userId).exists(false)),
+
+                Aggregation.lookup("conversations", "conversationId", "_id", "conversation"),
+                Aggregation.unwind("conversation"),
+
+                Aggregation.match(Criteria.where("conversation.deletedAtPerUser." + userId).exists(false)),
+
+                Aggregation.count().as("total"));
+
+        AggregationResults<Map<String, Object>> results = mongoTemplate.aggregate(aggregation, "messages",
+                (Class<Map<String, Object>>) (Class<?>) Map.class);
+        Map<String, Object> result = results.getUniqueMappedResult();
+        return result != null ? ((Number) result.get("total")).longValue() : 0L;
+    }
+
     private MessageResponse mapToResponse(Message message) {
         return MessageResponse.builder()
                 .id(message.getId())
@@ -410,6 +449,8 @@ public class MessagingServiceImpl implements IMessagingService {
                 .senderId(message.getSenderId())
                 .content(message.getContent())
                 .timestamp(message.getTimestamp())
+                .isEdited(message.isEdited())
+                .isRecalled(message.isRecalled())
                 .status(message.getStatus())
                 .build();
     }

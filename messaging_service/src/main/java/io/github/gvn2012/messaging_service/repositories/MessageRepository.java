@@ -26,6 +26,9 @@ public interface MessageRepository extends MongoRepository<Message, String> {
     @Query(value = "{ 'conversationId': ?0, 'senderId': { $ne: ?1 }, 'status.?1.status': { $ne: 'SEEN' } }", count = true)
     long countUnreadMessages(String conversationId, String userId);
 
+    @Query(value = "{ 'senderId': { $ne: ?0 }, 'status.?0.status': { $ne: 'SEEN' }, 'deletedAtPerUser.?0': { $exists: false } }", count = true)
+    long countTotalUnreadMessages(String userId);
+
     @Query("{ 'conversationId': ?0, 'senderId': { $ne: ?1 }, 'status.?1.status': { $ne: 'SEEN' } }")
     List<Message> findUnreadMessages(String conversationId, String userId);
 }

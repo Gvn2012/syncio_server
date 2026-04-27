@@ -30,7 +30,7 @@ public class Message {
     private LocalDateTime updatedAt;
     
     private boolean isEdited;
-    private boolean isDeleted;
+    private boolean isRecalled;
     
     // UserId -> DeleteTimestamp (Unidirectional deletion)
     private Map<String, LocalDateTime> deletedAtPerUser;
