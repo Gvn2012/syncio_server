@@ -104,7 +104,7 @@ spec:
     spec:
       containers:
         - name: user
-          image: vietpham18/user-service:13fe3a04e66a9f940e5ae00e405e4e5b515efc9c
+          image: vietpham18/user-service:907966796c8efe2e5740a3ec22577cf48d916a81
           startupProbe:
             tcpSocket:
               port: 8082
@@ -266,7 +266,7 @@ spec:
     spec:
       containers:
         - name: post
-          image: vietpham18/post-service:13fe3a04e66a9f940e5ae00e405e4e5b515efc9c
+          image: vietpham18/post-service:907966796c8efe2e5740a3ec22577cf48d916a81
           ports:
             - containerPort: 8085
           startupProbe:
@@ -488,7 +488,7 @@ spec:
     spec:
       containers:
         - name: org
-          image: vietpham18/org-service:13fe3a04e66a9f940e5ae00e405e4e5b515efc9c
+          image: vietpham18/org-service:907966796c8efe2e5740a3ec22577cf48d916a81
           startupProbe:
             tcpSocket:
               port: 8084
@@ -791,7 +791,7 @@ spec:
       serviceAccountName: uploading-service-ksa
       containers:
         - name: uploading
-          image: vietpham18/uploading-service:13fe3a04e66a9f940e5ae00e405e4e5b515efc9c
+          image: vietpham18/uploading-service:907966796c8efe2e5740a3ec22577cf48d916a81
           startupProbe:
             tcpSocket:
               port: 8090
@@ -868,7 +868,7 @@ spec:
     spec:
       containers:
         - name: search
-          image: vietpham18/search-service:13fe3a04e66a9f940e5ae00e405e4e5b515efc9c
+          image: vietpham18/search-service:907966796c8efe2e5740a3ec22577cf48d916a81
           ports:
             - containerPort: 8086
           startupProbe:
