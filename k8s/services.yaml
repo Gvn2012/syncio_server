@@ -22,8 +22,6 @@ spec:
       containers:
         - name: auth
           image: vietpham18/auth-service:13fe3a04e66a9f940e5ae00e405e4e5b515efc9c
-          ports:
-            - containerPort: 8081
           startupProbe:
             tcpSocket:
               port: 8081
@@ -36,6 +34,11 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
             timeoutSeconds: 1
+          ports:
+            - containerPort: 8081
+              name: http
+            - containerPort: 9090
+              name: grpc
           env:
             - name: SPRING_DATASOURCE_URL
               value: jdbc:mysql://34.143.230.116:3306/syncio
@@ -69,6 +72,11 @@ spec:
     app: syncio-auth
   ports:
     - port: 8081
+      targetPort: 8081
+      name: http
+    - port: 9090
+      targetPort: 9090
+      name: grpc
 
 
 # ===================== USER =====================
@@ -97,8 +105,6 @@ spec:
       containers:
         - name: user
           image: vietpham18/user-service:13fe3a04e66a9f940e5ae00e405e4e5b515efc9c
-          ports:
-            - containerPort: 8082
           startupProbe:
             tcpSocket:
               port: 8082
@@ -111,6 +117,11 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
             timeoutSeconds: 1
+          ports:
+            - containerPort: 8082
+              name: http
+            - containerPort: 9090
+              name: grpc
           env:
             - name: SPRING_DATASOURCE_URL
               value: jdbc:mysql://34.143.230.116:3306/syncio
@@ -144,6 +155,11 @@ spec:
     app: syncio-user
   ports:
     - port: 8082
+      targetPort: 8082
+      name: http
+    - port: 9090
+      targetPort: 9090
+      name: grpc
 
 
 # ===================== RELATIONSHIP =====================
@@ -172,8 +188,6 @@ spec:
       containers:
         - name: relationship
           image: vietpham18/relationship-service:13fe3a04e66a9f940e5ae00e405e4e5b515efc9c
-          ports:
-            - containerPort: 8087
           startupProbe:
             tcpSocket:
               port: 8087
@@ -186,6 +200,11 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
             timeoutSeconds: 1
+          ports:
+            - containerPort: 8087
+              name: http
+            - containerPort: 9090
+              name: grpc
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka.syncio.svc.cluster.local:9092
@@ -215,6 +234,11 @@ spec:
     app: syncio-rs
   ports:
     - port: 8087
+      targetPort: 8087
+      name: http
+    - port: 9090
+      targetPort: 9090
+      name: grpc
 
 
 # ===================== POST =====================
@@ -314,6 +338,9 @@ spec:
           image: vietpham18/ranking-service:c38c01e16fb88e24f0833991a8a67b5e89aed288
           ports:
             - containerPort: 8000
+              name: http
+            - containerPort: 9090
+              name: grpc
           startupProbe:
             tcpSocket:
               port: 8000
@@ -352,6 +379,11 @@ spec:
     app: syncio-ranking
   ports:
     - port: 8000
+      targetPort: 8000
+      name: http
+    - port: 9090
+      targetPort: 9090
+      name: grpc
 
 
 # ===================== PERMISSION =====================
@@ -380,8 +412,6 @@ spec:
       containers:
         - name: permission
           image: vietpham18/permission-service:13fe3a04e66a9f940e5ae00e405e4e5b515efc9c
-          ports:
-            - containerPort: 8088
           startupProbe:
             tcpSocket:
               port: 8088
@@ -394,6 +424,11 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
             timeoutSeconds: 1
+          ports:
+            - containerPort: 8088
+              name: http
+            - containerPort: 9090
+              name: grpc
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka.syncio.svc.cluster.local:9092
@@ -421,6 +456,11 @@ spec:
     app: syncio-permission
   ports:
     - port: 8088
+      targetPort: 8088
+      name: http
+    - port: 9090
+      targetPort: 9090
+      name: grpc
 
 
 # ===================== ORG =====================
@@ -449,8 +489,6 @@ spec:
       containers:
         - name: org
           image: vietpham18/org-service:13fe3a04e66a9f940e5ae00e405e4e5b515efc9c
-          ports:
-            - containerPort: 8084
           startupProbe:
             tcpSocket:
               port: 8084
@@ -463,6 +501,11 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
             timeoutSeconds: 1
+          ports:
+            - containerPort: 8084
+              name: http
+            - containerPort: 9090
+              name: grpc
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka.syncio.svc.cluster.local:9092
@@ -490,6 +533,11 @@ spec:
     app: syncio-org
   ports:
     - port: 8084
+      targetPort: 8084
+      name: http
+    - port: 9090
+      targetPort: 9090
+      name: grpc
 
 
 # ===================== NOTIFICATION =====================
@@ -744,8 +792,6 @@ spec:
       containers:
         - name: uploading
           image: vietpham18/uploading-service:13fe3a04e66a9f940e5ae00e405e4e5b515efc9c
-          ports:
-            - containerPort: 8090
           startupProbe:
             tcpSocket:
               port: 8090
@@ -758,6 +804,11 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
             timeoutSeconds: 1
+          ports:
+            - containerPort: 8090
+              name: http
+            - containerPort: 9090
+              name: grpc
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: syncio-kafka.syncio.svc.cluster.local:9092
@@ -785,6 +836,11 @@ spec:
     app: syncio-uploading
   ports:
     - port: 8090
+      targetPort: 8090
+      name: http
+    - port: 9090
+      targetPort: 9090
+      name: grpc
 
 
 # ===================== SEARCH =====================
