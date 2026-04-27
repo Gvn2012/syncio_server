@@ -63,8 +63,35 @@ public class MessagingServiceImpl implements IMessagingService {
 
     @Override
     public void processMessage(MessageRequest request) {
-        Conversation conversation = conversationRepository.findById(request.getConversationId())
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        String conversationId = request.getConversationId();
+        Conversation conversation;
+
+        if (conversationId.startsWith("direct_")) {
+            Optional<Conversation> opt = conversationRepository.findById(conversationId);
+            if (opt.isPresent()) {
+                conversation = opt.get();
+            } else {
+                String[] ids = conversationId.replace("direct_", "").split("_");
+                List<String> participantIds = List.of(ids);
+
+                conversation = Conversation.builder()
+                        .id(conversationId)
+                        .participants(participantIds)
+                        .type(ConversationType.DIRECT)
+                        .deletedAtPerUser(new HashMap<>())
+                        .build();
+                conversation = conversationRepository.save(conversation);
+
+                for (String participantId : participantIds) {
+                    messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
+                            Map.of("type", "CONVERSATION_CREATED", "conversation",
+                                    mapToConversationResponse(conversation)));
+                }
+            }
+        } else {
+            conversation = conversationRepository.findById(conversationId)
+                    .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        }
 
         if (conversation.getDeletedAtPerUser() != null
                 && conversation.getDeletedAtPerUser().containsKey(request.getSenderId())) {
@@ -72,7 +99,7 @@ public class MessagingServiceImpl implements IMessagingService {
             conversationRepository.save(conversation);
 
             messagingTemplate.convertAndSendToUser(request.getSenderId(), "/queue/updates",
-                    Map.of("type", "CONVERSATION_RESTORED", "conversation", conversation));
+                    Map.of("type", "CONVERSATION_RESTORED", "conversation", mapToConversationResponse(conversation)));
         }
 
         Message message = Message.builder()
