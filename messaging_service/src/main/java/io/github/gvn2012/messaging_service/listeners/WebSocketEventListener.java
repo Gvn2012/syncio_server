@@ -1,10 +1,10 @@
 package io.github.gvn2012.messaging_service.listeners;
 
 import io.github.gvn2012.messaging_service.services.impls.PresenceService;
+import io.github.gvn2012.messaging_service.services.interfaces.IMessagingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
-import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
@@ -16,6 +16,7 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 public class WebSocketEventListener {
 
     private final PresenceService presenceService;
+    private final IMessagingService messagingService;
 
     @EventListener
     public void handleWebSocketConnectListener(SessionConnectEvent event) {
@@ -24,6 +25,8 @@ public class WebSocketEventListener {
         if (userId != null) {
             log.info("User connected: {}", userId);
             presenceService.setUserOnline(userId);
+
+            messagingService.markAllAsDelivered(userId);
         }
     }
 
@@ -34,7 +37,7 @@ public class WebSocketEventListener {
         if (headerAccessor.getSessionAttributes() != null) {
             userId = (String) headerAccessor.getSessionAttributes().get("userId");
         }
-        
+
         if (userId != null) {
             log.info("User disconnected: {}", userId);
             presenceService.setUserOffline(userId);

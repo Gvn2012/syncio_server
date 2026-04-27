@@ -6,10 +6,14 @@ import io.github.gvn2012.messaging_service.dtos.ConversationRequest;
 import io.github.gvn2012.messaging_service.services.interfaces.IMessagingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Map;
+
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 @Controller
 @Slf4j
@@ -17,6 +21,7 @@ import org.springframework.stereotype.Controller;
 public class ChatController {
 
     private final IMessagingService messagingService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @MessageMapping("/chat.send")
     public void sendMessage(@Payload MessageRequest request, SimpMessageHeaderAccessor headerAccessor) {
@@ -66,5 +71,16 @@ public class ChatController {
         String userId = (String) headerAccessor.getSessionAttributes().get("userId");
         log.info("User {} read conversation {}", userId, conversationId);
         messagingService.markAsSeen(conversationId, userId);
+    }
+
+    @MessageMapping("/chat.typing")
+    public void typing(@Payload Map<String, String> payload, SimpMessageHeaderAccessor headerAccessor) {
+        String userId = (String) headerAccessor.getSessionAttributes().get("userId");
+        String conversationId = payload.get("conversationId");
+        String recipientId = payload.get("recipientId");
+        boolean isTyping = Boolean.parseBoolean(payload.get("isTyping"));
+
+        messagingTemplate.convertAndSendToUser(recipientId, "/queue/typing",
+                Map.of("conversationId", conversationId, "userId", userId, "isTyping", isTyping));
     }
 }

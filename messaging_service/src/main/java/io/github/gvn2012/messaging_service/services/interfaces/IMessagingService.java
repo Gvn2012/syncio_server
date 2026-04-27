@@ -13,6 +13,8 @@ public interface IMessagingService {
     void deleteMessage(String messageId, String userId);
 
     void markAsDelivered(String messageId, String userId);
+    
+    void markAllAsDelivered(String userId);
 
     void markAsSeen(String conversationId, String userId);
 

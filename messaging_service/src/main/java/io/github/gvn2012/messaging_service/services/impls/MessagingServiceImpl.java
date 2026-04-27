@@ -14,6 +14,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,6 +38,7 @@ public class MessagingServiceImpl implements IMessagingService {
     private final MessageRepository messageRepository;
     private final ConversationRepository conversationRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final MongoTemplate mongoTemplate;
 
     @Override
     public void createConversation(List<String> participantIds, String name, String type) {
@@ -104,6 +109,7 @@ public class MessagingServiceImpl implements IMessagingService {
         }
 
         Message message = Message.builder()
+                .id(request.getId() != null ? request.getId() : UUID.randomUUID().toString())
                 .conversationId(request.getConversationId())
                 .senderId(request.getSenderId())
                 .content(request.getContent())
@@ -298,8 +304,52 @@ public class MessagingServiceImpl implements IMessagingService {
                 messageRepository.save(message);
 
                 messagingTemplate.convertAndSendToUser(message.getSenderId(), "/queue/status",
-                        Map.of("messageId", messageId, "userId", userId, "status", MessageStatusType.DELIVERED));
+                        Map.of(
+                                "conversationId", message.getConversationId(),
+                                "messageId", messageId,
+                                "userId", userId,
+                                "status", MessageStatusType.DELIVERED));
             }
+        });
+    }
+
+    @Override
+    @Transactional
+    public void markAllAsDelivered(String userId) {
+        log.info("Marking all undelivered messages as delivered for user {}", userId);
+
+        Query query = new Query();
+        query.addCriteria(Criteria.where("senderId").ne(userId));
+        query.addCriteria(Criteria.where("status." + userId + ".status").is("SENT"));
+
+        List<Message> undeliveredMessages = mongoTemplate.find(query, Message.class);
+
+        if (undeliveredMessages.isEmpty())
+            return;
+
+        for (Message msg : undeliveredMessages) {
+            if (msg.getStatus().containsKey(userId)) {
+                msg.getStatus().get(userId).setStatus(MessageStatusType.DELIVERED);
+                msg.getStatus().get(userId).setUpdateTime(LocalDateTime.now());
+            }
+        }
+
+        messageRepository.saveAll(undeliveredMessages);
+
+        Map<String, Map<String, List<String>>> grouped = undeliveredMessages.stream()
+                .collect(Collectors.groupingBy(Message::getSenderId,
+                        Collectors.groupingBy(Message::getConversationId,
+                                Collectors.mapping(Message::getId, Collectors.toList()))));
+
+        grouped.forEach((senderId, convMap) -> {
+            convMap.forEach((conversationId, messageIds) -> {
+                messagingTemplate.convertAndSendToUser(senderId, "/queue/status",
+                        Map.of(
+                                "conversationId", conversationId,
+                                "messageIds", messageIds,
+                                "userId", userId,
+                                "status", MessageStatusType.DELIVERED));
+            });
         });
     }
 
@@ -307,32 +357,37 @@ public class MessagingServiceImpl implements IMessagingService {
     @Transactional
     public void markAsSeen(String conversationId, String userId) {
         log.info("Marking messages as seen for conversation {} and user {}", conversationId, userId);
-        List<Message> unreadMessages = messageRepository.findUnreadMessages(conversationId, userId);
-        
-        if (unreadMessages.isEmpty()) return;
-        
+
+        Query query = new Query();
+        query.addCriteria(Criteria.where("conversationId").is(conversationId));
+        query.addCriteria(Criteria.where("senderId").ne(userId));
+        query.addCriteria(Criteria.where("status." + userId + ".status").ne("SEEN"));
+
+        List<Message> unreadMessages = mongoTemplate.find(query, Message.class);
+
+        if (unreadMessages.isEmpty())
+            return;
+
         for (Message msg : unreadMessages) {
             if (msg.getStatus().containsKey(userId)) {
                 msg.getStatus().get(userId).setStatus(MessageStatusType.SEEN);
                 msg.getStatus().get(userId).setUpdateTime(LocalDateTime.now());
             }
         }
-        
+
         messageRepository.saveAll(unreadMessages);
-        
+
         Map<String, List<String>> messagesBySender = unreadMessages.stream()
-            .collect(Collectors.groupingBy(Message::getSenderId, 
-                     Collectors.mapping(Message::getId, Collectors.toList())));
-                     
+                .collect(Collectors.groupingBy(Message::getSenderId,
+                        Collectors.mapping(Message::getId, Collectors.toList())));
+
         messagesBySender.forEach((senderId, messageIds) -> {
-             messagingTemplate.convertAndSendToUser(senderId, "/queue/status",
-                 Map.of(
-                     "conversationId", conversationId,
-                     "messageIds", messageIds,
-                     "userId", userId,
-                     "status", MessageStatusType.SEEN
-                 )
-             );
+            messagingTemplate.convertAndSendToUser(senderId, "/queue/status",
+                    Map.of(
+                            "conversationId", conversationId,
+                            "messageIds", messageIds,
+                            "userId", userId,
+                            "status", MessageStatusType.SEEN));
         });
     }
 
