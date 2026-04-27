@@ -12,6 +12,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -26,7 +27,6 @@ public class Conversation {
     private ConversationType type;
     private Message lastMessage;
     
-    // UserId -> DeleteTimestamp (Unidirectional deletion)
     private Map<String, LocalDateTime> deletedAtPerUser;
 
     @CreatedDate

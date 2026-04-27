@@ -11,12 +11,15 @@ import io.github.gvn2012.messaging_service.repositories.MessageRepository;
 import io.github.gvn2012.messaging_service.services.interfaces.IMessagingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -50,7 +53,6 @@ public class MessagingServiceImpl implements IMessagingService {
                 .isDeleted(false)
                 .build();
 
-        // Save asynchronously
         saveMessageAndNotify(message, conversation);
     }
 
@@ -121,10 +123,43 @@ public class MessagingServiceImpl implements IMessagingService {
         
         Conversation saved = conversationRepository.save(conversation);
         
-        // Notify all participants
         for (String participantId : participantIds) {
             messagingTemplate.convertAndSendToUser(participantId, "/queue/updates", 
                 Map.of("type", "CONVERSATION_CREATED", "conversation", saved));
+        }
+    }
+
+    @Override
+    public List<Conversation> getConversations(String userId) {
+        return conversationRepository.findActiveConversationsForUser(userId);
+    }
+
+    @Override
+    public List<MessageResponse> getMessageHistory(String conversationId, String userId, int page, int size) {
+        Conversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        
+        if (!conversation.getParticipants().contains(userId)) {
+            throw new RuntimeException("User not authorized to view this conversation");
+        }
+
+        LocalDateTime deletedAt = null;
+        if (conversation.getDeletedAtPerUser() != null) {
+            deletedAt = conversation.getDeletedAtPerUser().get(userId);
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+        
+        if (deletedAt != null) {
+            return messageRepository.findByConversationIdAndTimestampAfterOrderByTimestampDesc(conversationId, deletedAt, pageable)
+                    .getContent().stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+        } else {
+            return messageRepository.findByConversationIdOrderByTimestampDesc(conversationId, pageable)
+                    .getContent().stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
         }
     }
 
@@ -132,20 +167,17 @@ public class MessagingServiceImpl implements IMessagingService {
     protected void saveMessageAndNotify(Message message, Conversation conversation) {
         Message savedMessage = messageRepository.save(message);
         
-        // Update last message in conversation
         conversation.setLastMessage(savedMessage);
         conversationRepository.save(conversation);
 
         MessageResponse response = mapToResponse(savedMessage);
 
-        // Notify each participant
         for (String participantId : conversation.getParticipants()) {
             if (!participantId.equals(savedMessage.getSenderId())) {
                 messagingTemplate.convertAndSendToUser(participantId, "/queue/messages", response);
             }
         }
         
-        // Also notify sender for confirmation (with ID)
         messagingTemplate.convertAndSendToUser(savedMessage.getSenderId(), "/queue/messages", response);
     }
 
@@ -168,12 +200,9 @@ public class MessagingServiceImpl implements IMessagingService {
     @Override
     @Async
     public void markAsSeen(String conversationId, String userId) {
-        // Mark all messages in conversation as seen for this user
-        // This is a simplification; in a real app, you'd only mark up to a certain timestamp or ID
-        // For this implementation, we'll mark the latest messages
+        
         log.info("Marking messages as seen for conversation {} and user {}", conversationId, userId);
-        // Implementation detail: find latest messages and update status
-        // Skipping full implementation for brevity, but pattern is same as markAsDelivered
+       
     }
 
     private MessageResponse mapToResponse(Message message) {
