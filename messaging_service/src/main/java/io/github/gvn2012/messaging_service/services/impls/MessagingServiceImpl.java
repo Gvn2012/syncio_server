@@ -5,10 +5,12 @@ import io.github.gvn2012.messaging_service.dtos.MessageRequest;
 import io.github.gvn2012.messaging_service.dtos.MessageResponse;
 import io.github.gvn2012.messaging_service.models.Conversation;
 import io.github.gvn2012.messaging_service.models.Message;
+import io.github.gvn2012.messaging_service.models.MediaItem;
 import io.github.gvn2012.messaging_service.models.enums.ConversationType;
 import io.github.gvn2012.messaging_service.models.enums.MessageStatusType;
 import io.github.gvn2012.messaging_service.repositories.ConversationRepository;
 import io.github.gvn2012.messaging_service.repositories.MessageRepository;
+import io.github.gvn2012.messaging_service.repositories.MediaItemRepository;
 import io.github.gvn2012.messaging_service.services.interfaces.IMessagingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +44,7 @@ public class MessagingServiceImpl implements IMessagingService {
 
     private final MessageRepository messageRepository;
     private final ConversationRepository conversationRepository;
+    private final MediaItemRepository mediaItemRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final MongoTemplate mongoTemplate;
 
@@ -117,30 +121,60 @@ public class MessagingServiceImpl implements IMessagingService {
                             mapToConversationResponse(conversation, request.getSenderId())));
         }
 
-        Optional<Message> existingMessage = request.getId() != null ? messageRepository.findById(request.getId()) : Optional.empty();
+        Optional<Message> existingMessage = Optional.empty();
+        if (request.getId() != null) {
+            existingMessage = messageRepository.findById(request.getId());
+        } else if (request.getBatchId() != null) {
+            existingMessage = messageRepository.findByConversationIdAndBatchId(request.getConversationId(),
+                    request.getBatchId());
+        }
+
         LocalDateTime timestamp = existingMessage.map(Message::getTimestamp).orElse(getCurrentTime());
 
-        Message message = Message.builder()
-                .id(request.getId() != null ? request.getId() : UUID.randomUUID().toString())
-                .conversationId(request.getConversationId())
-                .senderId(request.getSenderId())
-                .content(request.getContent())
-                .timestamp(timestamp)
-                .updatedAt(getCurrentTime())
-                .type(request.getType() != null ? request.getType() : io.github.gvn2012.messaging_service.models.enums.MessageType.TEXT)
-                .mediaId(request.getMediaId())
-                .mediaUrl(request.getMediaUrl())
-                .mediaSize(request.getMediaSize())
-                .mediaContentType(request.getMediaContentType())
-                .status(conversation.getParticipants().stream()
-                        .filter(pid -> !pid.equals(request.getSenderId()))
-                        .collect(Collectors.toMap(pid -> pid, pid -> Message.StatusInfo.builder()
-                                .status(MessageStatusType.SENT)
-                                .updateTime(getCurrentTime())
-                                .build())))
-                .isEdited(false)
-                .isRecalled(false)
-                .build();
+        Message message;
+        if (existingMessage.isPresent()) {
+            message = existingMessage.get();
+            message.setUpdatedAt(getCurrentTime());
+
+            if (request.getContent() != null && !request.getContent().isEmpty()) {
+                message.setContent(request.getContent());
+            }
+            if (request.getType() != null) {
+                message.setType(request.getType());
+            }
+        } else {
+            message = Message.builder()
+                    .id(request.getId() != null ? request.getId() : UUID.randomUUID().toString())
+                    .conversationId(request.getConversationId())
+                    .batchId(request.getBatchId())
+                    .senderId(request.getSenderId())
+                    .content(request.getContent())
+                    .timestamp(timestamp)
+                    .updatedAt(getCurrentTime())
+                    .type(request.getType() != null ? request.getType()
+                            : io.github.gvn2012.messaging_service.models.enums.MessageType.TEXT)
+                    .status(conversation.getParticipants().stream()
+                            .filter(pid -> !pid.equals(request.getSenderId()))
+                            .collect(Collectors.toMap(pid -> pid, pid -> Message.StatusInfo.builder()
+                                    .status(MessageStatusType.SENT)
+                                    .updateTime(getCurrentTime())
+                                    .build())))
+                    .isEdited(false)
+                    .isRecalled(false)
+                    .build();
+        }
+
+        if (request.getMediaItems() != null && !request.getMediaItems().isEmpty()) {
+            for (MediaItem newItem : request.getMediaItems()) {
+                if (newItem.getBatchId() == null) {
+                    newItem.setBatchId(message.getBatchId());
+                }
+                if (newItem.getConversationId() == null) {
+                    newItem.setConversationId(message.getConversationId());
+                }
+                mediaItemRepository.save(newItem);
+            }
+        }
 
         saveMessageAndNotify(message, conversation);
     }
@@ -158,24 +192,7 @@ public class MessagingServiceImpl implements IMessagingService {
     }
 
     private ConversationResponse mapToConversationResponse(Conversation conv, String userId) {
-        MessageResponse lastMessageDto = null;
-        if (conv.getLastMessage() != null) {
-            lastMessageDto = MessageResponse.builder()
-                    .id(conv.getLastMessage().getId())
-                    .conversationId(conv.getLastMessage().getConversationId())
-                    .senderId(conv.getLastMessage().getSenderId())
-                    .content(conv.getLastMessage().isRecalled() ? "This message was recalled"
-                            : conv.getLastMessage().getContent())
-                    .timestamp(conv.getLastMessage().getTimestamp())
-                    .type(conv.getLastMessage().getType())
-                    .mediaId(conv.getLastMessage().getMediaId())
-                    .mediaUrl(conv.getLastMessage().getMediaUrl())
-                    .mediaSize(conv.getLastMessage().getMediaSize())
-                    .mediaContentType(conv.getLastMessage().getMediaContentType())
-                    .isEdited(conv.getLastMessage().isEdited())
-                    .isRecalled(conv.getLastMessage().isRecalled())
-                    .build();
-        }
+        MessageResponse lastMessageDto = conv.getLastMessage() != null ? mapToResponse(conv.getLastMessage()) : null;
 
         return ConversationResponse.builder()
                 .id(conv.getId())
@@ -209,8 +226,6 @@ public class MessagingServiceImpl implements IMessagingService {
                     before, pageable);
         }
 
-        // Filter out messages that have been soft-deleted for this user (via
-        // message-level deletedAtPerUser)
         return messagePage.getContent().stream()
                 .filter(msg -> msg.getDeletedAtPerUser() == null || !msg.getDeletedAtPerUser().containsKey(userId))
                 .map(this::mapToResponse)
@@ -458,17 +473,19 @@ public class MessagingServiceImpl implements IMessagingService {
     }
 
     private MessageResponse mapToResponse(Message message) {
+        List<MediaItem> mediaItems = message.getBatchId() != null
+                ? mediaItemRepository.findByBatchId(message.getBatchId())
+                : Collections.emptyList();
+
         return MessageResponse.builder()
                 .id(message.getId())
                 .conversationId(message.getConversationId())
+                .batchId(message.getBatchId())
                 .senderId(message.getSenderId())
                 .content(message.getContent())
-                .type(message.getType())
-                .mediaId(message.getMediaId())
-                .mediaUrl(message.getMediaUrl())
-                .mediaSize(message.getMediaSize())
-                .mediaContentType(message.getMediaContentType())
                 .timestamp(message.getTimestamp())
+                .type(message.getType())
+                .mediaItems(mediaItems)
                 .isEdited(message.isEdited())
                 .isRecalled(message.isRecalled())
                 .status(message.getStatus())

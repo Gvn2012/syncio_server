@@ -8,17 +8,17 @@ import lombok.NoArgsConstructor;
 import java.io.Serializable;
 import java.util.Map;
 
-/**
- * Event published when an image is successfully uploaded to GCS.
- */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ImageUploadedEvent implements Serializable {
     private String imageId;
+    private String batchId;
     private String objectPath;
     private String bucketName;
+    private String fileName;
+    private String downloadUrl;
     private String contentType;
     private Long size;
     private Map<String, Object> metadata;

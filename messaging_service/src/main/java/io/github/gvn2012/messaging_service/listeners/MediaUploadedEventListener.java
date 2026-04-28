@@ -9,7 +9,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.Map;
+
+import io.github.gvn2012.messaging_service.models.MediaItem;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -17,7 +22,7 @@ import java.util.Map;
 public class MediaUploadedEventListener {
 
     private final IMessagingService messagingService;
-    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = "media.uploaded.msg", groupId = "messaging-service-group")
     public void handleMediaUploaded(String payload) {
@@ -49,15 +54,22 @@ public class MediaUploadedEventListener {
             }
 
             MessageRequest messageRequest = MessageRequest.builder()
-                    .id(mediaId)
+                    .batchId(event.getBatchId())
                     .conversationId(conversationId)
                     .senderId(senderId)
                     .content("")
                     .type(messageType)
-                    .mediaId(mediaId)
-                    .mediaUrl(objectPath)
-                    .mediaSize(event.getSize())
-                    .mediaContentType(event.getContentType())
+                    .mediaItems(List.of(MediaItem.builder()
+                            .id(mediaId)
+                            .batchId(event.getBatchId())
+                            .conversationId(conversationId)
+                            .fileName(event.getFileName())
+                            .contentType(event.getContentType())
+                            .mediaType(typeStr)
+                            .status("UPLOADED")
+                            .downloadUrl(event.getDownloadUrl())
+                            .size(event.getSize())
+                            .build()))
                     .build();
 
             messagingService.processMessage(messageRequest);

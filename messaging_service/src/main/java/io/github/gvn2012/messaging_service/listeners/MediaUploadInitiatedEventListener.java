@@ -10,6 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import io.github.gvn2012.messaging_service.models.MediaItem;
+import java.time.Instant;
+import java.util.List;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -26,19 +30,28 @@ public class MediaUploadInitiatedEventListener {
             MediaUploadInitiatedEvent event = objectMapper.readValue(payload, MediaUploadInitiatedEvent.class);
             log.info("Parsed media upload initiated event: {}", event);
 
-            MessageType pendingType = "VIDEO".equalsIgnoreCase(event.getMediaType()) 
-                    ? MessageType.VIDEO_PENDING 
+            MessageType pendingType = "VIDEO".equalsIgnoreCase(event.getMediaType())
+                    ? MessageType.VIDEO_PENDING
                     : MessageType.IMAGE_PENDING;
 
             MessageRequest messageRequest = MessageRequest.builder()
-                    .id(event.getMediaId())
+                    .batchId(event.getBatchId())
                     .conversationId(event.getConversationId())
                     .senderId(event.getSenderId())
                     .content("")
                     .type(pendingType)
-                    .mediaId(event.getMediaId())
-                    .mediaContentType(event.getContentType())
-                    .mediaSize(event.getSize())
+                    .mediaItems(List.of(MediaItem.builder()
+                            .id(event.getMediaId())
+                            .batchId(event.getBatchId())
+                            .conversationId(event.getConversationId())
+                            .fileName(event.getFileName())
+                            .contentType(event.getContentType())
+                            .mediaType(event.getMediaType())
+                            .status("INITIATED")
+                            .uploadUrl(event.getUploadUrl())
+                            .size(event.getSize())
+                            .createdAt(Instant.now())
+                            .build()))
                     .build();
 
             messagingService.processMessage(messageRequest);

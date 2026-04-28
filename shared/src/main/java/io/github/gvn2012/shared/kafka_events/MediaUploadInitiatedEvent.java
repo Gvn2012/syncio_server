@@ -13,7 +13,9 @@ import java.util.Map;
 @AllArgsConstructor
 public class MediaUploadInitiatedEvent {
     private String mediaId;
+    private String batchId;
     private String conversationId;
+    private String uploadUrl;
     private String senderId;
     private String mediaType;
     private String fileName;

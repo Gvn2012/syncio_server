@@ -8,11 +8,14 @@ import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.time.LocalDateTime;
 
 @Repository
 public interface MessageRepository extends MongoRepository<Message, String> {
     Page<Message> findByConversationIdOrderByTimestampDesc(String conversationId, Pageable pageable);
+
+    Optional<Message> findByConversationIdAndBatchId(String conversationId, String batchId);
 
     List<Message> findByConversationIdAndTimestampAfterOrderByTimestampDesc(String conversationId,
             LocalDateTime timestamp);

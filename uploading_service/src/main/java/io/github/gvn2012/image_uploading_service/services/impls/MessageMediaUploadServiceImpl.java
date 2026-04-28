@@ -63,7 +63,9 @@ public class MessageMediaUploadServiceImpl implements MessageMediaUploadServiceI
 
         MediaUploadInitiatedEvent initiatedEvent = MediaUploadInitiatedEvent.builder()
                 .mediaId(imageId)
+                .batchId(request.getBatchId())
                 .conversationId(request.getConversationId())
+                .uploadUrl(signedUrl.toString())
                 .senderId(request.getSenderId())
                 .mediaType(request.getMediaType())
                 .fileName(request.getFileName())

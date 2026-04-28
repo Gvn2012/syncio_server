@@ -14,6 +14,7 @@ import io.github.gvn2012.image_uploading_service.dtos.responses.SignedUrlRespons
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadBatchResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadResponse;
+import io.github.gvn2012.image_uploading_service.models.MediaItem;
 import io.github.gvn2012.image_uploading_service.models.UploadAudit;
 import io.github.gvn2012.image_uploading_service.repositories.MediaItemRepository;
 import io.github.gvn2012.image_uploading_service.repositories.UploadAuditRepository;
@@ -28,11 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URL;
 import java.time.Instant;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -52,7 +49,8 @@ public class UploadServiceImpl implements UploadServiceInterface {
     public APIResource<UploadResponse> sendUploadRequest(UploadRequest request) {
 
         String imageId = UUID.randomUUID().toString();
-        String folder = (request.getFolder() != null && !request.getFolder().isBlank()) ? request.getFolder() : "prl_img";
+        String folder = (request.getFolder() != null && !request.getFolder().isBlank()) ? request.getFolder()
+                : "prl_img";
         String objectPath = folder + "/" + imageId + "-" + request.getFileName();
 
         URL signedUrl = gcsService.generateUploadUrl(objectPath, request.getFileContentType());
@@ -149,26 +147,42 @@ public class UploadServiceImpl implements UploadServiceInterface {
             }
 
             Map<String, Object> metadata = new HashMap<>();
-            if (json.has("etag")) metadata.put("etag", json.get("etag").asText());
-            if (json.has("md5Hash")) metadata.put("md5Hash", json.get("md5Hash").asText());
-            if (json.has("timeCreated")) metadata.put("timeCreated", json.get("timeCreated").asText());
-            if (json.has("updated")) metadata.put("updated", json.get("updated").asText());
-            
+            if (json.has("etag"))
+                metadata.put("etag", json.get("etag").asText());
+            if (json.has("md5Hash"))
+                metadata.put("md5Hash", json.get("md5Hash").asText());
+            if (json.has("timeCreated"))
+                metadata.put("timeCreated", json.get("timeCreated").asText());
+            if (json.has("updated"))
+                metadata.put("updated", json.get("updated").asText());
+
             if (json.has("metadata")) {
                 metadata.putAll(objectMapper.convertValue(json.get("metadata"), Map.class));
             }
+            String batchId = null;
+            String fileName = null;
+            String downloadUrl = null;
+
             if (objectName.startsWith("msg/")) {
-                mediaItemRepository.findById(imageId).ifPresent(item -> {
+                Optional<MediaItem> mediaItemOpt = mediaItemRepository.findById(imageId);
+                if (mediaItemOpt.isPresent()) {
+                    MediaItem item = mediaItemOpt.get();
+                    batchId = item.getBatchId();
+                    fileName = item.getFileName();
+                    downloadUrl = gcsService.generateDownloadUrl(objectName);
                     if (item.getMetadata() != null) {
                         metadata.putAll(item.getMetadata());
                     }
-                });
+                }
             }
 
             ImageUploadedEvent event = ImageUploadedEvent.builder()
                     .imageId(imageId)
+                    .batchId(batchId)
                     .objectPath(objectName)
                     .bucketName(bucketName)
+                    .fileName(fileName)
+                    .downloadUrl(downloadUrl)
                     .contentType(json.has("contentType") ? json.get("contentType").asText() : null)
                     .size(json.has("size") ? json.get("size").asLong() : null)
                     .metadata(metadata)
@@ -204,9 +218,12 @@ public class UploadServiceImpl implements UploadServiceInterface {
     }
 
     private String resolveTopicByPrefix(String objectPath) {
-        if (objectPath.startsWith("msg/")) return "media.uploaded.msg";
-        if (objectPath.startsWith("prl_img/")) return "image.uploaded.profile";
-        if (objectPath.startsWith("post_img/")) return "image.uploaded.post";
+        if (objectPath.startsWith("msg/"))
+            return "media.uploaded.msg";
+        if (objectPath.startsWith("prl_img/"))
+            return "image.uploaded.profile";
+        if (objectPath.startsWith("post_img/"))
+            return "image.uploaded.post";
         return "image.uploaded";
     }
 }

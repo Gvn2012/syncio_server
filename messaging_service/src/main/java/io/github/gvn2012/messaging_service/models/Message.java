@@ -25,6 +25,7 @@ public class Message {
 
     @Indexed
     private String conversationId;
+    private String batchId;
 
     private String senderId;
     private String content;
@@ -32,13 +33,10 @@ public class Message {
     private LocalDateTime updatedAt;
 
     private MessageType type;
-    private String mediaId;
-    private String mediaUrl;
-    private Long mediaSize;
-    private String mediaContentType;
 
     @JsonProperty("isEdited")
     private boolean isEdited;
+
     @JsonProperty("isRecalled")
     private boolean isRecalled;
 
