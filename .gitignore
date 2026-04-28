@@ -44,3 +44,4 @@ Thumbs.db
 .scratch/
 scratch/
 kubeconfig_local
+gke_gcloud_auth_plugin_cache
