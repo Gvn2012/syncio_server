@@ -791,7 +791,7 @@ spec:
       serviceAccountName: uploading-service-ksa
       containers:
         - name: uploading
-          image: vietpham18/uploading-service:3338ee1be23afa9b1bedda70a643feb21976ecb4
+          image: vietpham18/uploading-service:4f710ce76527913f61f79e6302ce6596dd8a20b0
           startupProbe:
             tcpSocket:
               port: 8090
@@ -934,7 +934,7 @@ spec:
     spec:
       containers:
         - name: messaging
-          image: vietpham18/messaging-service:3338ee1be23afa9b1bedda70a643feb21976ecb4
+          image: vietpham18/messaging-service:4f710ce76527913f61f79e6302ce6596dd8a20b0
           ports:
             - containerPort: 8089
           startupProbe:
