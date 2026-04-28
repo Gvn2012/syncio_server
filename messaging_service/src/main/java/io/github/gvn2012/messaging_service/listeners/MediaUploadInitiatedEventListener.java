@@ -30,9 +30,14 @@ public class MediaUploadInitiatedEventListener {
             MediaUploadInitiatedEvent event = objectMapper.readValue(payload, MediaUploadInitiatedEvent.class);
             log.info("Parsed media upload initiated event: {}", event);
 
-            MessageType pendingType = "VIDEO".equalsIgnoreCase(event.getMediaType())
-                    ? MessageType.VIDEO_PENDING
-                    : MessageType.IMAGE_PENDING;
+            MessageType pendingType;
+            if ("VIDEO".equalsIgnoreCase(event.getMediaType())) {
+                pendingType = MessageType.VIDEO_PENDING;
+            } else if ("AUDIO".equalsIgnoreCase(event.getMediaType())) {
+                pendingType = MessageType.AUDIO_PENDING;
+            } else {
+                pendingType = MessageType.IMAGE_PENDING;
+            }
 
             MessageRequest messageRequest = MessageRequest.builder()
                     .batchId(event.getBatchId())

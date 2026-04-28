@@ -4,6 +4,8 @@ public enum MessageType {
     TEXT,
     IMAGE,
     VIDEO,
+    AUDIO,
     IMAGE_PENDING,
-    VIDEO_PENDING
+    VIDEO_PENDING,
+    AUDIO_PENDING
 }

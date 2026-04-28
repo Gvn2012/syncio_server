@@ -51,6 +51,8 @@ public class MediaUploadedEventListener {
             MessageType messageType = MessageType.IMAGE;
             if ("VIDEO".equals(typeStr)) {
                 messageType = MessageType.VIDEO;
+            } else if ("AUDIO".equals(typeStr)) {
+                messageType = MessageType.AUDIO;
             }
 
             String resolvedDownloadUrl = event.getDownloadUrl() != null
