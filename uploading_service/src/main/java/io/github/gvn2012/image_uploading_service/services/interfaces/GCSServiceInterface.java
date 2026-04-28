@@ -6,6 +6,8 @@ import java.util.Set;
 
 public interface GCSServiceInterface {
     URL generateUploadUrl(String objectName, String contentType);
+    
+    URL generateResumableUploadUrl(String objectName, String contentType);
 
     String generateDownloadUrl(String objectPath);
 

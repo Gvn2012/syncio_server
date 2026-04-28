@@ -69,6 +69,11 @@
             <artifactId>grpc_common</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.f4b6a3</groupId>
+            <artifactId>uuid-creator</artifactId>
+            <version>5.3.3</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springdoc</groupId>

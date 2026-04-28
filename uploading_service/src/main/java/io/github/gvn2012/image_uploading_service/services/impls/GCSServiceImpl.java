@@ -57,6 +57,20 @@ public class GCSServiceImpl implements GCSServiceInterface {
     }
 
     @Override
+    public URL generateResumableUploadUrl(String objectName, String contentType) {
+        BlobInfo blobInfo = BlobInfo.newBuilder(bucket, objectName)
+                .setContentType(contentType)
+                .build();
+
+        return storage.signUrl(
+                blobInfo,
+                15, TimeUnit.MINUTES,
+                Storage.SignUrlOption.httpMethod(HttpMethod.POST),
+                Storage.SignUrlOption.withExtHeaders(Map.of("x-goog-resumable", "start")),
+                Storage.SignUrlOption.withV4Signature());
+    }
+
+    @Override
     public String generateDownloadUrl(String objectPath) {
         String cacheKey = CACHE_PREFIX + objectPath;
         String cached = redisTemplate.opsForValue().get(cacheKey);

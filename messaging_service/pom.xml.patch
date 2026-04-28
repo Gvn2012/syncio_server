@@ -1,0 +1,15 @@
+--- pom.xml
++++ pom.xml
+@@ -95,6 +95,11 @@
+             <groupId>io.github.gvn2012</groupId>
+             <artifactId>grpc_common</artifactId>
+             <version>0.0.1-SNAPSHOT</version>
+         </dependency>
++        <dependency>
++            <groupId>com.github.f4b6a3</groupId>
++            <artifactId>uuid-creator</artifactId>
++            <version>5.3.3</version>
++        </dependency>
+     </dependencies>
+ 
+     <build>

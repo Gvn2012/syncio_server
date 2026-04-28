@@ -1,5 +1,6 @@
 package io.github.gvn2012.messaging_service.dtos;
 
+import io.github.gvn2012.messaging_service.models.enums.MessageType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,5 +15,9 @@ public class MessageRequest {
     private String conversationId;
     private String senderId;
     private String content;
-    private String type;
+    private MessageType type;
+    private String mediaId;
+    private String mediaUrl;
+    private Long mediaSize;
+    private String mediaContentType;
 }

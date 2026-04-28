@@ -1,6 +1,7 @@
 package io.github.gvn2012.messaging_service.models;
 
 import io.github.gvn2012.messaging_service.models.enums.MessageStatusType;
+import io.github.gvn2012.messaging_service.models.enums.MessageType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,12 +31,17 @@ public class Message {
     private LocalDateTime timestamp;
     private LocalDateTime updatedAt;
 
+    private MessageType type;
+    private String mediaId;
+    private String mediaUrl;
+    private Long mediaSize;
+    private String mediaContentType;
+
     @JsonProperty("isEdited")
     private boolean isEdited;
     @JsonProperty("isRecalled")
     private boolean isRecalled;
 
-    // UserId -> DeleteTimestamp (Unidirectional deletion)
     private Map<String, LocalDateTime> deletedAtPerUser;
 
     private Map<String, StatusInfo> status;

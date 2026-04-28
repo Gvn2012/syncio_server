@@ -15,6 +15,7 @@ import io.github.gvn2012.image_uploading_service.dtos.responses.UploadBatchRespo
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadConfirmResponse;
 import io.github.gvn2012.image_uploading_service.dtos.responses.UploadResponse;
 import io.github.gvn2012.image_uploading_service.models.UploadAudit;
+import io.github.gvn2012.image_uploading_service.repositories.MediaItemRepository;
 import io.github.gvn2012.image_uploading_service.repositories.UploadAuditRepository;
 import io.github.gvn2012.image_uploading_service.services.interfaces.GCSServiceInterface;
 import io.github.gvn2012.image_uploading_service.services.interfaces.UploadServiceInterface;
@@ -40,6 +41,7 @@ public class UploadServiceImpl implements UploadServiceInterface {
 
     private final GCSServiceInterface gcsService;
     private final UploadAuditRepository uploadAuditRepository;
+    private final MediaItemRepository mediaItemRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
@@ -129,14 +131,22 @@ public class UploadServiceImpl implements UploadServiceInterface {
             String imageId = lastSegment.substring(0, 36);
             log.info("Extracted imageId: {} for object: {}", imageId, objectName);
 
-            uploadAuditRepository.findByImageId(imageId).ifPresentOrElse(audit -> {
-                log.info("Updating audit for imageId: {}", imageId);
-                audit.setStatus("COMPLETED");
-                audit.setUpdatedAt(Instant.now());
-                uploadAuditRepository.save(audit);
-            }, () -> {
-                log.warn("UploadAudit not found for imageId: {}", imageId);
-            });
+            if (objectName.startsWith("msg/")) {
+                mediaItemRepository.findById(imageId).ifPresentOrElse(item -> {
+                    log.info("Updating mediaItem for imageId: {}", imageId);
+                    item.setStatus("COMPLETED");
+                    item.setBucketName(bucketName);
+                    item.setUpdatedAt(Instant.now());
+                    mediaItemRepository.save(item);
+                }, () -> log.warn("MediaItem not found for imageId: {}", imageId));
+            } else {
+                uploadAuditRepository.findByImageId(imageId).ifPresentOrElse(audit -> {
+                    log.info("Updating audit for imageId: {}", imageId);
+                    audit.setStatus("COMPLETED");
+                    audit.setUpdatedAt(Instant.now());
+                    uploadAuditRepository.save(audit);
+                }, () -> log.warn("UploadAudit not found for imageId: {}", imageId));
+            }
 
             Map<String, Object> metadata = new HashMap<>();
             if (json.has("etag")) metadata.put("etag", json.get("etag").asText());
@@ -146,6 +156,13 @@ public class UploadServiceImpl implements UploadServiceInterface {
             
             if (json.has("metadata")) {
                 metadata.putAll(objectMapper.convertValue(json.get("metadata"), Map.class));
+            }
+            if (objectName.startsWith("msg/")) {
+                mediaItemRepository.findById(imageId).ifPresent(item -> {
+                    if (item.getMetadata() != null) {
+                        metadata.putAll(item.getMetadata());
+                    }
+                });
             }
 
             ImageUploadedEvent event = ImageUploadedEvent.builder()
@@ -187,6 +204,7 @@ public class UploadServiceImpl implements UploadServiceInterface {
     }
 
     private String resolveTopicByPrefix(String objectPath) {
+        if (objectPath.startsWith("msg/")) return "media.uploaded.msg";
         if (objectPath.startsWith("prl_img/")) return "image.uploaded.profile";
         if (objectPath.startsWith("post_img/")) return "image.uploaded.post";
         return "image.uploaded";

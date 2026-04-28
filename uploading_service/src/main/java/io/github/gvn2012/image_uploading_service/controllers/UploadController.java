@@ -40,6 +40,9 @@ public class UploadController {
     @PostMapping("/batch")
     public ResponseEntity<APIResource<UploadBatchResponse>> sendBatchUploadRequest(
             @RequestBody UploadBatchRequest request) {
+        if (request.getRequests() != null && request.getRequests().size() > 25) {
+            throw new IllegalArgumentException("Maximum 25 items allowed per batch upload");
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(uploadService.sendBatchUploadRequest(request));
     }
 
