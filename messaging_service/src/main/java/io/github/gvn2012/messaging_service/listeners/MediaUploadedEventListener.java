@@ -53,6 +53,10 @@ public class MediaUploadedEventListener {
                 messageType = MessageType.VIDEO;
             }
 
+            String resolvedDownloadUrl = event.getDownloadUrl() != null
+                    ? event.getDownloadUrl()
+                    : event.getObjectPath();
+
             MessageRequest messageRequest = MessageRequest.builder()
                     .batchId(event.getBatchId())
                     .conversationId(conversationId)
@@ -67,7 +71,7 @@ public class MediaUploadedEventListener {
                             .contentType(event.getContentType())
                             .mediaType(typeStr)
                             .status("UPLOADED")
-                            .downloadUrl(event.getDownloadUrl())
+                            .downloadUrl(resolvedDownloadUrl)
                             .size(event.getSize())
                             .build()))
                     .build();

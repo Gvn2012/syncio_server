@@ -161,18 +161,25 @@ public class UploadServiceImpl implements UploadServiceInterface {
             }
             String batchId = null;
             String fileName = null;
+            // Store the GCS object path — NOT a signed URL — as downloadUrl.
+            // Signed URLs expire; the frontend resolves a fresh one via the
+            // download-URL API when it needs to display the image.
             String downloadUrl = null;
 
             if (objectName.startsWith("msg/")) {
+                downloadUrl = objectName;
+
                 Optional<MediaItem> mediaItemOpt = mediaItemRepository.findById(imageId);
                 if (mediaItemOpt.isPresent()) {
                     MediaItem item = mediaItemOpt.get();
                     batchId = item.getBatchId();
                     fileName = item.getFileName();
-                    downloadUrl = gcsService.generateDownloadUrl(objectName);
                     if (item.getMetadata() != null) {
                         metadata.putAll(item.getMetadata());
                     }
+                } else {
+                    log.warn("MediaItem not yet available for imageId: {} — using objectPath as downloadUrl",
+                            imageId);
                 }
             }
 
