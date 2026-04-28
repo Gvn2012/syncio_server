@@ -17,12 +17,16 @@ import java.util.Map;
 public class MediaUploadedEventListener {
 
     private final IMessagingService messagingService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @KafkaListener(topics = "media.uploaded.msg", groupId = "messaging-service-group")
-    public void handleMediaUploaded(ImageUploadedEvent event) {
-        log.info("Received media uploaded event: {}", event);
+    public void handleMediaUploaded(String payload) {
+        log.info("Received media uploaded event string payload: {}", payload);
 
         try {
+            ImageUploadedEvent event = objectMapper.readValue(payload, ImageUploadedEvent.class);
+            log.info("Parsed media uploaded event: {}", event);
+
             String objectPath = event.getObjectPath();
             String[] parts = objectPath.split("/");
             if (parts.length < 4) {
