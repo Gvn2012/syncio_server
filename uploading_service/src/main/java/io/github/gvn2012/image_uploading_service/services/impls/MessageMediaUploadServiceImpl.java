@@ -10,8 +10,10 @@ import io.github.gvn2012.image_uploading_service.repositories.MediaItemRepositor
 import io.github.gvn2012.image_uploading_service.services.interfaces.GCSServiceInterface;
 import io.github.gvn2012.image_uploading_service.services.interfaces.MessageMediaUploadServiceInterface;
 import io.github.gvn2012.image_uploading_service.dtos.APIResource;
+import io.github.gvn2012.shared.kafka_events.MediaUploadInitiatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.net.URL;
@@ -28,11 +30,12 @@ public class MessageMediaUploadServiceImpl implements MessageMediaUploadServiceI
 
     private final GCSServiceInterface gcsService;
     private final MediaItemRepository mediaItemRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
     public APIResource<UploadResponse> sendUploadRequest(MessageMediaUploadRequest request) {
         String imageId = UuidCreator.getTimeOrderedEpoch().toString();
-        
+
         String type = request.getMediaType() != null ? request.getMediaType() : "IMAGE";
         String objectPath = "msg/" + request.getConversationId() + "/" + type + "/" + imageId;
 
@@ -44,19 +47,33 @@ public class MessageMediaUploadServiceImpl implements MessageMediaUploadServiceI
         }
 
         MediaItem item = MediaItem.builder()
-            .id(imageId)
-            .batchId(request.getBatchId())
-            .conversationId(request.getConversationId())
-            .fileName(request.getFileName())
-            .contentType(request.getFileContentType())
-            .mediaType(request.getMediaType())
-            .status("PENDING")
-            .uploadUrl(signedUrl.toString())
-            .metadata(Map.of("senderId", request.getSenderId() != null ? request.getSenderId() : ""))
-            .createdAt(Instant.now())
-            .updatedAt(Instant.now())
-            .build();
+                .id(imageId)
+                .batchId(request.getBatchId())
+                .conversationId(request.getConversationId())
+                .fileName(request.getFileName())
+                .contentType(request.getFileContentType())
+                .mediaType(request.getMediaType())
+                .status("PENDING")
+                .uploadUrl(signedUrl.toString())
+                .metadata(Map.of("senderId", request.getSenderId() != null ? request.getSenderId() : ""))
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
         mediaItemRepository.save(item);
+
+        MediaUploadInitiatedEvent initiatedEvent = MediaUploadInitiatedEvent.builder()
+                .mediaId(imageId)
+                .conversationId(request.getConversationId())
+                .senderId(request.getSenderId())
+                .mediaType(request.getMediaType())
+                .fileName(request.getFileName())
+                .contentType(request.getFileContentType())
+                .size(request.getSize())
+                .metadata(item.getMetadata())
+                .build();
+
+        kafkaTemplate.send("media.upload.initiated", imageId, initiatedEvent);
+        log.info("Published media.upload.initiated event for imageId: {}", imageId);
 
         UploadResponse response = new UploadResponse(
                 imageId,
@@ -85,7 +102,8 @@ public class MessageMediaUploadServiceImpl implements MessageMediaUploadServiceI
                     responses.add(response.getData());
                 }
             } catch (Exception e) {
-                log.error("Error processing batch upload request for file {}: {}", uploadRequest.getFileName(), e.getMessage());
+                log.error("Error processing batch upload request for file {}: {}", uploadRequest.getFileName(),
+                        e.getMessage());
             }
         }
 

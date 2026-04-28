@@ -117,12 +117,16 @@ public class MessagingServiceImpl implements IMessagingService {
                             mapToConversationResponse(conversation, request.getSenderId())));
         }
 
+        Optional<Message> existingMessage = request.getId() != null ? messageRepository.findById(request.getId()) : Optional.empty();
+        LocalDateTime timestamp = existingMessage.map(Message::getTimestamp).orElse(getCurrentTime());
+
         Message message = Message.builder()
                 .id(request.getId() != null ? request.getId() : UUID.randomUUID().toString())
                 .conversationId(request.getConversationId())
                 .senderId(request.getSenderId())
                 .content(request.getContent())
-                .timestamp(getCurrentTime())
+                .timestamp(timestamp)
+                .updatedAt(getCurrentTime())
                 .type(request.getType() != null ? request.getType() : io.github.gvn2012.messaging_service.models.enums.MessageType.TEXT)
                 .mediaId(request.getMediaId())
                 .mediaUrl(request.getMediaUrl())
