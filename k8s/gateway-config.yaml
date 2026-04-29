@@ -1,0 +1,105 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-config
+  namespace: syncio
+data:
+  application.properties: |-
+    spring.application.name=api_gateway
+
+    server.port=8080
+
+    logging.level.root=INFO
+    logging.level.org.springframework.cloud.gateway=TRACE
+    logging.level.org.springframework.cloud.gateway.cloud.RouteDefinitionRoute=DEBUG
+
+    management.server.port=8080
+    management.endpoints.web.base-path=/actuator
+    management.endpoints.web.exposure.include=health,info,prometheus
+    management.endpoint.health.show-details=always
+    management.endpoint.prometheus.access=unrestricted
+    management.metrics.distribution.percentiles-histogram.http.server.requests=true
+    management.metrics.distribution.percentiles-histogram.spring.web.client.request=true
+    management.metrics.distribution.percentiles-histogram.spring.web.client.response=true
+    management.metrics.distribution.percentiles-histogram.spring.cloud.gateway.requests = true
+
+    management.tracing.sampling.probability=${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
+    management.zipkin.tracing.endpoint=${MANAGEMENT_ZIPKIN_TRACING_ENDPOINT:http://syncio-zipkin:9411/api/v2/spans}
+
+    spring.cloud.discovery.enabled=false
+
+    grpc.client.auth-service.address=dns:///${SYNCIO_AUTH_HOST:syncio-auth}:9090
+    grpc.client.auth-service.negotiationType=PLAINTEXT
+
+    spring.cloud.gateway.routes[0].id=user-service
+    spring.cloud.gateway.routes[0].uri=http://syncio-user:8082
+    spring.cloud.gateway.routes[0].predicates[0]=Path=/api/v1/users/**
+    spring.cloud.gateway.routes[0].metadata.sensitiveHeaders=
+
+    spring.cloud.gateway.routes[1].id=auth-service
+    spring.cloud.gateway.routes[1].uri=http://syncio-auth:8081
+    spring.cloud.gateway.routes[1].predicates[0]=Path=/api/v1/auth/**
+    spring.cloud.gateway.routes[1].metadata.sensitiveHeaders=
+
+    spring.cloud.gateway.routes[2].id=notification-service
+    spring.cloud.gateway.routes[2].uri=http://syncio-notification:8083
+    spring.cloud.gateway.routes[2].predicates[0]=Path=/api/v1/notifications/**
+
+    spring.cloud.gateway.routes[3].id=rs
+    spring.cloud.gateway.routes[3].uri=http://syncio-rs:8087
+    spring.cloud.gateway.routes[3].predicates[0]=Path=/api/v1/rs/**
+
+    spring.cloud.gateway.routes[4].id=post-service
+    spring.cloud.gateway.routes[4].uri=http://syncio-post:8085
+    spring.cloud.gateway.routes[4].predicates[0]=Path=/api/v1/posts/**
+
+    spring.cloud.gateway.routes[5].id=permission-service
+    spring.cloud.gateway.routes[5].uri=http://syncio-permission:8088
+    spring.cloud.gateway.routes[5].predicates[0]=Path=/api/v1/permissions/**
+
+    spring.cloud.gateway.routes[6].id=org-service
+    spring.cloud.gateway.routes[6].uri=http://syncio-org:8084
+    spring.cloud.gateway.routes[6].predicates[0]=Path=/api/v1/orgs/**
+
+    spring.cloud.gateway.routes[7].uri=http://syncio-uploading:8090
+    spring.cloud.gateway.routes[7].predicates[0]=Path=/api/v1/upload/**
+
+    spring.cloud.gateway.routes[8].id=search-service
+    spring.cloud.gateway.routes[8].uri=http://syncio-search:8086
+    spring.cloud.gateway.routes[8].predicates[0]=Path=/api/v1/search/**
+
+    spring.cloud.gateway.routes[9].id=messaging-service
+    spring.cloud.gateway.routes[9].uri=http://syncio-messaging:8089
+    spring.cloud.gateway.routes[9].predicates[0]=Path=/api/v1/messaging/**
+
+    spring.cloud.gateway.routes[10].id=messaging-ws
+    spring.cloud.gateway.routes[10].uri=ws://syncio-messaging:8089
+    spring.cloud.gateway.routes[10].predicates[0]=Path=/ws/**
+
+    # SpringDoc OpenAPI Gateway Aggregation
+    springdoc.swagger-ui.urls[0].name=User Service
+    springdoc.swagger-ui.urls[0].url=/api/v1/users/v3/api-docs
+    springdoc.swagger-ui.urls[1].name=Auth Service
+    springdoc.swagger-ui.urls[1].url=/api/v1/auth/v3/api-docs
+    springdoc.swagger-ui.urls[2].name=Org Service
+    springdoc.swagger-ui.urls[2].url=/api/v1/orgs/v3/api-docs
+    springdoc.swagger-ui.urls[3].name=Notification Service
+    springdoc.swagger-ui.urls[3].url=/api/v1/notifications/v3/api-docs
+    springdoc.swagger-ui.urls[4].name=Relationship Service (rs)
+    springdoc.swagger-ui.urls[4].url=/api/v1/rs/v3/api-docs
+    springdoc.swagger-ui.urls[5].name=Permission Service
+    springdoc.swagger-ui.urls[5].url=/api/v1/permissions/v3/api-docs
+    springdoc.swagger-ui.urls[6].url=/api/v1/posts/v3/api-docs
+    springdoc.swagger-ui.urls[7].name=Search Service
+    springdoc.swagger-ui.urls[7].url=/api/v1/search/v3/api-docs
+    springdoc.swagger-ui.urls[8].name=Messaging Service
+    springdoc.swagger-ui.urls[8].url=/api/v1/messaging/v3/api-docs
+    springdoc.swagger-ui.path=/swagger-ui.html
+
+    # Global CORS Configuration
+    spring.cloud.gateway.globalcors.add-to-simple-url-handler-mapping=true
+    spring.cloud.gateway.globalcors.cors-configurations.[/**].allowedOriginPatterns=*
+    spring.cloud.gateway.globalcors.cors-configurations.[/**].allowedMethods=GET,POST,PUT,DELETE,PATCH,OPTIONS
+    spring.cloud.gateway.globalcors.cors-configurations.[/**].allowedHeaders=*
+    spring.cloud.gateway.globalcors.cors-configurations.[/**].allowCredentials=true
+    spring.cloud.gateway.globalcors.cors-configurations.[/**].maxAge=3600
