@@ -48,7 +48,6 @@ public class WebSocketEventListener {
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
         String userId = headerAccessor.getFirstNativeHeader("X-User-Id");
         if (userId != null) {
-            // Cancel any pending offline task — user is back
             ScheduledFuture<?> pendingOffline = pendingOfflineTasks.remove(userId);
             if (pendingOffline != null) {
                 pendingOffline.cancel(false);
@@ -80,11 +79,9 @@ public class WebSocketEventListener {
 
             if (remaining <= 0) {
                 userSessionCounts.remove(userId);
-                // Don't mark offline immediately — wait 5s in case of STOMP auto-reconnect
                 final String uid = userId;
                 ScheduledFuture<?> task = scheduler.schedule(() -> {
                     pendingOfflineTasks.remove(uid);
-                    // Re-check: user might have reconnected during the delay
                     AtomicInteger currentCount = userSessionCounts.get(uid);
                     if (currentCount == null || currentCount.get() <= 0) {
                         log.info("User {} confirmed offline after grace period", uid);
