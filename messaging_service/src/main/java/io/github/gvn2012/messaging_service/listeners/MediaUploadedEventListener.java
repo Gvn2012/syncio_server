@@ -21,23 +21,20 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MediaUploadedEventListener {
 
+    private static final Integer MIN_PATH_LENGTH = 4;
+
     private final IMessagingService messagingService;
     private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = "media.uploaded.msg", groupId = "messaging-service-group")
     public void handleMediaUploaded(String payload) {
-        log.info("Received media uploaded event string payload: {}", payload);
 
         try {
             ImageUploadedEvent event = objectMapper.readValue(payload, ImageUploadedEvent.class);
-            log.info("Parsed media uploaded event: {}", event);
 
-            String objectPath = event.getObjectPath();
-            String[] parts = objectPath.split("/");
-            if (parts.length < 4) {
-                log.warn("Invalid object path for message media: {}", objectPath);
-                return;
-            }
+            String[] parts = processObjectPath(event.getObjectPath(), "/");
+            if (parts.length < MIN_PATH_LENGTH)
+                throw new RuntimeException("Invalid object path");
 
             String conversationId = parts[1];
             String typeStr = parts[2].toUpperCase();
@@ -48,12 +45,7 @@ public class MediaUploadedEventListener {
                     ? metadata.get("senderId").toString()
                     : "unknown";
 
-            MessageType messageType = MessageType.IMAGE;
-            if ("VIDEO".equals(typeStr)) {
-                messageType = MessageType.VIDEO;
-            } else if ("AUDIO".equals(typeStr)) {
-                messageType = MessageType.AUDIO;
-            }
+            MessageType messageType = processMediaType(typeStr);
 
             String resolvedDownloadUrl = event.getDownloadUrl() != null
                     ? event.getDownloadUrl()
@@ -79,10 +71,24 @@ public class MediaUploadedEventListener {
                     .build();
 
             messagingService.processMessage(messageRequest);
-            log.info("Successfully processed media message creation for conversation: {}", conversationId);
 
         } catch (Exception e) {
-            log.error("Failed to process media message creation", e);
+            throw new RuntimeException(e.getMessage());
         }
+    }
+
+    private String[] processObjectPath(String objectPath, String separator) {
+        String[] parts = objectPath.split(separator);
+        if (parts.length < MIN_PATH_LENGTH)
+            throw new RuntimeException("Invalid object path");
+        return parts;
+    }
+
+    private MessageType processMediaType(String typeStr) {
+        return switch (typeStr.toUpperCase()) {
+            case "VIDEO" -> MessageType.VIDEO;
+            case "AUDIO" -> MessageType.AUDIO;
+            default -> MessageType.IMAGE;
+        };
     }
 }

@@ -26,16 +26,8 @@ public class WebSocketEventListener {
     private final PresenceService presenceService;
     private final IMessagingService messagingService;
 
-    /**
-     * Track number of active STOMP sessions per userId.
-     * Only set user offline when ALL sessions for that user have disconnected.
-     */
     private final Map<String, AtomicInteger> userSessionCounts = new ConcurrentHashMap<>();
 
-    /**
-     * Delayed offline tasks — cancelled if user reconnects within the grace window.
-     * This prevents flickering online/offline during STOMP auto-reconnect cycles.
-     */
     private final Map<String, ScheduledFuture<?>> pendingOfflineTasks = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "presence-offline-scheduler");
@@ -51,13 +43,11 @@ public class WebSocketEventListener {
             ScheduledFuture<?> pendingOffline = pendingOfflineTasks.remove(userId);
             if (pendingOffline != null) {
                 pendingOffline.cancel(false);
-                log.info("User {} reconnected, cancelled pending offline", userId);
             }
 
             int count = userSessionCounts
                     .computeIfAbsent(userId, k -> new AtomicInteger(0))
                     .incrementAndGet();
-            log.info("User connected: {} (active sessions: {})", userId, count);
             presenceService.setUserOnline(userId);
 
             messagingService.markAllAsDelivered(userId);
@@ -75,7 +65,6 @@ public class WebSocketEventListener {
         if (userId != null) {
             AtomicInteger sessionCount = userSessionCounts.get(userId);
             int remaining = sessionCount != null ? sessionCount.decrementAndGet() : 0;
-            log.info("User disconnected: {} (remaining sessions: {})", userId, remaining);
 
             if (remaining <= 0) {
                 userSessionCounts.remove(userId);
@@ -84,7 +73,6 @@ public class WebSocketEventListener {
                     pendingOfflineTasks.remove(uid);
                     AtomicInteger currentCount = userSessionCounts.get(uid);
                     if (currentCount == null || currentCount.get() <= 0) {
-                        log.info("User {} confirmed offline after grace period", uid);
                         presenceService.setUserOffline(uid);
                     }
                 }, 5, TimeUnit.SECONDS);

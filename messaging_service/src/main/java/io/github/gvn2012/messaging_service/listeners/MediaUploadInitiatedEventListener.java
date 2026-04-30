@@ -24,46 +24,48 @@ public class MediaUploadInitiatedEventListener {
 
     @KafkaListener(topics = "media.upload.initiated", groupId = "messaging-service-group")
     public void handleMediaUploadInitiated(String payload) {
-        log.info("Received media upload initiated event: {}", payload);
 
         try {
             MediaUploadInitiatedEvent event = objectMapper.readValue(payload, MediaUploadInitiatedEvent.class);
-            log.info("Parsed media upload initiated event: {}", event);
 
-            MessageType pendingType;
-            if ("VIDEO".equalsIgnoreCase(event.getMediaType())) {
-                pendingType = MessageType.VIDEO_PENDING;
-            } else if ("AUDIO".equalsIgnoreCase(event.getMediaType())) {
-                pendingType = MessageType.AUDIO_PENDING;
-            } else {
-                pendingType = MessageType.IMAGE_PENDING;
-            }
+            MessageType pendingType = getPendingType(event.getMediaType());
 
-            MessageRequest messageRequest = MessageRequest.builder()
-                    .batchId(event.getBatchId())
-                    .conversationId(event.getConversationId())
-                    .senderId(event.getSenderId())
-                    .content("")
-                    .type(pendingType)
-                    .mediaItems(List.of(MediaItem.builder()
-                            .id(event.getMediaId())
-                            .batchId(event.getBatchId())
-                            .conversationId(event.getConversationId())
-                            .fileName(event.getFileName())
-                            .contentType(event.getContentType())
-                            .mediaType(event.getMediaType())
-                            .status("INITIATED")
-                            .uploadUrl(event.getUploadUrl())
-                            .size(event.getSize())
-                            .createdAt(Instant.now())
-                            .build()))
-                    .build();
+            MessageRequest messageRequest = buildMessageRequest(event, pendingType);
 
             messagingService.processMessage(messageRequest);
-            log.info("Successfully created ephemeral message for imageId: {}", event.getMediaId());
 
         } catch (Exception e) {
-            log.error("Failed to process media upload initiated event", e);
+            throw new RuntimeException(e.getMessage());
         }
+    }
+
+    private MessageType getPendingType(String mediaType) {
+        return switch (mediaType.toUpperCase()) {
+            case "VIDEO" -> MessageType.VIDEO_PENDING;
+            case "AUDIO" -> MessageType.AUDIO_PENDING;
+            default -> MessageType.IMAGE_PENDING;
+        };
+    }
+
+    private MessageRequest buildMessageRequest(MediaUploadInitiatedEvent event, MessageType type) {
+        return MessageRequest.builder()
+                .batchId(event.getBatchId())
+                .conversationId(event.getConversationId())
+                .senderId(event.getSenderId())
+                .content("")
+                .type(type)
+                .mediaItems(List.of(MediaItem.builder()
+                        .id(event.getMediaId())
+                        .batchId(event.getBatchId())
+                        .conversationId(event.getConversationId())
+                        .fileName(event.getFileName())
+                        .contentType(event.getContentType())
+                        .mediaType(event.getMediaType())
+                        .status("INITIATED")
+                        .uploadUrl(event.getUploadUrl())
+                        .size(event.getSize())
+                        .createdAt(Instant.now())
+                        .build()))
+                .build();
     }
 }
