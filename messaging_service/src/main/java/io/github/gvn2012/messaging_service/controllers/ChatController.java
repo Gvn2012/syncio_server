@@ -66,6 +66,7 @@ public class ChatController {
     @MessageMapping("/group.create")
     public void createGroupConversation(@Payload GroupCreateRequest request, SimpMessageHeaderAccessor headerAccessor) {
         String userId = (String) headerAccessor.getSessionAttributes().get("userId");
+        log.info("Received group creation request from user {}: {}", userId, request.getName());
         messagingService.createGroupConversation(request, userId);
     }
 
