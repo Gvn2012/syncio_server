@@ -138,28 +138,11 @@ public class MessagingServiceImpl implements IMessagingService {
 
         Conversation saved = conversationRepository.save(conversation);
 
-        List<ParticipantPreview> previews = participants.stream()
-                .map(id -> {
-                    UserSummary summary = userSummaries.get(id);
-                    return ParticipantPreview.builder()
-                            .userId(id)
-                            .displayName(summary != null ? summary.getDisplayName() : "Unknown")
-                            .profilePictureUrl(summary != null ? summary.getAvatarUrl() : null)
-                            .build();
-                }).collect(Collectors.toList());
-
-        GroupSummaryResponse summaryResponse = GroupSummaryResponse.builder()
-                .id(saved.getId())
-                .name(saved.getName())
-                .participantCount(participants.size())
-                .participantPreviews(previews)
-                .type(saved.getType())
-                .createdAt(saved.getCreatedAt())
-                .build();
 
         for (String participantId : participants) {
+            ConversationResponse convResponse = mapToConversationResponse(saved, participantId, userSummaries);
             messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
-                    Map.of("type", "CONVERSATION_CREATED", "conversation", summaryResponse));
+                    Map.of("type", "CONVERSATION_CREATED", "conversation", convResponse));
         }
     }
 
