@@ -27,6 +27,16 @@ import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import net.devh.boot.grpc.client.inject.GrpcClient;
+import io.github.gvn2012.grpc.user.UserServiceGrpc;
+import io.github.gvn2012.grpc.user.UserBatchRequest;
+import io.github.gvn2012.grpc.user.UserSummaryBatchResponse;
+import io.github.gvn2012.grpc.user.UserSummary;
+import io.github.gvn2012.messaging_service.dtos.GroupCreateRequest;
+import io.github.gvn2012.messaging_service.dtos.GroupMemberRequest;
+import io.github.gvn2012.messaging_service.dtos.GroupSummaryResponse;
+import io.github.gvn2012.messaging_service.dtos.GroupUpdateRequest;
+import io.github.gvn2012.messaging_service.dtos.ParticipantPreview;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -49,6 +59,9 @@ public class MessagingServiceImpl implements IMessagingService {
     private final MediaItemRepository mediaItemRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final MongoTemplate mongoTemplate;
+
+    @GrpcClient("user_service")
+    private UserServiceGrpc.UserServiceBlockingStub userServiceStub;
 
     private LocalDateTime getCurrentTime() {
         return LocalDateTime.now(ZoneOffset.UTC);
@@ -77,6 +90,254 @@ public class MessagingServiceImpl implements IMessagingService {
         for (String participantId : participantIds) {
             messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
                     Map.of("type", "CONVERSATION_CREATED", "conversation", saved));
+        }
+    }
+
+    @Override
+    public void createGroupConversation(GroupCreateRequest request, String creatorId) {
+        List<String> participants = new ArrayList<>(request.getParticipantIds());
+        if (!participants.contains(creatorId)) {
+            participants.add(creatorId);
+        }
+
+        if (participants.size() < 2 || participants.size() > 50) {
+            throw new IllegalArgumentException("Group must have between 2 and 50 participants");
+        }
+
+        String groupName = request.getName();
+        Map<String, UserSummary> userSummaries = new HashMap<>();
+
+        try {
+            UserSummaryBatchResponse response = userServiceStub.getUsersSummary(
+                    UserBatchRequest.newBuilder().addAllUserIds(participants).build());
+            userSummaries.putAll(response.getSummariesMap());
+        } catch (Exception e) {
+            log.error("Failed to fetch user summaries for group name generation", e);
+        }
+
+        if (groupName == null || groupName.trim().isEmpty()) {
+            List<String> names = participants.stream()
+                    .filter(id -> !id.equals(creatorId))
+                    .map(id -> userSummaries.containsKey(id) ? userSummaries.get(id).getDisplayName() : "User")
+                    .limit(3)
+                    .collect(Collectors.toList());
+            groupName = String.join(", ", names);
+            if (participants.size() > 4) {
+                groupName += " and " + (participants.size() - 4) + " others";
+            }
+        }
+
+        Conversation conversation = Conversation.builder()
+                .participants(participants)
+                .name(groupName)
+                .type(ConversationType.GROUP)
+                .adminIds(List.of(creatorId))
+                .maxSize(50)
+                .deletedAtPerUser(new HashMap<>())
+                .build();
+
+        Conversation saved = conversationRepository.save(conversation);
+
+        List<ParticipantPreview> previews = participants.stream()
+                .map(id -> {
+                    UserSummary summary = userSummaries.get(id);
+                    return ParticipantPreview.builder()
+                            .userId(id)
+                            .displayName(summary != null ? summary.getDisplayName() : "Unknown")
+                            .profilePictureUrl(summary != null ? summary.getAvatarUrl() : null)
+                            .build();
+                }).collect(Collectors.toList());
+
+        GroupSummaryResponse summaryResponse = GroupSummaryResponse.builder()
+                .id(saved.getId())
+                .name(saved.getName())
+                .participantCount(participants.size())
+                .participantPreviews(previews)
+                .type(saved.getType())
+                .createdAt(saved.getCreatedAt())
+                .build();
+
+        for (String participantId : participants) {
+            messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
+                    Map.of("type", "CONVERSATION_CREATED", "conversation", summaryResponse));
+        }
+    }
+
+    @Override
+    public void updateGroupConversation(GroupUpdateRequest request, String userId) {
+        Conversation conversation = conversationRepository.findById(request.getConversationId())
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        if (conversation.getType() != ConversationType.GROUP || conversation.getAdminIds() == null
+                || !conversation.getAdminIds().contains(userId)) {
+            throw new RuntimeException("Only admins can update group details");
+        }
+
+        if (request.getName() != null)
+            conversation.setName(request.getName());
+        if (request.getDescription() != null)
+            conversation.setDescription(request.getDescription());
+        if (request.getGroupAvatar() != null)
+            conversation.setGroupAvatar(request.getGroupAvatar());
+
+        Conversation saved = conversationRepository.save(conversation);
+
+        for (String participantId : saved.getParticipants()) {
+            messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
+                    Map.of("type", "GROUP_UPDATED", "conversation", mapToConversationResponse(saved, participantId)));
+        }
+    }
+
+    @Override
+    @Transactional
+    public void manageGroupMembers(GroupMemberRequest request, String adminId) {
+        Conversation conversation = conversationRepository.findById(request.getConversationId())
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        if (conversation.getType() != ConversationType.GROUP || conversation.getAdminIds() == null
+                || !conversation.getAdminIds().contains(adminId)) {
+            throw new RuntimeException("Only admins can manage members");
+        }
+
+        List<String> participants = new ArrayList<>(conversation.getParticipants());
+        List<String> admins = new ArrayList<>(conversation.getAdminIds());
+
+        switch (request.getAction().toUpperCase()) {
+            case "ADD":
+                if (participants.size() >= conversation.getMaxSize())
+                    throw new RuntimeException("Group is full");
+                if (!participants.contains(request.getUserId()))
+                    participants.add(request.getUserId());
+                break;
+            case "REMOVE":
+                if (request.getUserId().equals(adminId))
+                    throw new RuntimeException("Cannot remove yourself");
+                participants.remove(request.getUserId());
+                admins.remove(request.getUserId());
+                break;
+            case "PROMOTE":
+                if (participants.contains(request.getUserId()) && !admins.contains(request.getUserId())) {
+                    admins.add(request.getUserId());
+                }
+                break;
+            case "DEMOTE":
+                if (request.getUserId().equals(adminId))
+                    throw new RuntimeException("Cannot demote yourself");
+                admins.remove(request.getUserId());
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid action: " + request.getAction());
+        }
+
+        conversation.setParticipants(participants);
+        conversation.setAdminIds(admins);
+        Conversation saved = conversationRepository.save(conversation);
+
+        for (String participantId : saved.getParticipants()) {
+            messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
+                    Map.of("type", "GROUP_UPDATED", "conversation", mapToConversationResponse(saved, participantId)));
+        }
+
+        if ("REMOVE".equals(request.getAction().toUpperCase())) {
+            messagingTemplate.convertAndSendToUser(request.getUserId(), "/queue/updates",
+                    Map.of("type", "CONVERSATION_DELETED", "conversationId", saved.getId()));
+        }
+    }
+
+    @Override
+    @Transactional
+    public void leaveGroupConversation(String conversationId, String userId) {
+        Conversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        if (conversation.getType() != ConversationType.GROUP) {
+            throw new RuntimeException("Cannot leave a direct conversation");
+        }
+
+        List<String> participants = new ArrayList<>(conversation.getParticipants());
+        List<String> admins = new ArrayList<>(conversation.getAdminIds());
+
+        participants.remove(userId);
+        admins.remove(userId);
+
+        if (participants.isEmpty()) {
+            conversationRepository.delete(conversation);
+            return;
+        }
+
+        if (admins.isEmpty() && !participants.isEmpty()) {
+            admins.add(participants.get(0));
+        }
+
+        conversation.setParticipants(participants);
+        conversation.setAdminIds(admins);
+        Conversation saved = conversationRepository.save(conversation);
+
+        messagingTemplate.convertAndSendToUser(userId, "/queue/updates",
+                Map.of("type", "CONVERSATION_DELETED", "conversationId", saved.getId()));
+
+        for (String participantId : saved.getParticipants()) {
+            messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
+                    Map.of("type", "GROUP_UPDATED", "conversation", mapToConversationResponse(saved, participantId)));
+        }
+    }
+
+    @Override
+    public GroupSummaryResponse getGroupSummary(String conversationId, String userId) {
+        Conversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        if (!conversation.getParticipants().contains(userId)) {
+            throw new RuntimeException("User not authorized");
+        }
+
+        Map<String, UserSummary> userSummaries = new HashMap<>();
+        try {
+            UserSummaryBatchResponse response = userServiceStub.getUsersSummary(
+                    UserBatchRequest.newBuilder().addAllUserIds(conversation.getParticipants()).build());
+            userSummaries.putAll(response.getSummariesMap());
+        } catch (Exception e) {
+            log.error("Failed to fetch user summaries for group {}", conversationId, e);
+        }
+
+        List<ParticipantPreview> previews = conversation.getParticipants().stream()
+                .map(id -> {
+                    UserSummary summary = userSummaries.get(id);
+                    return ParticipantPreview.builder()
+                            .userId(id)
+                            .displayName(summary != null ? summary.getDisplayName() : "Unknown")
+                            .profilePictureUrl(summary != null ? summary.getAvatarUrl() : null)
+                            .build();
+                }).collect(Collectors.toList());
+
+        return GroupSummaryResponse.builder()
+                .id(conversation.getId())
+                .name(conversation.getName())
+                .groupAvatar(conversation.getGroupAvatar())
+                .description(conversation.getDescription())
+                .adminIds(conversation.getAdminIds())
+                .maxSize(conversation.getMaxSize())
+                .participantCount(conversation.getParticipants().size())
+                .participantPreviews(previews)
+                .type(conversation.getType())
+                .lastMessage(conversation.getLastMessage() != null ? mapToResponse(conversation.getLastMessage()) : null)
+                .unreadCount((int) messageRepository.countUnreadMessages(conversation.getId(), userId))
+                .createdAt(conversation.getCreatedAt())
+                .updatedAt(conversation.getUpdatedAt())
+                .build();
+    }
+
+    @Override
+    public void broadcastTyping(String conversationId, String userId, boolean isTyping) {
+        Optional<Conversation> opt = conversationRepository.findById(conversationId);
+        if (opt.isPresent()) {
+            Conversation conv = opt.get();
+            for (String participantId : conv.getParticipants()) {
+                if (!participantId.equals(userId)) {
+                    messagingTemplate.convertAndSendToUser(participantId, "/queue/typing",
+                            Map.of("conversationId", conversationId, "userId", userId, "isTyping", isTyping));
+                }
+            }
         }
     }
 
@@ -248,17 +509,53 @@ public class MessagingServiceImpl implements IMessagingService {
     @Override
     public List<ConversationResponse> getConversations(String userId) {
         List<Conversation> conversations = conversationRepository.findActiveConversationsForUser(userId);
-        if (conversations == null) {
+        if (conversations == null || conversations.isEmpty()) {
             return new ArrayList<>();
         }
 
+        List<String> allParticipantIds = conversations.stream()
+                .flatMap(conv -> conv.getParticipants().stream())
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<String, UserSummary> userSummaries = new HashMap<>();
+        try {
+            UserSummaryBatchResponse response = userServiceStub.getUsersSummary(
+                    UserBatchRequest.newBuilder().addAllUserIds(allParticipantIds).build());
+            userSummaries.putAll(response.getSummariesMap());
+        } catch (Exception e) {
+            log.error("Failed to fetch user summaries for getConversations", e);
+        }
+
         return conversations.stream()
-                .map(conv -> mapToConversationResponse(conv, userId))
+                .map(conv -> mapToConversationResponse(conv, userId, userSummaries))
                 .collect(Collectors.toList());
     }
 
     private ConversationResponse mapToConversationResponse(Conversation conv, String userId) {
+        Map<String, UserSummary> userSummaries = new HashMap<>();
+        try {
+            UserSummaryBatchResponse response = userServiceStub.getUsersSummary(
+                    UserBatchRequest.newBuilder().addAllUserIds(conv.getParticipants()).build());
+            userSummaries.putAll(response.getSummariesMap());
+        } catch (Exception e) {
+            log.error("Failed to fetch user summaries for mapToConversationResponse", e);
+        }
+        return mapToConversationResponse(conv, userId, userSummaries);
+    }
+
+    private ConversationResponse mapToConversationResponse(Conversation conv, String userId, Map<String, UserSummary> userSummaries) {
         MessageResponse lastMessageDto = conv.getLastMessage() != null ? mapToResponse(conv.getLastMessage()) : null;
+
+        List<ParticipantPreview> previews = conv.getParticipants().stream()
+                .map(id -> {
+                    UserSummary summary = userSummaries != null ? userSummaries.get(id) : null;
+                    return ParticipantPreview.builder()
+                            .userId(id)
+                            .displayName(summary != null ? summary.getDisplayName() : "Unknown")
+                            .profilePictureUrl(summary != null ? summary.getAvatarUrl() : null)
+                            .build();
+                }).collect(Collectors.toList());
 
         return ConversationResponse.builder()
                 .id(conv.getId())
@@ -269,6 +566,11 @@ public class MessagingServiceImpl implements IMessagingService {
                 .unreadCount((int) messageRepository.countUnreadMessages(conv.getId(), userId))
                 .createdAt(conv.getCreatedAt())
                 .updatedAt(conv.getUpdatedAt())
+                .groupAvatar(conv.getGroupAvatar())
+                .description(conv.getDescription())
+                .adminIds(conv.getAdminIds())
+                .maxSize(conv.getMaxSize())
+                .participantPreviews(previews)
                 .build();
     }
 
@@ -429,12 +731,18 @@ public class MessagingServiceImpl implements IMessagingService {
                 message.getStatus().get(userId).setUpdateTime(getCurrentTime());
                 messageRepository.save(message);
 
-                messagingTemplate.convertAndSendToUser(message.getSenderId(), "/queue/status",
-                        Map.of(
-                                "conversationId", message.getConversationId(),
-                                "messageId", messageId,
-                                "userId", userId,
-                                "status", MessageStatusType.DELIVERED));
+                conversationRepository.findById(message.getConversationId()).ifPresent(conversation -> {
+                    for (String participantId : conversation.getParticipants()) {
+                        if (!participantId.equals(userId)) {
+                            messagingTemplate.convertAndSendToUser(participantId, "/queue/status",
+                                    Map.of(
+                                            "conversationId", message.getConversationId(),
+                                            "messageId", messageId,
+                                            "userId", userId,
+                                            "status", MessageStatusType.DELIVERED));
+                        }
+                    }
+                });
             }
         });
     }
@@ -469,12 +777,18 @@ public class MessagingServiceImpl implements IMessagingService {
 
         grouped.forEach((senderId, convMap) -> {
             convMap.forEach((conversationId, messageIds) -> {
-                messagingTemplate.convertAndSendToUser(senderId, "/queue/status",
-                        Map.of(
-                                "conversationId", conversationId,
-                                "messageIds", messageIds,
-                                "userId", userId,
-                                "status", MessageStatusType.DELIVERED));
+                conversationRepository.findById(conversationId).ifPresent(conversation -> {
+                    for (String participantId : conversation.getParticipants()) {
+                        if (!participantId.equals(userId)) {
+                            messagingTemplate.convertAndSendToUser(participantId, "/queue/status",
+                                    Map.of(
+                                            "conversationId", conversationId,
+                                            "messageIds", messageIds,
+                                            "userId", userId,
+                                            "status", MessageStatusType.DELIVERED));
+                        }
+                    }
+                });
             });
         });
     }
@@ -507,13 +821,19 @@ public class MessagingServiceImpl implements IMessagingService {
                 .collect(Collectors.groupingBy(Message::getSenderId,
                         Collectors.mapping(Message::getId, Collectors.toList())));
 
-        messagesBySender.forEach((senderId, messageIds) -> {
-            messagingTemplate.convertAndSendToUser(senderId, "/queue/status",
-                    Map.of(
-                            "conversationId", conversationId,
-                            "messageIds", messageIds,
-                            "userId", userId,
-                            "status", MessageStatusType.SEEN));
+        conversationRepository.findById(conversationId).ifPresent(conversation -> {
+            messagesBySender.forEach((senderId, messageIds) -> {
+                for (String participantId : conversation.getParticipants()) {
+                    if (!participantId.equals(userId)) {
+                        messagingTemplate.convertAndSendToUser(participantId, "/queue/status",
+                                Map.of(
+                                        "conversationId", conversationId,
+                                        "messageIds", messageIds,
+                                        "userId", userId,
+                                        "status", MessageStatusType.SEEN));
+                    }
+                }
+            });
         });
     }
 

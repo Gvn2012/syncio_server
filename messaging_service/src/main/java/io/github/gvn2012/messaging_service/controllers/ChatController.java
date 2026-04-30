@@ -3,6 +3,9 @@ package io.github.gvn2012.messaging_service.controllers;
 import io.github.gvn2012.messaging_service.dtos.MessageRequest;
 import io.github.gvn2012.messaging_service.dtos.MessageResponse;
 import io.github.gvn2012.messaging_service.dtos.ConversationRequest;
+import io.github.gvn2012.messaging_service.dtos.GroupCreateRequest;
+import io.github.gvn2012.messaging_service.dtos.GroupUpdateRequest;
+import io.github.gvn2012.messaging_service.dtos.GroupMemberRequest;
 import io.github.gvn2012.messaging_service.services.interfaces.IMessagingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -60,6 +63,31 @@ public class ChatController {
         messagingService.createConversation(request.getParticipantIds(), request.getName(), request.getType());
     }
 
+    @MessageMapping("/group.create")
+    public void createGroupConversation(@Payload GroupCreateRequest request, SimpMessageHeaderAccessor headerAccessor) {
+        String userId = (String) headerAccessor.getSessionAttributes().get("userId");
+        messagingService.createGroupConversation(request, userId);
+    }
+
+    @MessageMapping("/group.update")
+    public void updateGroupConversation(@Payload GroupUpdateRequest request, SimpMessageHeaderAccessor headerAccessor) {
+        String userId = (String) headerAccessor.getSessionAttributes().get("userId");
+        messagingService.updateGroupConversation(request, userId);
+    }
+
+    @MessageMapping("/group.members")
+    public void manageGroupMembers(@Payload GroupMemberRequest request, SimpMessageHeaderAccessor headerAccessor) {
+        String userId = (String) headerAccessor.getSessionAttributes().get("userId");
+        messagingService.manageGroupMembers(request, userId);
+    }
+
+    @MessageMapping("/group.leave")
+    public void leaveGroupConversation(@Payload Map<String, String> payload, SimpMessageHeaderAccessor headerAccessor) {
+        String userId = (String) headerAccessor.getSessionAttributes().get("userId");
+        String conversationId = payload.get("conversationId");
+        messagingService.leaveGroupConversation(conversationId, userId);
+    }
+
     @MessageMapping("/chat.ack")
     public void acknowledgeMessage(@Payload String messageId, SimpMessageHeaderAccessor headerAccessor) {
         String userId = (String) headerAccessor.getSessionAttributes().get("userId");
@@ -81,7 +109,11 @@ public class ChatController {
         String recipientId = payload.get("recipientId");
         boolean isTyping = Boolean.parseBoolean(payload.get("isTyping"));
 
-        messagingTemplate.convertAndSendToUser(recipientId, "/queue/typing",
-                Map.of("conversationId", conversationId, "userId", userId, "isTyping", isTyping));
+        if (recipientId != null && !recipientId.isEmpty() && !recipientId.equals("null") && !recipientId.equals("undefined")) {
+            messagingTemplate.convertAndSendToUser(recipientId, "/queue/typing",
+                    Map.of("conversationId", conversationId, "userId", userId, "isTyping", isTyping));
+        } else {
+            messagingService.broadcastTyping(conversationId, userId, isTyping);
+        }
     }
 }

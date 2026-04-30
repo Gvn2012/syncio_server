@@ -13,19 +13,18 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ConversationResponse {
+public class GroupSummaryResponse {
     private String id;
     private String name;
-    private List<String> participants;
+    private String groupAvatar;
+    private String description;
+    private List<String> adminIds;
+    private int maxSize;
+    private int participantCount;
+    private List<ParticipantPreview> participantPreviews;
     private ConversationType type;
     private MessageResponse lastMessage;
     private int unreadCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
-    private String groupAvatar;
-    private String description;
-    private List<String> adminIds;
-    private int maxSize;
-    private List<ParticipantPreview> participantPreviews;
 }

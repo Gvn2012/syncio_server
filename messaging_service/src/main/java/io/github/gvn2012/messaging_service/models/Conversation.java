@@ -27,6 +27,12 @@ public class Conversation {
     private ConversationType type;
     private Message lastMessage;
 
+    private String groupAvatar;
+    private List<String> adminIds;
+    private String description;
+    @Builder.Default
+    private int maxSize = 50;
+
     private Map<String, LocalDateTime> deletedAtPerUser;
 
     @CreatedDate
