@@ -138,6 +138,12 @@ public class MessagingServiceImpl implements IMessagingService {
 
         Conversation saved = conversationRepository.save(conversation);
 
+        String creatorName = getUserName(creatorId);
+        int others = participants.size() - 2;
+        String initMsg = others > 0
+                ? String.format("%s has added you and %d others to this conversation", creatorName, others)
+                : String.format("%s has added you to this conversation", creatorName);
+        sendSystemMessage(saved, initMsg);
 
         for (String participantId : participants) {
             ConversationResponse convResponse = mapToConversationResponse(saved, participantId, userSummaries);
@@ -212,7 +218,8 @@ public class MessagingServiceImpl implements IMessagingService {
                     throw new RuntimeException("Group is full");
                 if (!participants.contains(request.getUserId())) {
                     participants.add(request.getUserId());
-                    systemMessageContent = String.format("%s has been added to the group", getUserName(request.getUserId()));
+                    systemMessageContent = String.format("%s has been added to the group",
+                            getUserName(request.getUserId()));
                 }
                 break;
             case "REMOVE":
@@ -228,7 +235,8 @@ public class MessagingServiceImpl implements IMessagingService {
             case "PROMOTE":
                 if (participants.contains(request.getUserId()) && !admins.contains(request.getUserId())) {
                     admins.add(request.getUserId());
-                    systemMessageContent = String.format("%s has been promoted to admin", getUserName(request.getUserId()));
+                    systemMessageContent = String.format("%s has been promoted to admin",
+                            getUserName(request.getUserId()));
                 }
                 break;
             case "DEMOTE":
@@ -365,7 +373,8 @@ public class MessagingServiceImpl implements IMessagingService {
                 .participantCount(conversation.getParticipants().size())
                 .participantPreviews(previews)
                 .type(conversation.getType())
-                .lastMessage(conversation.getLastMessage() != null ? mapToResponse(conversation.getLastMessage()) : null)
+                .lastMessage(
+                        conversation.getLastMessage() != null ? mapToResponse(conversation.getLastMessage()) : null)
                 .unreadCount((int) messageRepository.countUnreadMessages(conversation.getId(), userId))
                 .createdAt(conversation.getCreatedAt())
                 .updatedAt(conversation.getUpdatedAt())
@@ -589,7 +598,8 @@ public class MessagingServiceImpl implements IMessagingService {
         return mapToConversationResponse(conv, userId, userSummaries);
     }
 
-    private ConversationResponse mapToConversationResponse(Conversation conv, String userId, Map<String, UserSummary> userSummaries) {
+    private ConversationResponse mapToConversationResponse(Conversation conv, String userId,
+            Map<String, UserSummary> userSummaries) {
         MessageResponse lastMessageDto = conv.getLastMessage() != null ? mapToResponse(conv.getLastMessage()) : null;
 
         List<ParticipantPreview> previews = conv.getParticipants().stream()
