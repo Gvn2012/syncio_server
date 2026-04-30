@@ -14,4 +14,6 @@ public class CallSignal {
     private String senderId;
     private String recipientId;
     private Object payload;
+    private String callMode;
+    private String conversationId;
 }

@@ -7,5 +7,7 @@ public enum MessageType {
     AUDIO,
     IMAGE_PENDING,
     VIDEO_PENDING,
-    AUDIO_PENDING
+    AUDIO_PENDING,
+    CALL_VOICE,
+    CALL_VIDEO
 }

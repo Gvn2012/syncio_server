@@ -3,11 +3,13 @@ package io.github.gvn2012.messaging_service.services.impls;
 import io.github.gvn2012.messaging_service.dtos.ConversationResponse;
 import io.github.gvn2012.messaging_service.dtos.MessageRequest;
 import io.github.gvn2012.messaging_service.dtos.MessageResponse;
+import io.github.gvn2012.messaging_service.dtos.CallSignal;
 import io.github.gvn2012.messaging_service.models.Conversation;
 import io.github.gvn2012.messaging_service.models.Message;
 import io.github.gvn2012.messaging_service.models.MediaItem;
 import io.github.gvn2012.messaging_service.models.enums.ConversationType;
 import io.github.gvn2012.messaging_service.models.enums.MessageStatusType;
+import io.github.gvn2012.messaging_service.models.enums.MessageType;
 import io.github.gvn2012.messaging_service.repositories.ConversationRepository;
 import io.github.gvn2012.messaging_service.repositories.MessageRepository;
 import io.github.gvn2012.messaging_service.repositories.MediaItemRepository;
@@ -175,6 +177,70 @@ public class MessagingServiceImpl implements IMessagingService {
                 mediaItemRepository.save(newItem);
             }
         }
+
+        saveMessageAndNotify(message, conversation);
+    }
+
+    @Override
+    @Transactional
+    public void persistCallLog(CallSignal signal, String userId) {
+        String conversationId = signal.getConversationId();
+        if (conversationId == null)
+            return;
+
+        Conversation conversation = conversationRepository.findById(conversationId).orElse(null);
+        if (conversation == null)
+            return;
+
+        boolean isVideo = "VIDEO".equals(signal.getCallMode());
+        MessageType type = isVideo ? MessageType.CALL_VIDEO : MessageType.CALL_VOICE;
+
+        String content;
+        if ("CALL_REJECTED".equals(signal.getType())) {
+            content = isVideo ? "Missed video call" : "Missed voice call";
+        } else {
+            int duration = 0;
+            if (signal.getPayload() instanceof Map) {
+                Map<?, ?> payloadMap = (Map<?, ?>) signal.getPayload();
+                if (payloadMap.containsKey("duration")) {
+                    Object durationObj = payloadMap.get("duration");
+                    if (durationObj instanceof Number) {
+                        duration = ((Number) durationObj).intValue();
+                    } else if (durationObj instanceof String) {
+                        try {
+                            duration = Integer.parseInt((String) durationObj);
+                        } catch (NumberFormatException e) {
+                        }
+                    }
+                }
+            }
+            if (duration == 0) {
+                content = isVideo ? "Missed video call" : "Missed voice call";
+            } else {
+                int mins = duration / 60;
+                int secs = duration % 60;
+                String timeStr = String.format("%02d:%02d", mins, secs);
+                content = (isVideo ? "Video call \u2022 " : "Voice call \u2022 ") + timeStr;
+            }
+        }
+
+        Message message = Message.builder()
+                .id(UUID.randomUUID().toString())
+                .conversationId(conversationId)
+                .senderId(userId)
+                .content(content)
+                .timestamp(getCurrentTime())
+                .updatedAt(getCurrentTime())
+                .type(type)
+                .status(conversation.getParticipants().stream()
+                        .filter(pid -> !pid.equals(userId))
+                        .collect(Collectors.toMap(pid -> pid, pid -> Message.StatusInfo.builder()
+                                .status(MessageStatusType.SENT)
+                                .updateTime(getCurrentTime())
+                                .build())))
+                .isEdited(false)
+                .isRecalled(false)
+                .build();
 
         saveMessageAndNotify(message, conversation);
     }

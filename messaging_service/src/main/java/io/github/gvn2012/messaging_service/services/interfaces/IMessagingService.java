@@ -3,12 +3,15 @@ package io.github.gvn2012.messaging_service.services.interfaces;
 import io.github.gvn2012.messaging_service.dtos.ConversationResponse;
 import io.github.gvn2012.messaging_service.dtos.MessageRequest;
 import io.github.gvn2012.messaging_service.dtos.MessageResponse;
+import io.github.gvn2012.messaging_service.dtos.CallSignal;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 public interface IMessagingService {
     void processMessage(MessageRequest request);
+
+    void persistCallLog(CallSignal signal, String userId);
 
     void editMessage(String messageId, String newContent, String userId);
 
