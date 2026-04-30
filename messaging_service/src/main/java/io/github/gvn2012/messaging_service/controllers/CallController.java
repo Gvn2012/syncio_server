@@ -41,6 +41,10 @@ public class CallController {
         if ("CALL_ENDED".equals(signal.getType()) || "CALL_REJECTED".equals(signal.getType())) {
             messagingService.persistCallLog(signal, userId);
         }
+
+        if (signal.getConversationId() != null && (recipientId == null || recipientId.isEmpty())) {
+            messagingService.broadcastCallSignal(signal, userId);
+        }
     }
 
     @MessageMapping("/call.group.join")

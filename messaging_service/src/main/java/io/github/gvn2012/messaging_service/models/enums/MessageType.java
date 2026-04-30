@@ -9,5 +9,6 @@ public enum MessageType {
     VIDEO_PENDING,
     AUDIO_PENDING,
     CALL_VOICE,
-    CALL_VIDEO
+    CALL_VIDEO,
+    SYSTEM
 }

@@ -156,6 +156,7 @@ public class MessagingServiceImpl implements IMessagingService {
             throw new RuntimeException("Only admins can update group details");
         }
 
+        String oldName = conversation.getName();
         if (request.getName() != null)
             conversation.setName(request.getName());
         if (request.getDescription() != null)
@@ -165,10 +166,29 @@ public class MessagingServiceImpl implements IMessagingService {
 
         Conversation saved = conversationRepository.save(conversation);
 
+        if (request.getName() != null && !request.getName().equals(oldName)) {
+            sendSystemMessage(saved, String.format("Group name changed to \"%s\"", request.getName()));
+        }
+
         for (String participantId : saved.getParticipants()) {
             messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
                     Map.of("type", "GROUP_UPDATED", "conversation", mapToConversationResponse(saved, participantId)));
         }
+    }
+
+    private String getUserName(String userId) {
+        try {
+            UserSummaryBatchResponse response = userServiceStub.getUsersSummary(UserBatchRequest.newBuilder()
+                    .addUserIds(userId)
+                    .build());
+            UserSummary summary = response.getSummariesMap().get(userId);
+            if (summary != null) {
+                return summary.getDisplayName();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch user name for {}", userId, e);
+        }
+        return "A member";
     }
 
     @Override
@@ -184,29 +204,40 @@ public class MessagingServiceImpl implements IMessagingService {
 
         List<String> participants = new ArrayList<>(conversation.getParticipants());
         List<String> admins = new ArrayList<>(conversation.getAdminIds());
+        String systemMessageContent = null;
 
         switch (request.getAction().toUpperCase()) {
             case "ADD":
                 if (participants.size() >= conversation.getMaxSize())
                     throw new RuntimeException("Group is full");
-                if (!participants.contains(request.getUserId()))
+                if (!participants.contains(request.getUserId())) {
                     participants.add(request.getUserId());
+                    systemMessageContent = String.format("%s has been added to the group", getUserName(request.getUserId()));
+                }
                 break;
             case "REMOVE":
                 if (request.getUserId().equals(adminId))
                     throw new RuntimeException("Cannot remove yourself");
-                participants.remove(request.getUserId());
-                admins.remove(request.getUserId());
+                if (participants.contains(request.getUserId())) {
+                    String userName = getUserName(request.getUserId());
+                    participants.remove(request.getUserId());
+                    admins.remove(request.getUserId());
+                    systemMessageContent = String.format("%s has been removed from the group", userName);
+                }
                 break;
             case "PROMOTE":
                 if (participants.contains(request.getUserId()) && !admins.contains(request.getUserId())) {
                     admins.add(request.getUserId());
+                    systemMessageContent = String.format("%s has been promoted to admin", getUserName(request.getUserId()));
                 }
                 break;
             case "DEMOTE":
                 if (request.getUserId().equals(adminId))
                     throw new RuntimeException("Cannot demote yourself");
-                admins.remove(request.getUserId());
+                if (admins.contains(request.getUserId())) {
+                    admins.remove(request.getUserId());
+                    systemMessageContent = String.format("%s has been demoted", getUserName(request.getUserId()));
+                }
                 break;
             default:
                 throw new IllegalArgumentException("Invalid action: " + request.getAction());
@@ -215,6 +246,10 @@ public class MessagingServiceImpl implements IMessagingService {
         conversation.setParticipants(participants);
         conversation.setAdminIds(admins);
         Conversation saved = conversationRepository.save(conversation);
+
+        if (systemMessageContent != null) {
+            sendSystemMessage(saved, systemMessageContent);
+        }
 
         for (String participantId : saved.getParticipants()) {
             messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
@@ -240,6 +275,11 @@ public class MessagingServiceImpl implements IMessagingService {
         List<String> participants = new ArrayList<>(conversation.getParticipants());
         List<String> admins = new ArrayList<>(conversation.getAdminIds());
 
+        if (!participants.contains(userId)) {
+            return;
+        }
+
+        String userName = getUserName(userId);
         participants.remove(userId);
         admins.remove(userId);
 
@@ -256,6 +296,8 @@ public class MessagingServiceImpl implements IMessagingService {
         conversation.setAdminIds(admins);
         Conversation saved = conversationRepository.save(conversation);
 
+        sendSystemMessage(saved, String.format("%s has left the group chat", userName));
+
         messagingTemplate.convertAndSendToUser(userId, "/queue/updates",
                 Map.of("type", "CONVERSATION_DELETED", "conversationId", saved.getId()));
 
@@ -263,6 +305,26 @@ public class MessagingServiceImpl implements IMessagingService {
             messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
                     Map.of("type", "GROUP_UPDATED", "conversation", mapToConversationResponse(saved, participantId)));
         }
+    }
+
+    private void sendSystemMessage(Conversation conversation, String content) {
+        Message message = Message.builder()
+                .id(UUID.randomUUID().toString())
+                .conversationId(conversation.getId())
+                .senderId("SYSTEM")
+                .content(content)
+                .timestamp(getCurrentTime())
+                .updatedAt(getCurrentTime())
+                .type(MessageType.SYSTEM)
+                .status(conversation.getParticipants().stream()
+                        .collect(Collectors.toMap(pid -> pid, pid -> Message.StatusInfo.builder()
+                                .status(MessageStatusType.SENT)
+                                .updateTime(getCurrentTime())
+                                .build())))
+                .isEdited(false)
+                .isRecalled(false)
+                .build();
+        saveMessageAndNotify(message, conversation);
     }
 
     @Override
@@ -839,6 +901,17 @@ public class MessagingServiceImpl implements IMessagingService {
                 (Class<Map<String, Object>>) (Class<?>) Map.class);
         Map<String, Object> result = results.getUniqueMappedResult();
         return result != null ? ((Number) result.get("total")).longValue() : 0L;
+    }
+
+    @Override
+    public void broadcastCallSignal(CallSignal signal, String userId) {
+        conversationRepository.findById(signal.getConversationId()).ifPresent(conversation -> {
+            for (String participantId : conversation.getParticipants()) {
+                if (!participantId.equals(userId)) {
+                    messagingTemplate.convertAndSendToUser(participantId, "/queue/call", signal);
+                }
+            }
+        });
     }
 
     private MessageResponse mapToResponse(Message message) {

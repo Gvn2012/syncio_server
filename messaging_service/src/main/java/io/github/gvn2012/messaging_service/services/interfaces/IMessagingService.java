@@ -43,6 +43,8 @@ public interface IMessagingService {
 
     void broadcastTyping(String conversationId, String userId, boolean isTyping);
 
+    void broadcastCallSignal(CallSignal signal, String userId);
+
     GroupSummaryResponse getGroupSummary(String conversationId, String userId);
 
     List<ConversationResponse> getConversations(String userId);
