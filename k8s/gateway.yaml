@@ -73,6 +73,7 @@ metadata:
   name: syncio-backend-config
   namespace: syncio
 spec:
+  timeoutSec: 3600
   healthCheck:
     checkIntervalSec: 15
     timeoutSec: 5
