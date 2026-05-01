@@ -995,7 +995,7 @@ spec:
     spec:
       containers:
         - name: websocket-service
-          image: vietpham18/websocket-service:latest
+          image: vietpham18/websocket-service:ec493d84344154427358050deeced492492b2223
           ports:
             - containerPort: 8091
           env:
@@ -1048,7 +1048,7 @@ spec:
     spec:
       containers:
         - name: call-service
-          image: vietpham18/call-service:latest
+          image: vietpham18/call-service:ec493d84344154427358050deeced492492b2223
           ports:
             - containerPort: 8092
           env:
@@ -1095,7 +1095,7 @@ spec:
     spec:
       containers:
         - name: presence-service
-          image: vietpham18/presence-service:latest
+          image: vietpham18/presence-service:ec493d84344154427358050deeced492492b2223
           ports:
             - containerPort: 8093
           env:
