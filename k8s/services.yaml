@@ -995,7 +995,7 @@ spec:
     spec:
       containers:
         - name: websocket-service
-          image: vietpham18/websocket-service:ec493d84344154427358050deeced492492b2223
+          image: vietpham18/websocket-service:db58db02ba796403165db9c268ecfaa35545b4b6
           ports:
             - containerPort: 8091
           env:
