@@ -743,7 +743,7 @@ spec:
             - name: ARGOCD_APP_NAME
               value: syncio-app
             - name: SCALABLE_DEPLOYMENTS
-              value: syncio-auth,syncio-user,syncio-rs,syncio-post,syncio-permission,syncio-org,syncio-notification,syncio-uploading,syncio-search,syncio-ranking,syncio-messaging
+              value: syncio-auth,syncio-user,syncio-rs,syncio-post,syncio-permission,syncio-org,syncio-notification,syncio-uploading,syncio-search,syncio-ranking,syncio-messaging,syncio-websocket,syncio-call,syncio-presence
             - name: GITHUB_REPO
               value: Gvn2012/syncio_server
             - name: GITHUB_BRANCH
@@ -978,3 +978,147 @@ spec:
     - port: 8089
       targetPort: 8089
 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-websocket
+  namespace: syncio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syncio-websocket
+  template:
+    metadata:
+      labels:
+        app: syncio-websocket
+    spec:
+      containers:
+        - name: websocket-service
+          image: vietpham18/websocket-service:latest
+          ports:
+            - containerPort: 8091
+          env:
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "syncio-kafka:9092"
+            - name: SYNCIO_MESSAGING_HOST
+              value: "syncio-messaging"
+            - name: SYNCIO_PRESENCE_HOST
+              value: "syncio-presence"
+            - name: SYNCIO_CALL_HOST
+              value: "syncio-call"
+            - name: SYNCIO_USER_HOST
+              value: "syncio-user"
+            - name: SYNCIO_FRONTEND_URL
+              value: "https://syncio.gvn.kr"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              cpu: "300m"
+              memory: "768Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-websocket
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-websocket
+  ports:
+    - port: 8091
+      targetPort: 8091
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-call
+  namespace: syncio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syncio-call
+  template:
+    metadata:
+      labels:
+        app: syncio-call
+    spec:
+      containers:
+        - name: call-service
+          image: vietpham18/call-service:latest
+          ports:
+            - containerPort: 8092
+          env:
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb+srv://vietp6861_db_user:OxvEjMko11affa2A@syncio-clt.fgkymji.mongodb.net/?appName=syncio-clt"
+            - name: SPRING_REDIS_HOST
+              value: "syncio-redis"
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "syncio-kafka:9092"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              cpu: "300m"
+              memory: "768Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-call
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-call
+  ports:
+    - port: 8092
+      targetPort: 8092
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-presence
+  namespace: syncio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syncio-presence
+  template:
+    metadata:
+      labels:
+        app: syncio-presence
+    spec:
+      containers:
+        - name: presence-service
+          image: vietpham18/presence-service:latest
+          ports:
+            - containerPort: 8093
+          env:
+            - name: SPRING_REDIS_HOST
+              value: "syncio-redis"
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "syncio-kafka:9092"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "200m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-presence
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-presence
+  ports:
+    - port: 8093
+      targetPort: 8093

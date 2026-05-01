@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-presence
+  namespace: syncio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syncio-presence
+  template:
+    metadata:
+      labels:
+        app: syncio-presence
+    spec:
+      containers:
+        - name: presence-service
+          image: vietpham18/presence-service:latest
+          ports:
+            - containerPort: 8093
+          env:
+            - name: SPRING_REDIS_HOST
+              value: "syncio-redis"
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "syncio-kafka:9092"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "200m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-presence
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-presence
+  ports:
+    - port: 8093
+      targetPort: 8093

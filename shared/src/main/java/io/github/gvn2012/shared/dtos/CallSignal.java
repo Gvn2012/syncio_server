@@ -1,0 +1,21 @@
+package io.github.gvn2012.shared.dtos;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class CallSignal {
+    private String type;
+    private String senderId;
+    private String recipientId;
+    private Object payload;
+    private String callMode;
+    private String conversationId;
+    private String callId;
+    private Long callStartTime;
+}

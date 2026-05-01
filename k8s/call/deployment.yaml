@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncio-call
+  namespace: syncio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syncio-call
+  template:
+    metadata:
+      labels:
+        app: syncio-call
+    spec:
+      containers:
+        - name: call-service
+          image: vietpham18/call-service:latest
+          ports:
+            - containerPort: 8092
+          env:
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb+srv://vietp6861_db_user:OxvEjMko11affa2A@syncio-clt.fgkymji.mongodb.net/?appName=syncio-clt"
+            - name: SPRING_REDIS_HOST
+              value: "syncio-redis"
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "syncio-kafka:9092"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              cpu: "300m"
+              memory: "768Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncio-call
+  namespace: syncio
+spec:
+  selector:
+    app: syncio-call
+  ports:
+    - port: 8092
+      targetPort: 8092

@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package io.github.gvn2012.grpc;
+
+option java_multiple_files = true;
+option java_package = "io.github.gvn2012.grpc.presence";
+
+service PresenceInternalService {
+  rpc SetOnline (PresenceUserIdRequest) returns (EmptyPresenceResponse);
+  rpc SetOffline (PresenceUserIdRequest) returns (EmptyPresenceResponse);
+  rpc IsOnline (PresenceUserIdRequest) returns (BoolPresenceResponse);
+  rpc GetOnlineUserIds (UserIdsRequest) returns (UserIdsResponse);
+}
+
+message EmptyPresenceResponse {}
+
+message PresenceUserIdRequest {
+  string user_id = 1;
+}
+
+message BoolPresenceResponse {
+  bool result = 1;
+}
+
+message UserIdsRequest {
+  repeated string user_ids = 1;
+}
+
+message UserIdsResponse {
+  repeated string online_user_ids = 1;
+}

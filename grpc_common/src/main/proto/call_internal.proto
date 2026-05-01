@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package io.github.gvn2012.grpc;
+
+option java_multiple_files = true;
+option java_package = "io.github.gvn2012.grpc.call";
+
+service CallInternalService {
+  rpc CreateSession (CreateSessionRequest) returns (SessionResponse);
+  rpc JoinSession (SessionUserRequest) returns (EmptyCallResponse);
+  rpc LeaveSession (SessionUserRequest) returns (EmptyCallResponse);
+  rpc EndSessionIfEmpty (SessionIdRequest) returns (BoolCallResponse);
+  rpc GetActiveSession (SessionIdRequest) returns (SessionResponse);
+  rpc GetActiveSessionByConversation (CallConvIdRequest) returns (SessionResponse);
+}
+
+message EmptyCallResponse {}
+
+message CreateSessionRequest {
+  string call_id = 1;
+  string conversation_id = 2;
+  string initiator_id = 3;
+  string mode = 4;
+}
+
+message SessionUserRequest {
+  string call_id = 1;
+  string user_id = 2;
+}
+
+message SessionIdRequest {
+  string call_id = 1;
+}
+
+message CallConvIdRequest {
+  string conversation_id = 1;
+}
+
+message BoolCallResponse {
+  bool result = 1;
+}
+
+message SessionResponse {
+  bool found = 1;
+  string call_id = 2;
+  string conversation_id = 3;
+  string initiator_id = 4;
+  string call_mode = 5;
+  int64 started_at = 6;
+  string status = 7;
+  repeated string active_participant_ids = 8;
+}

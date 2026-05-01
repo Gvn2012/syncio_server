@@ -1,9 +1,12 @@
 package io.github.gvn2012.messaging_service.services.impls;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.gvn2012.messaging_service.dtos.ConversationResponse;
 import io.github.gvn2012.messaging_service.dtos.MessageRequest;
 import io.github.gvn2012.messaging_service.dtos.MessageResponse;
-import io.github.gvn2012.messaging_service.dtos.CallSignal;
+import io.github.gvn2012.shared.dtos.CallSignal;
+import io.github.gvn2012.shared.kafka_events.WsOutboundEvent;
 import io.github.gvn2012.messaging_service.models.Conversation;
 import io.github.gvn2012.messaging_service.models.Message;
 import io.github.gvn2012.messaging_service.models.MediaItem;
@@ -24,7 +27,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import net.devh.boot.grpc.client.inject.GrpcClient;
@@ -57,11 +60,30 @@ public class MessagingServiceImpl implements IMessagingService {
     private final MessageRepository messageRepository;
     private final ConversationRepository conversationRepository;
     private final MediaItemRepository mediaItemRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
     private final MongoTemplate mongoTemplate;
+
+    private static final String WS_OUTBOUND_TOPIC = "ws.outbound";
 
     @GrpcClient("user_service")
     private UserServiceGrpc.UserServiceBlockingStub userServiceStub;
+
+    private void publishToWsOutbound(String type, String destination, List<String> recipientIds, Object payload) {
+        try {
+            String jsonPayload = objectMapper.writeValueAsString(payload);
+            WsOutboundEvent event = WsOutboundEvent.builder()
+                    .type(type)
+                    .destination(destination)
+                    .recipientIds(recipientIds)
+                    .broadcast(false)
+                    .payload(jsonPayload)
+                    .build();
+            kafkaTemplate.send(WS_OUTBOUND_TOPIC, objectMapper.writeValueAsString(event));
+        } catch (JsonProcessingException e) {
+            log.error("Failed to publish ws.outbound event type={}", type, e);
+        }
+    }
 
     private LocalDateTime getCurrentTime() {
         return LocalDateTime.now(ZoneOffset.UTC);
@@ -87,10 +109,8 @@ public class MessagingServiceImpl implements IMessagingService {
 
         Conversation saved = conversationRepository.save(conversation);
 
-        for (String participantId : participantIds) {
-            messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
-                    Map.of("type", "CONVERSATION_CREATED", "conversation", saved));
-        }
+        publishToWsOutbound("UPDATE", "/queue/updates", participantIds,
+                Map.of("type", "CONVERSATION_CREATED", "conversation", saved));
     }
 
     @Override
@@ -147,7 +167,7 @@ public class MessagingServiceImpl implements IMessagingService {
 
         for (String participantId : participants) {
             ConversationResponse convResponse = mapToConversationResponse(saved, participantId, userSummaries);
-            messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
+            publishToWsOutbound("UPDATE", "/queue/updates", List.of(participantId),
                     Map.of("type", "CONVERSATION_CREATED", "conversation", convResponse));
         }
     }
@@ -177,7 +197,7 @@ public class MessagingServiceImpl implements IMessagingService {
         }
 
         for (String participantId : saved.getParticipants()) {
-            messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
+            publishToWsOutbound("UPDATE", "/queue/updates", List.of(participantId),
                     Map.of("type", "GROUP_UPDATED", "conversation", mapToConversationResponse(saved, participantId)));
         }
     }
@@ -260,12 +280,12 @@ public class MessagingServiceImpl implements IMessagingService {
         }
 
         for (String participantId : saved.getParticipants()) {
-            messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
+            publishToWsOutbound("UPDATE", "/queue/updates", List.of(participantId),
                     Map.of("type", "GROUP_UPDATED", "conversation", mapToConversationResponse(saved, participantId)));
         }
 
         if ("REMOVE".equals(request.getAction().toUpperCase())) {
-            messagingTemplate.convertAndSendToUser(request.getUserId(), "/queue/updates",
+            publishToWsOutbound("UPDATE", "/queue/updates", List.of(request.getUserId()),
                     Map.of("type", "CONVERSATION_DELETED", "conversationId", saved.getId()));
         }
     }
@@ -306,11 +326,11 @@ public class MessagingServiceImpl implements IMessagingService {
 
         sendSystemMessage(saved, String.format("%s has left the group chat", userName));
 
-        messagingTemplate.convertAndSendToUser(userId, "/queue/updates",
+        publishToWsOutbound("UPDATE", "/queue/updates", List.of(userId),
                 Map.of("type", "CONVERSATION_DELETED", "conversationId", saved.getId()));
 
         for (String participantId : saved.getParticipants()) {
-            messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
+            publishToWsOutbound("UPDATE", "/queue/updates", List.of(participantId),
                     Map.of("type", "GROUP_UPDATED", "conversation", mapToConversationResponse(saved, participantId)));
         }
     }
@@ -386,13 +406,18 @@ public class MessagingServiceImpl implements IMessagingService {
         Optional<Conversation> opt = conversationRepository.findById(conversationId);
         if (opt.isPresent()) {
             Conversation conv = opt.get();
-            for (String participantId : conv.getParticipants()) {
-                if (!participantId.equals(userId)) {
-                    messagingTemplate.convertAndSendToUser(participantId, "/queue/typing",
-                            Map.of("conversationId", conversationId, "userId", userId, "isTyping", isTyping));
-                }
-            }
+            List<String> recipients = conv.getParticipants().stream()
+                    .filter(pid -> !pid.equals(userId)).toList();
+            publishToWsOutbound("TYPING", "/queue/typing", recipients,
+                    Map.of("conversationId", conversationId, "userId", userId, "isTyping", isTyping));
         }
+    }
+
+    @Override
+    public List<String> getConversationParticipantIds(String conversationId) {
+        return conversationRepository.findById(conversationId)
+                .map(Conversation::getParticipants)
+                .orElse(List.of());
     }
 
     @Override
@@ -418,7 +443,7 @@ public class MessagingServiceImpl implements IMessagingService {
                 conversation = conversationRepository.save(conversation);
 
                 for (String participantId : participantIds) {
-                    messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
+                    publishToWsOutbound("UPDATE", "/queue/updates", List.of(participantId),
                             Map.of("type", "CONVERSATION_CREATED", "conversation",
                                     mapToConversationResponse(conversation, participantId)));
                 }
@@ -433,7 +458,7 @@ public class MessagingServiceImpl implements IMessagingService {
             conversation.getDeletedAtPerUser().remove(request.getSenderId());
             conversationRepository.save(conversation);
 
-            messagingTemplate.convertAndSendToUser(request.getSenderId(), "/queue/updates",
+            publishToWsOutbound("UPDATE", "/queue/updates", List.of(request.getSenderId()),
                     Map.of("type", "CONVERSATION_RESTORED", "conversation",
                             mapToConversationResponse(conversation, request.getSenderId())));
         }
@@ -681,7 +706,7 @@ public class MessagingServiceImpl implements IMessagingService {
             message.getDeletedAtPerUser().put(userId, getCurrentTime());
             messageRepository.save(message);
 
-            messagingTemplate.convertAndSendToUser(userId, "/queue/updates",
+            publishToWsOutbound("UPDATE", "/queue/updates", List.of(userId),
                     Map.of("type", "MESSAGE_DELETED_LOCAL", "messageId", messageId));
         });
     }
@@ -714,10 +739,7 @@ public class MessagingServiceImpl implements IMessagingService {
         conversationRepository.findById(message.getConversationId()).ifPresent(conversation -> {
             MessageResponse response = mapToResponse(message);
             Map<String, Object> payload = Map.of("type", type, "message", response);
-
-            for (String participantId : conversation.getParticipants()) {
-                messagingTemplate.convertAndSendToUser(participantId, "/queue/updates", payload);
-            }
+            publishToWsOutbound("UPDATE", "/queue/updates", conversation.getParticipants(), payload);
         });
     }
 
@@ -744,7 +766,7 @@ public class MessagingServiceImpl implements IMessagingService {
             }
             messageRepository.saveAll(allMessages);
 
-            messagingTemplate.convertAndSendToUser(userId, "/queue/updates",
+            publishToWsOutbound("UPDATE", "/queue/updates", List.of(userId),
                     Map.of("type", "CONVERSATION_DELETED", "conversationId", conversationId));
         });
     }
@@ -757,7 +779,7 @@ public class MessagingServiceImpl implements IMessagingService {
                 if (conversation.getDeletedAtPerUser().containsKey(participantId)) {
                     conversation.getDeletedAtPerUser().remove(participantId);
 
-                    messagingTemplate.convertAndSendToUser(participantId, "/queue/updates",
+                    publishToWsOutbound("UPDATE", "/queue/updates", List.of(participantId),
                             Map.of("type", "CONVERSATION_RESTORED", "conversation", conversation));
                 }
             }
@@ -768,13 +790,7 @@ public class MessagingServiceImpl implements IMessagingService {
 
         MessageResponse response = mapToResponse(savedMessage);
 
-        for (String participantId : conversation.getParticipants()) {
-            if (!participantId.equals(savedMessage.getSenderId())) {
-                messagingTemplate.convertAndSendToUser(participantId, "/queue/messages", response);
-            }
-        }
-
-        messagingTemplate.convertAndSendToUser(savedMessage.getSenderId(), "/queue/messages", response);
+        publishToWsOutbound("MESSAGE", "/queue/messages", conversation.getParticipants(), response);
     }
 
     @Override
@@ -787,16 +803,14 @@ public class MessagingServiceImpl implements IMessagingService {
                 messageRepository.save(message);
 
                 conversationRepository.findById(message.getConversationId()).ifPresent(conversation -> {
-                    for (String participantId : conversation.getParticipants()) {
-                        if (!participantId.equals(userId)) {
-                            messagingTemplate.convertAndSendToUser(participantId, "/queue/status",
-                                    Map.of(
-                                            "conversationId", message.getConversationId(),
-                                            "messageId", messageId,
-                                            "userId", userId,
-                                            "status", MessageStatusType.DELIVERED));
-                        }
-                    }
+                    List<String> recipients = conversation.getParticipants().stream()
+                            .filter(pid -> !pid.equals(userId)).toList();
+                    publishToWsOutbound("STATUS", "/queue/status", recipients,
+                            Map.of(
+                                    "conversationId", message.getConversationId(),
+                                    "messageId", messageId,
+                                    "userId", userId,
+                                    "status", MessageStatusType.DELIVERED));
                 });
             }
         });
@@ -833,16 +847,14 @@ public class MessagingServiceImpl implements IMessagingService {
         grouped.forEach((senderId, convMap) -> {
             convMap.forEach((conversationId, messageIds) -> {
                 conversationRepository.findById(conversationId).ifPresent(conversation -> {
-                    for (String participantId : conversation.getParticipants()) {
-                        if (!participantId.equals(userId)) {
-                            messagingTemplate.convertAndSendToUser(participantId, "/queue/status",
-                                    Map.of(
-                                            "conversationId", conversationId,
-                                            "messageIds", messageIds,
-                                            "userId", userId,
-                                            "status", MessageStatusType.DELIVERED));
-                        }
-                    }
+                    List<String> recipients = conversation.getParticipants().stream()
+                            .filter(pid -> !pid.equals(userId)).toList();
+                    publishToWsOutbound("STATUS", "/queue/status", recipients,
+                            Map.of(
+                                    "conversationId", conversationId,
+                                    "messageIds", messageIds,
+                                    "userId", userId,
+                                    "status", MessageStatusType.DELIVERED));
                 });
             });
         });
@@ -878,16 +890,14 @@ public class MessagingServiceImpl implements IMessagingService {
 
         conversationRepository.findById(conversationId).ifPresent(conversation -> {
             messagesBySender.forEach((senderId, messageIds) -> {
-                for (String participantId : conversation.getParticipants()) {
-                    if (!participantId.equals(userId)) {
-                        messagingTemplate.convertAndSendToUser(participantId, "/queue/status",
-                                Map.of(
-                                        "conversationId", conversationId,
-                                        "messageIds", messageIds,
-                                        "userId", userId,
-                                        "status", MessageStatusType.SEEN));
-                    }
-                }
+                List<String> recipients = conversation.getParticipants().stream()
+                        .filter(pid -> !pid.equals(userId)).toList();
+                publishToWsOutbound("STATUS", "/queue/status", recipients,
+                        Map.of(
+                                "conversationId", conversationId,
+                                "messageIds", messageIds,
+                                "userId", userId,
+                                "status", MessageStatusType.SEEN));
             });
         });
     }
@@ -913,16 +923,7 @@ public class MessagingServiceImpl implements IMessagingService {
         return result != null ? ((Number) result.get("total")).longValue() : 0L;
     }
 
-    @Override
-    public void broadcastCallSignal(CallSignal signal, String userId) {
-        conversationRepository.findById(signal.getConversationId()).ifPresent(conversation -> {
-            for (String participantId : conversation.getParticipants()) {
-                if (!participantId.equals(userId)) {
-                    messagingTemplate.convertAndSendToUser(participantId, "/queue/call", signal);
-                }
-            }
-        });
-    }
+
 
     private MessageResponse mapToResponse(Message message) {
         List<MediaItem> mediaItems = message.getBatchId() != null

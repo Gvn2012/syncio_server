@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package io.github.gvn2012.grpc;
+
+option java_multiple_files = true;
+option java_package = "io.github.gvn2012.grpc.messaging";
+
+service MessagingInternalService {
+  rpc ProcessMessage (ProcessMessageRequest) returns (ProcessMessageResponse);
+  rpc EditMessage (EditMessageRequest) returns (EmptyMsgResponse);
+  rpc DeleteMessage (IdUserRequest) returns (EmptyMsgResponse);
+  rpc RecallMessage (IdUserRequest) returns (EmptyMsgResponse);
+  rpc MarkAsDelivered (IdUserRequest) returns (EmptyMsgResponse);
+  rpc MarkAllAsDelivered (UserIdRequest) returns (EmptyMsgResponse);
+  rpc MarkAsSeen (ConvUserRequest) returns (EmptyMsgResponse);
+  rpc DeleteConversation (ConvUserRequest) returns (EmptyMsgResponse);
+  rpc CreateConversation (CreateConversationRequest) returns (EmptyMsgResponse);
+  rpc CreateGroup (CreateGroupRequest) returns (EmptyMsgResponse);
+  rpc UpdateGroup (UpdateGroupRequest) returns (EmptyMsgResponse);
+  rpc ManageGroupMembers (ManageGroupMembersRequest) returns (EmptyMsgResponse);
+  rpc LeaveGroup (ConvUserRequest) returns (EmptyMsgResponse);
+  rpc BroadcastTyping (TypingRequest) returns (EmptyMsgResponse);
+  rpc GetConversationParticipants (ConvIdRequest) returns (ParticipantsResponse);
+  rpc PersistCallLog (PersistCallLogRequest) returns (EmptyMsgResponse);
+}
+
+message EmptyMsgResponse {}
+
+message UserIdRequest {
+  string user_id = 1;
+}
+
+message ConvIdRequest {
+  string conversation_id = 1;
+}
+
+message ConvUserRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+}
+
+message IdUserRequest {
+  string id = 1;
+  string user_id = 2;
+}
+
+message ParticipantsResponse {
+  repeated string participant_ids = 1;
+}
+
+message ProcessMessageRequest {
+  string id = 1;
+  string batch_id = 2;
+  string conversation_id = 3;
+  string sender_id = 4;
+  string content = 5;
+  string type = 6;
+  repeated MediaItemProto media_items = 7;
+}
+
+message MediaItemProto {
+  string id = 1;
+  string batch_id = 2;
+  string conversation_id = 3;
+  string file_name = 4;
+  string content_type = 5;
+  string media_type = 6;
+  string status = 7;
+  string upload_url = 8;
+  string download_url = 9;
+  int64 size = 10;
+}
+
+message ProcessMessageResponse {
+  string message_id = 1;
+}
+
+message EditMessageRequest {
+  string message_id = 1;
+  string new_content = 2;
+  string user_id = 3;
+}
+
+message CreateConversationRequest {
+  repeated string participant_ids = 1;
+  string name = 2;
+  string type = 3;
+}
+
+message CreateGroupRequest {
+  string name = 1;
+  string avatar_url = 2;
+  repeated string member_ids = 3;
+  string creator_id = 4;
+}
+
+message UpdateGroupRequest {
+  string conversation_id = 1;
+  string name = 2;
+  string avatar_url = 3;
+  string user_id = 4;
+}
+
+message ManageGroupMembersRequest {
+  string conversation_id = 1;
+  string action = 2;
+  repeated string user_ids = 3;
+  string admin_id = 4;
+}
+
+message TypingRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+  bool is_typing = 3;
+}
+
+message PersistCallLogRequest {
+  string type = 1;
+  string sender_id = 2;
+  string recipient_id = 3;
+  string call_mode = 4;
+  string conversation_id = 5;
+  string call_id = 6;
+  int64 call_start_time = 7;
+  string user_id = 8;
+}

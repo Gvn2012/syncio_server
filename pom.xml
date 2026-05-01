@@ -39,6 +39,9 @@
         <module>shared</module>
         <module>grpc_common</module>
         <module>messaging_service</module>
+        <module>websocket_service</module>
+        <module>presence_service</module>
+        <module>call_service</module>
     </modules>
 
     <dependencyManagement>
