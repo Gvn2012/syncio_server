@@ -435,6 +435,38 @@ services:
     networks:
       - syncio-network
 
+  logging-service:
+    image: vietpham18/logging-service:latest
+    build:
+      context: .
+      dockerfile: logging_service/Dockerfile
+    container_name: logging-service
+    ports:
+      - "8094:8094"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m -Xms128m"
+      SPRING_APPLICATION_NAME: logging-service
+      SERVER_PORT: 8094
+      SPRING_DATA_MONGODB_URI: mongodb+srv://vietp6861_db_user:OxvEjMko11affa2A@syncio-clt.fgkymji.mongodb.net/?appName=syncio-clt
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      SYNCIO_LOG_ARCHIVE_DIRECTORY: /var/lib/syncio/log-archive
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+          cpus: "1.0"
+    volumes:
+      - logging_archive_data:/var/lib/syncio/log-archive
+    depends_on:
+      kafka:
+        condition: service_started
+      zipkin:
+        condition: service_started
+    networks:
+      - syncio-network
+
   api-gateway:
     image: vietpham18/api-gateway:latest
     build:
@@ -473,6 +505,8 @@ services:
       permission-service:
         condition: service_started
       org-service:
+        condition: service_started
+      logging-service:
         condition: service_started
       zipkin:
         condition: service_started
@@ -525,3 +559,4 @@ volumes:
   notification_mongo_data:
   prometheus_data:
   grafana_data:
+  logging_archive_data:

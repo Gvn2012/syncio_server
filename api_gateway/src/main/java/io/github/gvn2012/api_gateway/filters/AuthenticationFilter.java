@@ -2,6 +2,7 @@ package io.github.gvn2012.api_gateway.filters;
 
 import io.github.gvn2012.grpc.auth.AuthServiceGrpc;
 import io.github.gvn2012.grpc.auth.TokenRequest;
+import io.github.gvn2012.shared.utils.CentralizedLoggingHeaders;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,7 @@ public class AuthenticationFilter implements GlobalFilter {
         public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
                 String requestPath = exchange.getRequest().getURI().getPath();
                 String httpMethod = exchange.getRequest().getMethod().name();
+                String requestId = exchange.getRequest().getHeaders().getFirst(CentralizedLoggingHeaders.REQUEST_ID);
 
                 log.debug("Incoming API Gateway request: [{}] {}", httpMethod, requestPath);
 
@@ -68,7 +70,12 @@ public class AuthenticationFilter implements GlobalFilter {
                                                                 response.getUserId(), response.getUserRolesList());
 
                                                 var modifiedExchange = exchange.mutate()
-                                                                .request(r -> r.header("X-User-Id", response.getUserId()))
+                                                                .request(r -> {
+                                                                        r.header(CentralizedLoggingHeaders.USER_ID, response.getUserId());
+                                                                        if (requestId != null && !requestId.isBlank()) {
+                                                                                r.header(CentralizedLoggingHeaders.REQUEST_ID, requestId);
+                                                                        }
+                                                                })
                                                                 .build();
                                                 return chain.filter(modifiedExchange);
                                         } else {

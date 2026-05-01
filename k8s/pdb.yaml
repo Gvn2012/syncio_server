@@ -107,3 +107,14 @@ spec:
   selector:
     matchLabels:
       app: syncio-zookeeper
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: syncio-logging-pdb
+  namespace: syncio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: syncio-logging

@@ -72,6 +72,11 @@
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.github.gvn2012</groupId>
+            <artifactId>shared</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
 </project>

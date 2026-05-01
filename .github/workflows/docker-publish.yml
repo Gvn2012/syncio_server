@@ -110,6 +110,7 @@ jobs:
           build_if_needed "websocket-service" "websocket_service" "websocket_service/Dockerfile" "websocket-service"
           build_if_needed "call-service" "call_service" "call_service/Dockerfile" "call-service"
           build_if_needed "presence-service" "presence_service" "presence_service/Dockerfile" "presence-service"
+          build_if_needed "logging-service" "logging_service" "logging_service/Dockerfile" "logging-service"
 
           echo "REBUILT_LIST<<EOF" >> $GITHUB_ENV
           cat /tmp/rebuilt_list.txt >> $GITHUB_ENV

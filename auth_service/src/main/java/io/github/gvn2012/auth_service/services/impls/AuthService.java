@@ -4,6 +4,7 @@ import java.security.Key;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import io.github.gvn2012.auth_service.clients.PermissionClient;
@@ -18,6 +19,7 @@ import io.github.gvn2012.auth_service.dtos.requests.RefreshTokenRequest;
 import io.github.gvn2012.auth_service.entities.UserSession;
 import io.github.gvn2012.auth_service.repositories.UserSessionRepository;
 import io.github.gvn2012.auth_service.services.interfaces.AuthServiceInterface;
+import io.github.gvn2012.shared.utils.CentralizedLogProducer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 
@@ -40,13 +42,16 @@ public class AuthService implements AuthServiceInterface {
 
     private final PermissionClient permissionClient;
     private final UserSessionRepository userSessionRepository;
+    private final CentralizedLogProducer logProducer;
 
     public AuthService(JwtConfig jwtConfig, PermissionClient permissionClient,
-            UserSessionRepository userSessionRepository) {
+            UserSessionRepository userSessionRepository,
+            CentralizedLogProducer logProducer) {
         this.jwtConfig = jwtConfig;
         this.key = Keys.hmacShaKeyFor(jwtConfig.getSecretKey().getBytes());
         this.permissionClient = permissionClient;
         this.userSessionRepository = userSessionRepository;
+        this.logProducer = logProducer;
     }
 
     private String hashToken(String token) {
@@ -152,6 +157,7 @@ public class AuthService implements AuthServiceInterface {
     public Boolean isTokenExpired(String token) {
         return getExpirationDateFromToken(token).before(new Date());
     }
+
     @Override
     public ValidateResponse validateToken(String token) {
         if (token == null || token.isBlank()) {
@@ -257,6 +263,16 @@ public class AuthService implements AuthServiceInterface {
             UserSession newSession = populateSessionDetails(sessionBuilder, ipAddress, userAgent).build();
             userSessionRepository.save(newSession);
 
+            logProducer.logAsync(
+                    "INFO",
+                    "User login successful: " + request.getUsername(),
+                    "USER_LOGIN",
+                    "SUCCESS",
+                    Map.of(
+                            "userId", request.getUserId(),
+                            "username", request.getUsername(),
+                            "ip", ipAddress != null ? ipAddress : "unknown"));
+
             return APIResource.ok("Tokens are generated successfully",
                     new GenerateLoginTokenResponse(accessToken, refreshToken, userRoles));
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
@@ -332,6 +348,15 @@ public class AuthService implements AuthServiceInterface {
                     httpRequest != null ? httpRequest.getHeader("User-Agent") : null).build();
             userSessionRepository.save(newSession);
 
+            logProducer.logAsync(
+                    "INFO",
+                    "Refresh token rotated successfully for user " + userId,
+                    "TOKEN_REFRESH",
+                    "SUCCESS",
+                    Map.of(
+                            "userId", userId,
+                            "ip", httpRequest != null ? getClientIp(httpRequest) : "unknown"));
+
             return APIResource.ok("Tokens rotated successfully",
                     new GenerateLoginTokenResponse(newAccessToken, newRefreshToken, userRoles));
         } catch (Exception e) {
@@ -359,6 +384,13 @@ public class AuthService implements AuthServiceInterface {
                 session.setRevokedAt(Instant.now());
                 session.setRevokedReason("USER_LOGOUT");
                 userSessionRepository.save(session);
+
+                logProducer.logAsync(
+                        "INFO",
+                        "User session logged out",
+                        "USER_LOGOUT",
+                        "SUCCESS",
+                        Map.of("userId", session.getUserId().toString(), "sessionId", session.getId().toString()));
             }
             return APIResource.ok("Logged out successfully", "Logged out");
         } catch (Exception e) {
@@ -377,6 +409,12 @@ public class AuthService implements AuthServiceInterface {
                 s.setRevokedReason("FORCE_LOGOUT");
             }
             userSessionRepository.saveAll(activeSessions);
+            logProducer.logAsync(
+                    "WARN",
+                    "Force logout executed for user " + userId,
+                    "FORCE_LOGOUT",
+                    "SUCCESS",
+                    Map.of("userId", userId, "revokedSessions", activeSessions.size()));
             return APIResource.ok("Force logged out successfully", "Force logged out");
         } catch (Exception e) {
             return APIResource.error("BAD_REQUEST", e.getMessage(), HttpStatus.BAD_REQUEST, null);

@@ -42,6 +42,7 @@
         <module>websocket_service</module>
         <module>presence_service</module>
         <module>call_service</module>
+        <module>logging_service</module>
     </modules>
 
     <dependencyManagement>

@@ -72,7 +72,7 @@ public class AuthController {
             @RequestBody GenerateLoginTokenRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
-        log.info("Generate Token Request: {}", request);
+        log.info("Generate token request for user {}", request.getUserId());
         APIResource<GenerateLoginTokenResponse> response = authService.generateLoginToken(request, httpRequest);
 
         if (response.isSuccess() && response.getData() != null) {
@@ -86,7 +86,7 @@ public class AuthController {
     public ResponseEntity<APIResource<ValidateResponse>> validateToken(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
             HttpServletRequest request) {
-        log.info("Validating token...");
+        log.info("Validating token request");
         String token = authorizationHeader;
 
         if (token == null || token.isBlank()) {
@@ -120,7 +120,7 @@ public class AuthController {
             @RequestBody(required = false) RefreshTokenRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
-        log.info("Refresh Token Request");
+        log.info("Refresh token request");
 
         String refreshToken = (request != null) ? request.getRefreshToken() : null;
 
@@ -156,7 +156,7 @@ public class AuthController {
     public ResponseEntity<APIResource<String>> logout(
             @RequestBody(required = false) LogoutRequest request,
             HttpServletResponse httpResponse) {
-        log.info("Logout Request");
+        log.info("Logout request");
         APIResource<String> response = authService.logout(request);
         clearCookies(httpResponse);
 
@@ -166,7 +166,7 @@ public class AuthController {
     @PostMapping("/force-logout/{userId}")
     public ResponseEntity<APIResource<String>> forceLogout(
             @PathVariable String userId) {
-        log.info("Force Logout Request for User: {}", userId);
+        log.info("Force logout request for user {}", userId);
         APIResource<String> response = authService.forceLogout(userId);
         return ResponseEntity.status(response.getStatus()).body(response);
     }

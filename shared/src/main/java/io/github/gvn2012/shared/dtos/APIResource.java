@@ -113,7 +113,7 @@ public class APIResource<T> {
     public static <T> APIResource <T> error(String code, String message, HttpStatus status, String detail) {
         return APIResource.<T>builder()
                 .success(false)
-                .error(new ErrorResource(code, message, detail))
+                .error(new ErrorResource(code, detail != null ? message + ": " + detail : message))
                 .status(status)
                 .build();
     }
