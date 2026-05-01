@@ -43,7 +43,11 @@ jobs:
 
       - name: Detect changed files
         run: |
-          git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" > changed_files.txt
+          if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            git diff --name-only HEAD~1 HEAD > changed_files.txt || touch changed_files.txt
+          else
+            git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" > changed_files.txt || touch changed_files.txt
+          fi
           echo "Changed files:"
           cat changed_files.txt
 
@@ -165,14 +169,14 @@ jobs:
             🏁 *CI/CD Pipeline Completed*
             
             *Status:* `${{ job.status == 'success' && 'Success' || 'Failure' }}`
-            *Finished:* `${{ env.FINISHED_TIME }}`
+            *Finished:* `${{ env.FINISHED_TIME || 'Unknown' }}`
             
             *Images Rebuilt:*
             ${{ env.REBUILT_LIST || 'None' }}
             
             *Namespace (syncio) Pod Status:*
             ```
-            ${{ env.POD_STATUS }}
+            ${{ env.POD_STATUS || 'No status available' }}
             ```
             
             ${{ job.status == 'success' && '✅ *All steps passed!*' || format('❌ *Failed at step:* `{0}`', (steps.login.outcome == 'failure' && 'Login') || (steps.build.outcome == 'failure' && 'Build/Push') || (steps.commit.outcome == 'failure' && 'Git Push') || (steps.auth.outcome == 'failure' && 'GCP Auth') || 'Unknown') }}
