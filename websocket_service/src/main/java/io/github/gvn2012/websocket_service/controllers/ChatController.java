@@ -159,12 +159,6 @@ public class ChatController {
         String recipientId = payload.get("recipientId");
         boolean isTyping = Boolean.parseBoolean(payload.get("isTyping"));
 
-        if (recipientId != null && !recipientId.isEmpty() && !recipientId.equals("null")
-                && !recipientId.equals("undefined")) {
-            messagingTemplate.convertAndSendToUser(recipientId, "/queue/typing",
-                    Map.of("conversationId", conversationId, "userId", userId, "isTyping", isTyping));
-        } else {
-            messagingGrpcClient.broadcastTyping(conversationId, userId, isTyping);
-        }
+        messagingGrpcClient.broadcastTyping(conversationId, userId, isTyping);
     }
 }
