@@ -149,10 +149,12 @@ public class MessagingGrpcClient {
         }
     }
 
-    public void broadcastTyping(String conversationId, String userId, boolean isTyping) {
+    public void broadcastTyping(String conversationId, String userId, boolean isTyping, String recipientId) {
         try {
-            messagingStub.broadcastTyping(TypingRequest.newBuilder()
-                    .setConversationId(conversationId).setUserId(userId).setIsTyping(isTyping).build());
+            TypingRequest.Builder builder = TypingRequest.newBuilder()
+                    .setConversationId(conversationId).setUserId(userId).setIsTyping(isTyping);
+            if (recipientId != null) builder.setRecipientId(recipientId);
+            messagingStub.broadcastTyping(builder.build());
         } catch (Exception e) {
             log.error("gRPC call to messaging_service.BroadcastTyping failed", e);
         }

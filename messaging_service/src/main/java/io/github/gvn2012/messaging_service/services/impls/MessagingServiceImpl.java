@@ -402,15 +402,23 @@ public class MessagingServiceImpl implements IMessagingService {
     }
 
     @Override
-    public void broadcastTyping(String conversationId, String userId, boolean isTyping) {
-        Optional<Conversation> opt = conversationRepository.findById(conversationId);
-        if (opt.isPresent()) {
-            Conversation conv = opt.get();
-            List<String> recipients = conv.getParticipants().stream()
-                    .filter(pid -> !pid.equals(userId)).toList();
-            publishToWsOutbound("TYPING", "/queue/typing", recipients,
-                    Map.of("conversationId", conversationId, "userId", userId, "isTyping", isTyping));
+    public void broadcastTyping(String conversationId, String userId, boolean isTyping, String recipientId) {
+        List<String> recipients;
+        if (recipientId != null && !recipientId.isEmpty() && !recipientId.equals("null") && !recipientId.equals("undefined")) {
+            recipients = List.of(recipientId);
+        } else {
+            Optional<Conversation> opt = conversationRepository.findById(conversationId);
+            if (opt.isPresent()) {
+                Conversation conv = opt.get();
+                recipients = conv.getParticipants().stream()
+                        .filter(pid -> !pid.equals(userId)).toList();
+            } else {
+                return;
+            }
         }
+
+        publishToWsOutbound("TYPING", "/queue/typing", recipients,
+                Map.of("conversationId", conversationId, "userId", userId, "isTyping", isTyping));
     }
 
     @Override

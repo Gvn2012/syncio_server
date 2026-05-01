@@ -41,7 +41,7 @@ public interface IMessagingService {
 
     void leaveGroupConversation(String conversationId, String userId);
 
-    void broadcastTyping(String conversationId, String userId, boolean isTyping);
+    void broadcastTyping(String conversationId, String userId, boolean isTyping, String recipientId);
 
     List<String> getConversationParticipantIds(String conversationId);
 

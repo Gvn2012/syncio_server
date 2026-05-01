@@ -175,7 +175,7 @@ public class MessagingInternalServiceImpl extends MessagingInternalServiceGrpc.M
 
     @Override
     public void broadcastTyping(TypingRequest request, StreamObserver<EmptyMsgResponse> responseObserver) {
-        messagingService.broadcastTyping(request.getConversationId(), request.getUserId(), request.getIsTyping());
+        messagingService.broadcastTyping(request.getConversationId(), request.getUserId(), request.getIsTyping(), request.getRecipientId());
         responseObserver.onNext(EmptyMsgResponse.getDefaultInstance());
         responseObserver.onCompleted();
     }

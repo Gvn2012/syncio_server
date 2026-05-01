@@ -112,6 +112,7 @@ message TypingRequest {
   string conversation_id = 1;
   string user_id = 2;
   bool is_typing = 3;
+  string recipient_id = 4;
 }
 
 message PersistCallLogRequest {

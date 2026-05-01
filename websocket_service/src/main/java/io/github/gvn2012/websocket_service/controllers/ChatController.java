@@ -159,6 +159,6 @@ public class ChatController {
         String recipientId = payload.get("recipientId");
         boolean isTyping = Boolean.parseBoolean(payload.get("isTyping"));
 
-        messagingGrpcClient.broadcastTyping(conversationId, userId, isTyping);
+        messagingGrpcClient.broadcastTyping(conversationId, userId, isTyping, recipientId);
     }
 }
