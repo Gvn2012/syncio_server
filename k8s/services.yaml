@@ -934,7 +934,7 @@ spec:
     spec:
       containers:
         - name: messaging
-          image: vietpham18/messaging-service:4d2a86dcc6398ca77789b9978df3b11e068f8651
+          image: vietpham18/messaging-service:b65563195ae0c223fd9b13fc20cc05cc4a24ea64
           ports:
             - containerPort: 8089
           startupProbe:
