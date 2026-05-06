@@ -1098,6 +1098,7 @@ spec:
           image: vietpham18/presence-service:ec493d84344154427358050deeced492492b2223
           ports:
             - containerPort: 8093
+            - containerPort: 9093
           env:
             - name: SPRING_REDIS_HOST
               value: "syncio-redis"
@@ -1120,8 +1121,12 @@ spec:
   selector:
     app: syncio-presence
   ports:
-    - port: 8093
+    - name: http
+      port: 8093
       targetPort: 8093
+    - name: grpc
+      port: 9093
+      targetPort: 9093
 ---
 apiVersion: apps/v1
 kind: Deployment
