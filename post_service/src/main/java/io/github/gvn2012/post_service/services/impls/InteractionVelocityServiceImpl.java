@@ -3,11 +3,16 @@ package io.github.gvn2012.post_service.services.impls;
 import io.github.gvn2012.post_service.services.interfaces.IInteractionVelocityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -52,6 +57,33 @@ public class InteractionVelocityServiceImpl implements IInteractionVelocityServi
         } catch (Exception e) {
             log.error("Failed to get velocity score for post: {}", postId, e);
             return 0.0;
+        }
+    }
+
+    @Override
+    public Map<UUID, Double> getVelocityScores(Collection<UUID> postIds) {
+        if (postIds == null || postIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        try {
+            List<Object> results = interactionRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                for (UUID postId : postIds) {
+                    connection.zSetCommands().zScore(TRENDING_KEY.getBytes(), postId.toString().getBytes());
+                }
+                return null;
+            });
+
+            Map<UUID, Double> scores = new HashMap<>();
+            int i = 0;
+            for (UUID postId : postIds) {
+                Object result = results.get(i++);
+                scores.put(postId, result instanceof Double ? (Double) result : 0.0);
+            }
+            return scores;
+        } catch (Exception e) {
+            log.error("Failed to fetch batch velocity scores from Redis", e);
+            return postIds.stream().collect(Collectors.toMap(id -> id, id -> 0.0));
         }
     }
 }

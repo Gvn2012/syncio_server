@@ -7,6 +7,7 @@ import io.github.gvn2012.post_service.entities.ContentRanking;
 import io.github.gvn2012.post_service.entities.FeedItem;
 import io.github.gvn2012.post_service.entities.Post;
 import io.github.gvn2012.post_service.entities.UserAffinity;
+import io.github.gvn2012.post_service.entities.enums.ReactionType;
 import lombok.extern.slf4j.Slf4j;
 import io.github.gvn2012.post_service.entities.enums.PostCategory;
 import io.github.gvn2012.post_service.entities.enums.PostModerationStatus;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -114,56 +116,75 @@ public class FeedServiceImpl implements IFeedService {
         LocalDateTime effectiveCursor = (cursor != null) ? cursor : LocalDateTime.now();
         List<PostCategory> excludedCategories = List.of(PostCategory.TASK, PostCategory.ANNOUNCEMENT);
 
-        List<Post> candidates = new ArrayList<>();
+        List<Post> candidates = Collections.synchronizedList(new ArrayList<>());
 
-        List<UUID> followedIds = resolveFollows(recipientId);
-        List<UUID> blockedIds = resolveBlocks(recipientId);
-        List<UUID> blockedByIds = resolveBlockedBy(recipientId);
+        var followsFuture = CompletableFuture.supplyAsync(() -> resolveFollows(recipientId));
+        var blocksFuture = CompletableFuture.supplyAsync(() -> resolveBlocks(recipientId));
+        var blockedByFuture = CompletableFuture.supplyAsync(() -> resolveBlockedBy(recipientId));
+
+        List<UUID> followedIds = followsFuture.join();
+        List<UUID> blockedIds = blocksFuture.join();
+        List<UUID> blockedByIds = blockedByFuture.join();
         Set<UUID> allBlocked = new HashSet<>(blockedIds);
         allBlocked.addAll(blockedByIds);
 
-        // 2. Fetch Pushed Content (Fan-out Inbox) - Fetch more for a healthy pool
-        List<FeedItem> pushedItems = feedItemRepository.findByRecipientIdAndCursor(
-                recipientId, effectiveCursor, excludedCategories, PageRequest.of(0, RANKED_POOL_SIZE / 2));
-        pushedItems.stream()
-                .filter(item -> !item.getSourcePost().getAuthorId().equals(recipientId))
-                .forEach(item -> candidates.add(item.getSourcePost()));
+        // Parallel fetching of candidates
+        CompletableFuture<Void> pushedTask = CompletableFuture.runAsync(() -> {
+            List<FeedItem> pushedItems = feedItemRepository.findByRecipientIdAndCursor(
+                    recipientId, effectiveCursor, excludedCategories, PageRequest.of(0, RANKED_POOL_SIZE / 2));
+            pushedItems.stream()
+                    .filter(item -> !item.getSourcePost().getAuthorId().equals(recipientId))
+                    .forEach(item -> candidates.add(item.getSourcePost()));
+        });
 
-        // 3. Fetch Pulled Content (Top-K from followed users)
-        if (!followedIds.isEmpty()) {
-            List<ContentRanking> pulledRankings = contentRankingRepository.findTopRankingsByAuthorsAndCursor(
-                    followedIds, effectiveCursor, excludedCategories, PageRequest.of(0, RANKED_POOL_SIZE / 2));
-            pulledRankings.forEach(ranking -> candidates.add(ranking.getPost()));
-        }
+        CompletableFuture<Void> pulledTask = CompletableFuture.runAsync(() -> {
+            if (!followedIds.isEmpty()) {
+                List<ContentRanking> pulledRankings = contentRankingRepository.findTopRankingsByAuthorsAndCursor(
+                        followedIds, effectiveCursor, excludedCategories, PageRequest.of(0, RANKED_POOL_SIZE / 2));
+                pulledRankings.forEach(ranking -> candidates.add(ranking.getPost()));
+            }
+        });
 
-        // 4. Global Discovery Content (Allow self-posts if they are globally
-        // popular/trending)
-        List<ContentRanking> discoveryRankings = contentRankingRepository.findGlobalTopRankings(
-                effectiveCursor, excludedCategories, PageRequest.of(0, 50));
+        CompletableFuture<Void> discoveryTask = CompletableFuture
+                .runAsync(() -> {
+                    List<ContentRanking> discoveryRankings = contentRankingRepository.findGlobalTopRankings(
+                            effectiveCursor, excludedCategories, PageRequest.of(0, 50));
 
-        discoveryRankings.stream()
-                .map(ContentRanking::getPost)
-                .filter(post -> post.getVisibility() == PostVisibility.PUBLIC)
-                .filter(post -> !followedIds.contains(post.getAuthorId()))
-                .filter(post -> !allBlocked.contains(post.getAuthorId()))
-                .forEach(candidates::add);
+                    discoveryRankings.stream()
+                            .map(ContentRanking::getPost)
+                            .filter(post -> post.getVisibility() == PostVisibility.PUBLIC)
+                            .filter(post -> !followedIds.contains(post.getAuthorId()))
+                            .filter(post -> !allBlocked.contains(post.getAuthorId()))
+                            .forEach(candidates::add);
+                });
 
-        // 4.1. Direct Pull for followed authors (Handle Relationship Lag)
-        if (!followedIds.isEmpty()) {
-            postRepository.findByAuthorIdInAndStatusAndPostCategoryNotInAndPublishedAtBeforeOrderByPublishedAtDesc(
-                    followedIds, PostStatus.PUBLISHED, excludedCategories, effectiveCursor, PageRequest.of(0, 50))
-                    .stream()
-                    .filter(post -> !post.getAuthorId().equals(recipientId))
-                    .forEach(candidates::add);
-        }
+        CompletableFuture<Void> directPullTask = CompletableFuture
+                .runAsync(() -> {
+                    if (!followedIds.isEmpty()) {
+                        postRepository
+                                .findByAuthorIdInAndStatusAndPostCategoryNotInAndPublishedAtBeforeOrderByPublishedAtDesc(
+                                        followedIds, PostStatus.PUBLISHED, excludedCategories, effectiveCursor,
+                                        PageRequest.of(0, 50))
+                                .stream()
+                                .filter(post -> !post.getAuthorId().equals(recipientId))
+                                .forEach(candidates::add);
+                    }
+                });
 
-        // 4.2. Direct Pull for Discovery (Ensure non-empty feed)
-        postRepository.findByVisibilityAndStatusAndPostCategoryNotInAndPublishedAtBeforeOrderByPublishedAtDesc(
-                PostVisibility.PUBLIC, PostStatus.PUBLISHED, excludedCategories, effectiveCursor, PageRequest.of(0, 50))
-                .stream()
-                .filter(post -> !allBlocked.contains(post.getAuthorId()))
-                .filter(post -> !post.getAuthorId().equals(recipientId))
-                .forEach(candidates::add);
+        CompletableFuture<Void> directDiscoveryTask = CompletableFuture
+                .runAsync(() -> {
+                    postRepository
+                            .findByVisibilityAndStatusAndPostCategoryNotInAndPublishedAtBeforeOrderByPublishedAtDesc(
+                                    PostVisibility.PUBLIC, PostStatus.PUBLISHED, excludedCategories, effectiveCursor,
+                                    PageRequest.of(0, 50))
+                            .stream()
+                            .filter(post -> !allBlocked.contains(post.getAuthorId()))
+                            .filter(post -> !post.getAuthorId().equals(recipientId))
+                            .forEach(candidates::add);
+                });
+
+        CompletableFuture
+                .allOf(pushedTask, pulledTask, discoveryTask, directPullTask, directDiscoveryTask).join();
 
         // 5. Deduplicate and Filter
         Map<UUID, Post> deduped = new LinkedHashMap<>();
@@ -180,6 +201,8 @@ public class FeedServiceImpl implements IFeedService {
                 .stream()
                 .collect(Collectors.toMap(UserAffinity::getAuthorId, a -> a));
 
+        Map<UUID, Double> velocityScores = velocityService.getVelocityScores(deduped.keySet());
+
         List<RankingRequestDTO.PostFeatureDTO> features = deduped.values().stream()
                 .map(post -> RankingRequestDTO.PostFeatureDTO.builder()
                         .postId(post.getId())
@@ -187,7 +210,7 @@ public class FeedServiceImpl implements IFeedService {
                         .authorAffinity(affinities.containsKey(post.getAuthorId())
                                 ? affinities.get(post.getAuthorId()).getAffinityScore()
                                 : 0.0)
-                        .velocityScore(velocityService.getVelocityScore(post.getId()))
+                        .velocityScore(velocityScores.getOrDefault(post.getId(), 0.0))
                         .recencyHours(Math.max(0.0, (double) Duration
                                 .between(post.getPublishedAt() != null ? post.getPublishedAt() : post.getCreatedAt(),
                                         effectiveCursor)
@@ -358,6 +381,23 @@ public class FeedServiceImpl implements IFeedService {
 
         final Set<UUID> sharedIdsFinal = sharedPostIds;
 
+        Map<UUID, List<String>> topReactionsMap = new HashMap<>();
+        postReactionRepository.findReactionsByPostIdIn(postIds).forEach(row -> {
+            UUID pid = (UUID) row[0];
+            ReactionType type = (ReactionType) row[1];
+            topReactionsMap.computeIfAbsent(pid, k -> new ArrayList<>()).add(type.name());
+        });
+
+        topReactionsMap.forEach((pid, list) -> {
+            Map<String, Long> counts = list.stream().collect(Collectors.groupingBy(s -> s, Collectors.counting()));
+            List<String> top3 = counts.entrySet().stream()
+                    .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                    .limit(3)
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toList());
+            topReactionsMap.put(pid, top3);
+        });
+
         List<PostResponse> responses = posts.stream().map(post -> {
             PostResponse response = postMapper.toResponse(post);
             response.setAuthorInfo(authorSummaries.get(post.getAuthorId()));
@@ -367,12 +407,7 @@ public class FeedServiceImpl implements IFeedService {
                 response.setSharedByViewer(sharedIdsFinal.contains(post.getId()));
             }
 
-            List<String> topReactions = postReactionRepository
-                    .findTopReactionsByPostId(post.getId(), PageRequest.of(0, 3))
-                    .stream()
-                    .map(Enum::name)
-                    .collect(Collectors.toList());
-            response.setTopReactions(topReactions);
+            response.setTopReactions(topReactionsMap.getOrDefault(post.getId(), Collections.emptyList()));
 
             return response;
         }).collect(Collectors.toList());

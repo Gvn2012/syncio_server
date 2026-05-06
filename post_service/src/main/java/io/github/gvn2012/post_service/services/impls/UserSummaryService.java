@@ -30,17 +30,24 @@ public class UserSummaryService {
         Set<UUID> missingIds = new HashSet<>();
 
         try {
-            for (UUID userId : userIds) {
-                String key = CACHE_PREFIX + userId.toString();
-                UserSummaryResponse cached = userSummaryRedisTemplate.opsForValue().get(key);
-                if (cached != null) {
-                    result.put(userId, cached);
-                } else {
-                    missingIds.add(userId);
+            List<String> keys = userIds.stream().map(id -> CACHE_PREFIX + id.toString()).toList();
+            List<UserSummaryResponse> cachedResponses = userSummaryRedisTemplate.opsForValue().multiGet(keys);
+            
+            if (cachedResponses != null) {
+                int i = 0;
+                for (UUID userId : userIds) {
+                    UserSummaryResponse cached = cachedResponses.get(i++);
+                    if (cached != null) {
+                        result.put(userId, cached);
+                    } else {
+                        missingIds.add(userId);
+                    }
                 }
+            } else {
+                missingIds.addAll(userIds);
             }
         } catch (Exception e) {
-            log.warn("Redis lookup failed, falling back to direct service fetch. Error: {}", e.getMessage());
+            log.warn("Redis multiGet failed, falling back to direct service fetch. Error: {}", e.getMessage());
             missingIds.addAll(userIds);
         }
 

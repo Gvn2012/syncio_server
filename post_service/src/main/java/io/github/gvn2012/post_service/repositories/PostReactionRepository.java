@@ -28,4 +28,7 @@ public interface PostReactionRepository extends JpaRepository<PostReaction, UUID
     @Query("SELECT r.reactionType FROM PostReaction r WHERE r.post.id = :postId " +
            "GROUP BY r.reactionType ORDER BY COUNT(r.reactionType) DESC")
     List<ReactionType> findTopReactionsByPostId(UUID postId, Pageable pageable);
+
+    @Query("SELECT r.post.id, r.reactionType FROM PostReaction r WHERE r.post.id IN :postIds")
+    List<Object[]> findReactionsByPostIdIn(Collection<UUID> postIds);
 }

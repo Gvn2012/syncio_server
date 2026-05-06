@@ -1,6 +1,8 @@
 package io.github.gvn2012.post_service.services.interfaces;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public interface IInteractionVelocityService {
@@ -10,6 +12,8 @@ public interface IInteractionVelocityService {
     List<UUID> getTrendingPosts(int limit);
 
     double getVelocityScore(UUID postId);
+
+    Map<UUID, Double> getVelocityScores(Collection<UUID> postIds);
 
     enum InteractionType {
         LIKE(1.0), COMMENT(3.0), SHARE(5.0);
